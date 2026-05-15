@@ -1,0 +1,83 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: playground-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 4JJVDD8F
+      POSTGRES_DB: systemdesign
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - playground-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: playground-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - playground-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: playground-backend
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:4JJVDD8F@postgres:5432/systemdesign
+      REDIS_URL: redis://redis:6379
+      PORT: "8080"
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+    networks:
+      - playground-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: playground-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - playground-net
+    depends_on:
+      - backend
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  playground-net:
+    driver: bridge
