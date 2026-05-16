@@ -1228,9 +1228,254 @@ When saving, each edge now includes routing data:
 | `nodeTypes.ts` — Registers 5 node types + 1 edge type, `getReactFlowType()` maps all 25 NodeTypes | ✅ |
 | `ProjectPage.tsx` — `nodeTypes`/`edgeTypes` wired to `<ReactFlow>`, `enrichNode()` for type mapping | ✅ |
 | `ProjectPage.tsx` — `onConnect` creates edges with default routing data | ✅ |
+| `ProjectPage.tsx` — 3-panel layout (TopToolbar + NodePanel + ReactFlow + ConfigPanel) | ✅ |
+| `ProjectPage.tsx` — Undo/redo with Ctrl+Z / Ctrl+Shift+Z, store-backed max 50 states | ✅ |
+| `ProjectPage.tsx` — Auto-save with 30s debounce, save indicator (Saved ✓ / Saving... / Unsaved changes) | ✅ |
+| `ProjectPage.tsx` — Drag-and-drop from NodePanel via `dataTransfer` | ✅ |
+| `ProjectPage.tsx` — `isValidConnection` prevents self-connections | ✅ |
+| `ProjectPage.tsx` — Delete nodes/edges via Delete/Backspace key with callback | ✅ |
+| `ProjectPage.tsx` — Canvas data loaded from `projectStore.canvas_data` on mount | ✅ |
+| `ConfigPanel.tsx` — Node config editor with all fields, type-safe NODE_REGISTRY access | ✅ |
+| `canvasStore.ts` — `futureStates` unused variable removed in `pushUndoState` | ✅ |
 | `index.css` — `@keyframes edge-dash` and `@keyframes pulse-red` | ✅ |
 | Backend build: `go build ./...` | ✅ |
-| Frontend build: `npm run build` (tsc -b + vite build, 663 modules) | ✅ |
+| Frontend build: `npm run build` (tsc -b + vite build, 663 modules, 595KB JS) | ✅ |
+
+### Fixes Applied During Build
+| Issue | Fix |
+|-------|-----|
+| `ConfigPanel.tsx` — `onUpdateMetrics` prop declared but never used (unused var TS error) | Removed unused prop from NodeConfigEditor signature |
+| `ConfigPanel.tsx:52` — Implicit `any` type when indexing NODE_REGISTRY with unchecked `nodeType` | Cast to `NodeType` and use null check before indexing |
+| `ProjectPage.tsx` — `addEdge` imported from reactflow but unused (uses store version) | Removed unused import |
+| `ProjectPage.tsx` — `DEFAULT_CONFIG`, `selectedNodeId`, `selectedEdgeId`, `isSimulationRunning` declared but unused | Removed unused declarations/destructured vars |
+| `ProjectPage.tsx` — `Connection` type missing required `id` in `onConnect` Edge creation | Construct `Edge` with explicit `id`, `source`, `target` fields |
+| `canvasStore.ts:134` — `futureStates` destructured but never read in `pushUndoState` | Removed from destructuring |
+
+## Phase 3.4 — Node Panel Search, Templates & Drag-Drop
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/components/sidebar/NodePanel.tsx` | Complete rewrite: search input, Nodes/Templates tab bar, 4 predefined architecture templates, exported `templates` and `TemplateDef` types |
+| `frontend/src/store/canvasStore.ts` | Added `loadTemplate(templateNodes, templateEdges)` action — atomically adds multiple nodes+edges with single undo state |
+| `frontend/src/pages/ProjectPage.tsx` | Added `handleApplyTemplate` callback with viewport-centric positioning, passed `onApplyTemplate` prop to NodePanel |
+
+### NodePanel Layout
+
+```
+aside.w-60 (bg-surface-950, border-r)
+├── Tab bar
+│   ├── "Nodes" (default active, green bottom border)
+│   └── "Templates" (green bottom border when active)
+│
+├── [Nodes tab]
+│   ├── Search input (filters node list in real-time)
+│   │   └── "No nodes match your search" empty state
+│   └── Categorized section list (6 categories)
+│       └── Node items: icon + label + color accent bar
+│           └── HTML5 drag: sets "application/node-type" in dataTransfer
+│
+└── [Templates tab]
+    └── 4 template cards (bg-surface-900 border, hover:border-surface-700)
+        ├── Icon + name + description + "N nodes · M edges" badge
+        └── "Apply Template" button → calls onApplyTemplate
+```
+
+### Template Definitions
+
+Each template has `id`, `name`, `description`, `icon`, `nodeCount`, `edgeCount`, and a `build(origin)` function that returns `{ nodes, edges }` with pre-arranged relative positions.
+
+| Template | Icon | Nodes | Edges | Layout |
+|----------|------|-------|-------|--------|
+| **Simple Web App** | 🌐 | 4 | 3 | WebBrowser → LB → AppServer → PostgreSQL (280px spacing) |
+| **Microservices** | 🧩 | 6 | 6 | APIGateway → 3 Microservices (staggered) → Redis + PostgreSQL |
+| **Event-Driven** | 📨 | 4 | 3 | WebServer → MessageQueue (async) → WorkerService → MongoDB |
+| **Blue/Green Deployment** | 🔄 | 4 | 4 | LB → AppServer-v1 (80%) + AppServer-v2 (20%) → PostgreSQL |
+
+### Drag-Drop Mechanism
+
+1. **NodePanel** `onDragStart`: sets `event.dataTransfer.setData("application/node-type", nodeType)`
+2. **ProjectPage** `onDrop`: reads `getData("application/node-type")`, calls `reactFlowInstance.screenToFlowPosition()`, creates Node with defaults from `NODE_REGISTRY`, calls `canvasStore.addNode()`
+3. **ProjectPage** `onDragOver`: `event.preventDefault()` with `dropEffect = "move"`
+4. Both push undo state via `pushUndoState()` before mutation
+
+### Template Application
+
+1. User clicks "Apply Template" in NodePanel
+2. `NodePanel` calls `tpl.build({ x: 0, y: 0 })` to get raw nodes/edges
+3. `ProjectPage.handleApplyTemplate` calculates viewport center:
+   - `cx = (wrapperWidth / 2 - viewport.x) / viewport.zoom`
+   - `cy = (wrapperHeight / 2 - viewport.y) / viewport.zoom`
+   - Offsets all node positions by `(cx - 380, cy - 100)` to roughly center the template
+4. Calls `canvasStore.loadTemplate(movedNodes, edges)` — atomic add with single undo state
+
+### `canvasStore.loadTemplate()`
+
+```
+loadTemplate(templateNodes, templateEdges):
+  1. Clone current state (pushUndo internally via clone)
+  2. Append all templateNodes to nodes array
+  3. Append all templateEdges to edges array
+  4. Set isDirty, clear futureStates
+  (single atom state update, one undo entry)
+```
+
+## Verification: PASSED — 2026-05-16
+
+| Check | Result |
+|-------|--------|
+| HANDOFF.md reflects current Phase 3.4 status with all files, decisions, fixes | ✅ |
+| `frontend/src/components/sidebar/NodePanel.tsx` — Search input, Nodes/Templates tab bar, draggable node items | ✅ |
+| `frontend/src/components/sidebar/NodePanel.tsx` — 4 templates (Simple Web App, Microservices, Event-Driven, Blue/Green) with build(origin) functions | ✅ |
+| `frontend/src/components/sidebar/NodePanel.tsx` — Templates exported as `templates` + `TemplateDef` type | ✅ |
+| `frontend/src/components/sidebar/NodePanel.tsx` — Empty search state, color accent bars on nodes | ✅ |
+| `frontend/src/store/canvasStore.ts` — `loadTemplate` action: appends nodes+edges atomically, single undo state | ✅ |
+| `frontend/src/pages/ProjectPage.tsx` — `handleApplyTemplate` callback with viewport-centering offset | ✅ |
+| `frontend/src/pages/ProjectPage.tsx` — `onApplyTemplate` prop wired to `<NodePanel>` | ✅ |
+| Drag-drop: `dataTransfer` sets `application/node-type`, `onDrop` reads + `screenToFlowPosition` + `addNode` | ✅ |
+| Template nodes use `makeNode()` helper with NODE_REGISTRY defaults + optional config overrides | ✅ |
+| Template edges use `makeEdge()` helper with HTTP/async routing defaults + overrides | ✅ |
+| Blue/Green template: 80/20 traffic split on edges, canary deployment config on v2 | ✅ |
+| `go build ./...` — Backend compiles clean | ✅ |
+| `go vet ./...` — Backend vet passes | ✅ |
+| `npm run build` (tsc -b + vite build) — Frontend compiles clean, 666 modules | ✅ |
+| `go build ./...` — Backend compiles clean | ✅ |
+| `go vet ./...` — Backend vet passes | ✅ |
+
+### Re-Verification: PASSED with Fixes — 2026-05-16
+
+| Fix | Detail |
+|-----|--------|
+| Color accent bar moved to **left** side of node items | Changed from `ml-auto` right-positioned dot to `border-l-2`-style vertical bar as first child, using `backgroundColor: meta.color` |
+| Template nodes use `getReactFlowType()` | `makeNode()` now calls `getReactFlowType(nodeType)` instead of hardcoding `"default"` — so PostgreSQL/MongoDB/Redis nodes render as `database`, LB as `loadBalancer`, MQ as `messageQueue`, etc. |
+| Imports updated | `NodePanel.tsx` now imports `getReactFlowType` from `../canvas/nodeTypes` |
+
+**Build results**: `npm run build` ✅, `go build ./...` ✅, `go vet ./...` ✅ — zero errors.
+
+## Phase 3.5 — Advanced Config Panel
+
+### Files Created / Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | **New** — comprehensive config panel with 6 node sections + edge config, framer-motion slide-in animation |
+| `frontend/src/store/canvasStore.ts` | Added `updateEdge(id, data)` and `updateNodeData(id, data)` actions with undo push |
+| `frontend/src/pages/ProjectPage.tsx` | Switched import from `ConfigPanel` to `NodeConfigPanel` |
+| `frontend/src/components/panels/ConfigPanel.tsx` | **Removed** — replaced by NodeConfigPanel |
+
+### Panel Layout
+
+```
+aside.w-80 (fixed, slide animation via AnimatePresence + motion.div)
+├── [Empty state] — "Select a node or edge to configure" (fade in)
+│
+├── [Node selected] — NodeConfigContent (slide-in from right)
+│   ├── Section 1: Identity
+│   │   ├── Label (text input → updateNodeData)
+│   │   ├── Type badge (colored pill from NODE_REGISTRY)
+│   │   └── Region (dropdown: 7 AWS regions)
+│   │
+│   ├── Section 2: Capacity
+│   │   ├── Instances (number input, 1-100)
+│   │   ├── Max RPS (number input)
+│   │   └── Avg Latency (number input + visual bar up to 500ms)
+│   │
+│   ├── Section 3: Reliability
+│   │   ├── Error Rate (slider 0-100%, stored as 0.0-1.0)
+│   │   ├── Failed (toggle → cfg.isFailed)
+│   │   └── Bottleneck (toggle → cfg.isBottleneck)
+│   │
+│   ├── Section 4: Deployment Strategy
+│   │   ├── Strategy (select: Rolling / Blue-Green / Canary)
+│   │   ├── Canary Traffic (slider, only when Canary selected)
+│   │   ├── Canary Version (text input, only when not Rolling)
+│   │   └── Activate Canary (toggle → deployment.isCanaryActive)
+│   │
+│   ├── Section 5: Security
+│   │   ├── Public Facing (toggle → security.isPublicFacing)
+│   │   ├── Requires TLS (toggle → security.requiresTLS)
+│   │   ├── VPC ID (text input → security.vpcId)
+│   │   └── Allowed Inbound (multiselect from all other nodes)
+│   │       └── Checkbox per node, toggles node ID in security.allowedInbound[]
+│   │
+│   └── Section 6: Live Metrics (only when simulation running)
+│       ├── Current RPS, CPU%, Memory%, Queue Depth
+│       ├── P99 Latency, Error Count
+│       └── Canary RPS (conditional on isCanaryActive)
+│
+└── [Edge selected] — EdgeConfigContent (slide-in from right)
+    ├── Connection header: srcLabel → tgtLabel
+    ├── Protocol (select: HTTP, gRPC, TCP, WebSocket, AMQP)
+    ├── Synchronous (toggle → routing.isSync)
+    ├── Requires TLS (toggle → routing.requiresTLS)
+    ├── Traffic % (slider 0-100 → routing.trafficPercent)
+    └── Stats section
+        ├── Throughput (read-only)
+        ├── Latency (read-only)
+        ├── Animated (toggle → isAnimated)
+        ├── Saturated (toggle → isSaturated, orange accent)
+        └── Secure (toggle → isSecure)
+```
+
+### Store Actions Added
+
+| Action | Signature | Behavior |
+|--------|-----------|----------|
+| `updateNodeData` | `(id, data)` | Merges `data` into `node.data` (for top-level fields like `label`), pushes undo |
+| `updateEdge` | `(id, data)` | Merges `data` into `edge.data` with deep merge on `routing` sub-object, pushes undo |
+
+### Design Decisions
+
+- **All changes push to undo stack**: Every slider move, toggle click, or text input immediately calls `updateNodeConfig`/`updateNodeData`/`updateEdge` which internally push an undo state. This keeps undo granular per-field.
+- **Framer-motion AnimatePresence**: Content switches between empty state, node config, and edge config with `mode="wait"` and slide-in from right (20px offset + opacity).
+- **Reusable form controls**: `Field`, `Toggle`, `SliderField`, `Select`, `NumInput`, `TextInput` are defined as inline helper components to reduce repetition while keeping full type safety.
+- **Error Rate storage**: Stored as 0.0–1.0 in `NodeConfig.errorRate`, displayed as 0–100% in the slider for usability.
+- **Allowed Inbound multiselect**: Filters out the selected node itself, shows all other canvas nodes with their icon and label, toggles their IDs in `security.allowedInbound[]`.
+- **Live Metrics section**: Conditionally rendered only when `isSimulationRunning` is true, reads from `node.data.metrics`.
+
+## Verification: PASSED — 2026-05-16
+
+| Check | Result |
+|-------|--------|
+| Panel width 280px (`w-80`), border-l, surface-950 | ✅ |
+| Framer-motion AnimatePresence slide-in from right | ✅ |
+| Empty state: "Select a node or edge to configure" | ✅ |
+| Section 1 — Identity: label, type badge, region dropdown | ✅ |
+| Section 2 — Capacity: instances, max RPS, avg latency | ✅ |
+| Section 3 — Reliability: error rate slider, failed/bottleneck toggles | ✅ |
+| Section 4 — Deployment Strategy: strategy dropdown, canary traffic slider, canary version, activate toggle | ✅ |
+| Section 5 — Security: public/TLS toggles, VPC ID input, allowed inbound multiselect | ✅ |
+| Section 6 — Live Metrics: 6 stat fields + canary RPS toggle | ✅ |
+| Edge config: protocol, sync/async toggle, TLS toggle, traffic % slider, stats (throughput, latency, animated, saturated, secure) | ✅ |
+| `updateNodeData` action for label editing | ✅ |
+| `updateEdge` action with routing deep merge | ✅ |
+| All changes push to undo stack | ✅ |
+| `npm run build` — 0 errors | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+
+### Re-Verification: PASSED — 2026-05-16
+
+Re-verified all Phase 3.5 items. No issues found.
+
+| Check | Result |
+|-------|--------|
+| `NodeConfigPanel.tsx` — 438 lines, all 6 sections + edge config implemented | ✅ |
+| Section 1 — Identity: editable label, type badge, 7-region dropdown | ✅ |
+| Section 2 — Capacity: instances (1-100), max RPS, avg latency + visual bar | ✅ |
+| Section 3 — Reliability: error rate slider (0-100%), failed + bottleneck toggles | ✅ |
+| Section 4 — Deployment: rolling/blue-green/canary selector, canary traffic slider, canary version, activate toggle | ✅ |
+| Section 5 — Security: public/TLS toggles, VPC ID input, allowed inbound multiselect | ✅ |
+| Section 6 — Live Metrics: 6 fields + canary RPS, conditionally rendered | ✅ |
+| Edge config: protocol selector, sync/async, TLS, traffic % slider, 5 stats toggles | ✅ |
+| `updateNodeData(id, data)` — merges into `node.data`, pushes undo | ✅ |
+| `updateEdge(id, data)` — merges into `edge.data` with routing deep merge, pushes undo | ✅ |
+| Framer-motion `AnimatePresence` slide-in animation between states | ✅ |
+| `ConfigPanel.tsx` deleted (superseded, no remaining imports) | ✅ |
+| `npm run build` — 666 modules, 610KB JS, 0 errors | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
 
 ## Next Step
 
