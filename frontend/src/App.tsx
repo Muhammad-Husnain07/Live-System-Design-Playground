@@ -1,13 +1,43 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useAuthStore } from "./store/authStore";
+import ProtectedRoute from "./components/ui/ProtectedRoute";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import DashboardPage from "./pages/DashboardPage";
+import ProjectPage from "./pages/ProjectPage";
+import ObservabilityPage from "./pages/ObservabilityPage";
+import ProfilePage from "./pages/ProfilePage";
 
 function App() {
+  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  if (isLoading) {
+    return (
+      <div className="h-screen w-screen bg-surface-950 flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-2 border-surface-400 border-t-blue-500 rounded-full" />
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
-      <div className="h-screen w-screen bg-surface-950 text-surface-100 flex flex-col">
-        <Routes>
-          <Route path="/" element={<div className="flex-1 flex items-center justify-center text-surface-400">Live System Design Playground</div>} />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/project/:id" element={<ProjectPage />} />
+          <Route path="/project/:id/observe" element={<ObservabilityPage />} />
+          <Route path="/settings" element={<ProfilePage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   );
 }
