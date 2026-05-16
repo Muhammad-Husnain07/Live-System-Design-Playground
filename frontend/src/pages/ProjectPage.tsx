@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, useRef } from "react";
+import { useEffect, useCallback, useRef, useState, type DragEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ReactFlow, {
   Background,
@@ -11,13 +11,25 @@ import ReactFlow, {
   type Connection,
   applyNodeChanges,
   applyEdgeChanges,
-  addEdge,
+  ReactFlowProvider,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { useProjectStore } from "../store/projectStore";
+import { useCanvasStore } from "../store/canvasStore";
 import { nodeTypes, edgeTypes, getReactFlowType } from "../components/canvas/nodeTypes";
 import { NODE_REGISTRY } from "../utils/nodeRegistry";
-import type { NodeType } from "../types/canvas";
+import NodePanel from "../components/sidebar/NodePanel";
+import NodeConfigPanel from "../components/panels/NodeConfigPanel";
+import type { NodeType, NodeMetrics, SimulationNodeState } from "../types/canvas";
+
+const DEFAULT_SIM: SimulationNodeState = {
+  status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0,
+};
+
+const DEFAULT_METRICS: NodeMetrics = {
+  currentRPS: 0, cpuPercent: 0, memoryPercent: 0, queueDepth: 0,
+  errorCount: 0, p99LatencyMs: 0, canaryRPS: 0,
+};
 
 function enrichNode(node: Node): Node {
   const nt = (node as any).data?.nodeType as NodeType | undefined;
@@ -27,172 +39,198 @@ function enrichNode(node: Node): Node {
   return node;
 }
 
-const defaultNodes: Node[] = [
-  {
-    id: "web-browser",
-    type: "default",
-    position: { x: 250, y: 0 },
-    data: {
-      nodeType: "WebBrowser",
-      label: "Web Browser",
-      config: { instances: 0, region: "us-east-1", maxRPS: 3000, latencyMs: 100, errorRate: 0.001, isFailed: false, isBottleneck: false, deployment: { strategy: "rolling", canaryPercent: 0, canaryVersion: "", isCanaryActive: false }, security: { isPublicFacing: false, requiresTLS: false, allowedInbound: [], vpcId: "" } },
-      simulationState: { status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0 },
-      metrics: { currentRPS: 0, cpuPercent: 0, memoryPercent: 0, queueDepth: 0, errorCount: 0, p99LatencyMs: 0, canaryRPS: 0 },
-    },
-  },
-  {
-    id: "lb",
-    type: "loadBalancer",
-    position: { x: 250, y: 120 },
-    data: {
-      nodeType: "LoadBalancer",
-      label: "Load Balancer",
-      config: { instances: 2, region: "us-east-1", maxRPS: 10000, latencyMs: 5, errorRate: 0.01, isFailed: false, isBottleneck: false, deployment: { strategy: "rolling", canaryPercent: 20, canaryVersion: "v2", isCanaryActive: true }, security: { isPublicFacing: true, requiresTLS: true, allowedInbound: [], vpcId: "" } },
-      simulationState: { status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0 },
-      metrics: { currentRPS: 0, cpuPercent: 0, memoryPercent: 0, queueDepth: 0, errorCount: 0, p99LatencyMs: 0, canaryRPS: 0 },
-    },
-  },
-  {
-    id: "app",
-    type: "default",
-    position: { x: 250, y: 260 },
-    data: {
-      nodeType: "AppServer",
-      label: "App Server",
-      config: { instances: 3, region: "us-east-1", maxRPS: 2000, latencyMs: 30, errorRate: 0.01, isFailed: false, isBottleneck: false, deployment: { strategy: "rolling", canaryPercent: 0, canaryVersion: "", isCanaryActive: false }, security: { isPublicFacing: false, requiresTLS: false, allowedInbound: [], vpcId: "" } },
-      simulationState: { status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0 },
-      metrics: { currentRPS: 0, cpuPercent: 0, memoryPercent: 0, queueDepth: 0, errorCount: 0, p99LatencyMs: 0, canaryRPS: 0 },
-    },
-  },
-  {
-    id: "db",
-    type: "database",
-    position: { x: 250, y: 400 },
-    data: {
-      nodeType: "PostgreSQLDB",
-      label: "PostgreSQL",
-      config: { instances: 1, region: "us-east-1", maxRPS: 1000, latencyMs: 50, errorRate: 0.001, isFailed: false, isBottleneck: false, deployment: { strategy: "rolling", canaryPercent: 0, canaryVersion: "", isCanaryActive: false }, security: { isPublicFacing: false, requiresTLS: false, allowedInbound: [], vpcId: "" } },
-      simulationState: { status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0 },
-      metrics: { currentRPS: 0, cpuPercent: 0, memoryPercent: 0, queueDepth: 0, errorCount: 0, p99LatencyMs: 0, canaryRPS: 0 },
-    },
-  },
-  {
-    id: "queue",
-    type: "messageQueue",
-    position: { x: 450, y: 260 },
-    data: {
-      nodeType: "MessageQueue",
-      label: "Message Queue",
-      config: { instances: 3, region: "us-east-1", maxRPS: 10000, latencyMs: 15, errorRate: 0.005, isFailed: false, isBottleneck: false, deployment: { strategy: "rolling", canaryPercent: 0, canaryVersion: "", isCanaryActive: false }, security: { isPublicFacing: false, requiresTLS: false, allowedInbound: [], vpcId: "" } },
-      simulationState: { status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0 },
-      metrics: { currentRPS: 4500, cpuPercent: 0, memoryPercent: 0, queueDepth: 340, errorCount: 0, p99LatencyMs: 0, canaryRPS: 0 },
-    },
-  },
-  {
-    id: "cluster",
-    type: "containerCluster",
-    position: { x: 450, y: 400 },
-    data: {
-      nodeType: "ContainerCluster",
-      label: "K8s Cluster",
-      config: { instances: 5, region: "us-east-1", maxRPS: 5000, latencyMs: 15, errorRate: 0.01, isFailed: false, isBottleneck: false, deployment: { strategy: "rolling", canaryPercent: 0, canaryVersion: "", isCanaryActive: false }, security: { isPublicFacing: false, requiresTLS: false, allowedInbound: [], vpcId: "" } },
-      simulationState: { status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0 },
-      metrics: { currentRPS: 0, cpuPercent: 0, memoryPercent: 0, queueDepth: 0, errorCount: 0, p99LatencyMs: 0, canaryRPS: 0 },
-    },
-  },
-];
-
-const defaultEdges: Edge[] = [
-  { id: "e-browser-lb", source: "web-browser", target: "lb", type: "default", data: { routing: { protocol: "HTTP", isSync: true, trafficPercent: 100, requiresTLS: true }, throughputRPS: 0, latencyMs: 0, isAnimated: true, isSaturated: false, isSecure: true } },
-  { id: "e-lb-app", source: "lb", target: "app", type: "default", data: { routing: { protocol: "HTTP", isSync: true, trafficPercent: 80, requiresTLS: false }, throughputRPS: 0, latencyMs: 0, isAnimated: true, isSaturated: false, isSecure: true } },
-  { id: "e-lb-queue", source: "lb", target: "queue", type: "default", data: { routing: { protocol: "HTTP", isSync: true, trafficPercent: 20, requiresTLS: false }, throughputRPS: 0, latencyMs: 0, isAnimated: true, isSaturated: false, isSecure: true } },
-  { id: "e-app-db", source: "app", target: "db", type: "default", data: { routing: { protocol: "TCP", isSync: true, trafficPercent: 100, requiresTLS: false }, throughputRPS: 0, latencyMs: 0, isAnimated: false, isSaturated: true, isSecure: false } },
-  { id: "e-queue-cluster", source: "queue", target: "cluster", type: "default", data: { routing: { protocol: "AMQP", isSync: false, trafficPercent: 100, requiresTLS: false }, throughputRPS: 0, latencyMs: 0, isAnimated: false, isSaturated: false, isSecure: true } },
-];
-
-export default function ProjectPage() {
-  const { id } = useParams<{ id: string }>();
+function ProjectCanvas({ id: projectId }: { id: string }) {
   const navigate = useNavigate();
-  const { currentProject, isLoading, error, getProject, saveCanvas } = useProjectStore();
-  const [nodes, setNodes] = useState<Node[]>(defaultNodes.map(enrichNode));
-  const [edges, setEdges] = useState<Edge[]>(defaultEdges);
-  const [saving, setSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<string | null>(null);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const nodesRef = useRef(nodes);
-  const edgesRef = useRef(edges);
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
 
+  const { currentProject, isLoading, error, getProject, saveCanvas } = useProjectStore();
+
+  const store = useCanvasStore();
+  const {
+    nodes, edges, isDirty, lastSaved, pastStates, futureStates,
+    setNodes, setEdges, addNode, removeNode, removeEdge,
+    selectNode, selectEdge, markDirty, markSaved,
+    pushUndoState, undo, redo, addEdge, loadTemplate,
+  } = store;
+
+  const nodesRef = useRef(nodes);
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  const edgesRef = useRef(edges);
   useEffect(() => { edgesRef.current = edges; }, [edges]);
 
-  useEffect(() => {
-    if (id) getProject(id);
-  }, [id, getProject]);
+  const [saving, setSaving] = useState(false);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (currentProject?.canvas_data?.nodes || currentProject?.canvas_data?.edges) {
+    if (projectId) getProject(projectId);
+  }, [projectId, getProject]);
+
+  useEffect(() => {
+    if (currentProject?.canvas_data) {
       const cd = currentProject.canvas_data;
       if (cd.nodes?.length) setNodes(cd.nodes.map(enrichNode));
       if (cd.edges?.length) setEdges(cd.edges);
+      markSaved(currentProject.updated_at);
     }
-    }, [currentProject]);
+  }, [currentProject, setNodes, setEdges, markSaved]);
 
-  const autoSave = useCallback(async () => {
-    if (!id) return;
+  const doAutoSave = useCallback(async () => {
+    if (!projectId) return;
     setSaving(true);
     try {
-      const canvasData = { nodes: nodesRef.current, edges: edgesRef.current };
-      const updatedAt = await saveCanvas(id, canvasData);
-      setLastSaved(updatedAt);
-    } catch {}
+      const payload = { nodes: nodesRef.current, edges: edgesRef.current };
+      const updatedAt = await saveCanvas(projectId, payload);
+      markSaved(updatedAt);
+    } catch { /* keep isDirty true on failure */ }
     setSaving(false);
-  }, [id, saveCanvas]);
+  }, [projectId, saveCanvas, markSaved]);
 
-  const scheduleSave = useCallback(() => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(autoSave, 2000);
-  }, [autoSave]);
+  const scheduleAutoSave = useCallback(() => {
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      const { isDirty: dirty } = useCanvasStore.getState();
+      if (dirty) doAutoSave();
+    }, 30000);
+  }, [doAutoSave]);
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {
-      setNodes((nds) => applyNodeChanges(changes, nds));
-      scheduleSave();
+      setNodes(applyNodeChanges(changes, nodesRef.current));
+      markDirty();
+      scheduleAutoSave();
     },
-    [scheduleSave],
+    [setNodes, markDirty, scheduleAutoSave],
   );
 
   const onEdgesChange: OnEdgesChange = useCallback(
     (changes) => {
-      setEdges((eds) => applyEdgeChanges(changes, eds));
-      scheduleSave();
+      setEdges(applyEdgeChanges(changes, edgesRef.current));
+      markDirty();
+      scheduleAutoSave();
     },
-    [scheduleSave],
+    [setEdges, markDirty, scheduleAutoSave],
   );
 
   const onConnect = useCallback(
     (params: Connection) => {
       if (!params.source || !params.target) return;
-      setEdges((eds) => addEdge({
-        ...params,
+      pushUndoState();
+      addEdge({
+        id: `${params.source}->${params.target}`,
+        source: params.source,
+        target: params.target,
+        sourceHandle: params.sourceHandle ?? undefined,
+        targetHandle: params.targetHandle ?? undefined,
         type: "default",
         data: {
           routing: { protocol: "HTTP", isSync: true, trafficPercent: 100, requiresTLS: false },
-          throughputRPS: 0,
-          latencyMs: 0,
-          isAnimated: false,
-          isSaturated: false,
-          isSecure: true,
+          throughputRPS: 0, latencyMs: 0, isAnimated: false, isSaturated: false, isSecure: true,
         },
-      } as Edge, eds));
-      scheduleSave();
+      } as Edge);
+      scheduleAutoSave();
     },
-    [scheduleSave],
+    [pushUndoState, scheduleAutoSave],
   );
+
+  const isValidConnection = useCallback(
+    (connection: Connection) => connection.source !== connection.target,
+    [],
+  );
+
+  const onNodeClick = useCallback(
+    (_: any, node: Node) => selectNode(node.id),
+    [selectNode],
+  );
+
+  const onEdgeClick = useCallback(
+    (_: any, edge: Edge) => selectEdge(edge.id),
+    [selectEdge],
+  );
+
+  const onPaneClick = useCallback(() => {
+    selectNode(null);
+    selectEdge(null);
+  }, [selectNode, selectEdge]);
+
+  const onNodeDragStop = useCallback(() => {
+    pushUndoState();
+  }, [pushUndoState]);
+
+  const handleApplyTemplate = useCallback(
+    (templateNodes: Node[], templateEdges: Edge[]) => {
+      if (!reactFlowInstance) { loadTemplate(templateNodes, templateEdges); return; }
+      const viewport = reactFlowInstance.getViewport();
+      const wrapper = reactFlowWrapper.current;
+      const w = wrapper?.clientWidth ?? 800;
+      const h = wrapper?.clientHeight ?? 600;
+      const cx = (w / 2 - viewport.x) / viewport.zoom;
+      const cy = (h / 2 - viewport.y) / viewport.zoom;
+      const offset = { x: cx - 380, y: cy - 100 };
+      const { nodes: tn, edges: te } = { nodes: templateNodes, edges: templateEdges };
+      const moved = tn.map((n) => ({ ...n, position: { x: n.position.x + offset.x, y: n.position.y + offset.y } }));
+      loadTemplate(moved, te);
+      scheduleAutoSave();
+    },
+    [reactFlowInstance, loadTemplate, scheduleAutoSave],
+  );
+
+  const onDrop = useCallback(
+    (event: DragEvent) => {
+      event.preventDefault();
+      const nodeType = event.dataTransfer.getData("application/node-type") as NodeType | "";
+      if (!nodeType || !NODE_REGISTRY[nodeType]) return;
+      const meta = NODE_REGISTRY[nodeType];
+      const position = reactFlowInstance?.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      if (!position) return;
+      pushUndoState();
+      const newNode: Node = {
+        id: `${nodeType}-${Date.now()}`,
+        type: getReactFlowType(nodeType),
+        position,
+        data: {
+          nodeType,
+          label: meta.label,
+          config: meta.defaultConfig,
+          simulationState: DEFAULT_SIM,
+          metrics: DEFAULT_METRICS,
+        },
+      };
+      addNode(newNode);
+      scheduleAutoSave();
+    },
+    [reactFlowInstance, pushUndoState, addNode, scheduleAutoSave],
+  );
+
+  const onDragOver = useCallback((event: DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "z") {
+        if (event.shiftKey) { redo(); event.preventDefault(); }
+        else { undo(); event.preventDefault(); }
+      }
+    },
+    [undo, redo],
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onKeyDown]);
+
+  const saveIndicator = saving ? "Saving..." : isDirty ? "Unsaved changes" : lastSaved ? "Saved ✓" : "";
 
   if (isLoading && !currentProject) {
     return (
       <div className="h-screen bg-surface-950 flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-2 border-surface-400 border-t-blue-500 rounded-full" />
+        <div className="animate-spin h-8 w-8 border-2 border-surface-400 border-t-green-500 rounded-full" />
       </div>
     );
   }
@@ -202,10 +240,7 @@ export default function ProjectPage() {
       <div className="h-screen bg-surface-950 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-400 text-sm mb-2">{error}</p>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
-          >
+          <button onClick={() => navigate("/dashboard")} className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
             Back to Dashboard
           </button>
         </div>
@@ -215,12 +250,10 @@ export default function ProjectPage() {
 
   return (
     <div className="h-screen bg-surface-950 text-surface-100 flex flex-col">
+      {/* Top Toolbar */}
       <header className="border-b border-surface-800 px-4 py-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="text-sm text-surface-400 hover:text-surface-200 transition-colors"
-          >
+          <button onClick={() => navigate("/dashboard")} className="text-sm text-surface-400 hover:text-surface-200 transition-colors">
             &larr; Dashboard
           </button>
           <h1 className="text-sm font-medium">{currentProject?.name || "Project"}</h1>
@@ -229,13 +262,33 @@ export default function ProjectPage() {
               {currentProject.role}
             </span>
           )}
-          <span className="text-[10px] text-surface-500">
-            {saving ? "saving..." : lastSaved ? "saved" : ""}
+          {/* Save indicator */}
+          <span className={`text-[10px] ${saving ? "text-yellow-400" : isDirty ? "text-orange-400" : "text-green-500"}`}>
+            {saveIndicator}
           </span>
         </div>
+
         <div className="flex items-center gap-2">
+          {/* Undo / Redo */}
           <button
-            onClick={() => navigate(`/project/${id}/observe`)}
+            onClick={undo}
+            disabled={pastStates.length === 0}
+            title="Undo (Ctrl+Z)"
+            className="px-2 py-1 text-xs bg-surface-800 hover:bg-surface-700 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
+          >
+            ↩
+          </button>
+          <button
+            onClick={redo}
+            disabled={futureStates.length === 0}
+            title="Redo (Ctrl+Shift+Z)"
+            className="px-2 py-1 text-xs bg-surface-800 hover:bg-surface-700 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
+          >
+            ↪
+          </button>
+
+          <button
+            onClick={() => navigate(`/project/${projectId}/observe`)}
             className="px-3 py-1.5 text-xs bg-surface-800 hover:bg-surface-700 rounded-lg transition-colors"
           >
             Observability
@@ -243,27 +296,57 @@ export default function ProjectPage() {
         </div>
       </header>
 
-      <div className="flex-1">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          fitView
-        >
-          <Background color="#27272a" gap={20} />
-          <Controls className="bg-surface-900 border-surface-700 [&>button]:border-surface-700 [&>button]:bg-surface-800 [&>button]:hover:bg-surface-700" />
-          <MiniMap
-            className="border border-surface-700 rounded-lg"
-            style={{ background: "#09090b" }}
-            nodeColor="#27272a"
-            maskColor="rgba(9,9,11,0.7)"
-          />
-        </ReactFlow>
+      {/* 3-panel body */}
+      <div className="flex-1 flex overflow-hidden">
+        <NodePanel onApplyTemplate={handleApplyTemplate} />
+        <div ref={reactFlowWrapper} className="flex-1 relative" onDrop={onDrop} onDragOver={onDragOver}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onInit={setReactFlowInstance}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            onNodeClick={onNodeClick}
+            onEdgeClick={onEdgeClick}
+            onPaneClick={onPaneClick}
+            onNodeDragStop={onNodeDragStop}
+            isValidConnection={isValidConnection}
+            fitView
+            deleteKeyCode={["Backspace", "Delete"]}
+            onNodesDelete={(deleted) => {
+              deleted.forEach((n) => removeNode(n.id));
+              scheduleAutoSave();
+            }}
+            onEdgesDelete={(deleted) => {
+              deleted.forEach((e) => removeEdge(e.id));
+              scheduleAutoSave();
+            }}
+          >
+            <Background color="#27272a" gap={20} />
+            <Controls className="bg-surface-900 border-surface-700 [&>button]:border-surface-700 [&>button]:bg-surface-800 [&>button]:hover:bg-surface-700" />
+            <MiniMap
+              className="border border-surface-700 rounded-lg"
+              style={{ background: "#09090b" }}
+              nodeColor="#27272a"
+              maskColor="rgba(9,9,11,0.7)"
+            />
+          </ReactFlow>
+        </div>
+        <NodeConfigPanel />
       </div>
     </div>
+  );
+}
+
+export default function ProjectPage() {
+  const { id } = useParams<{ id: string }>();
+
+  return (
+    <ReactFlowProvider>
+      <ProjectCanvas id={id!} />
+    </ReactFlowProvider>
   );
 }
