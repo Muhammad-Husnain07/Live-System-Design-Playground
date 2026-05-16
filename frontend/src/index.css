@@ -10,3 +10,23 @@ body {
 #root {
   min-height: 100vh;
 }
+
+.react-flow__edge-path-animated {
+  stroke-dasharray: 8 4;
+  animation: edge-dash 1s linear infinite;
+}
+
+@keyframes edge-dash {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 8px rgba(239,68,68,0.3); }
+  50% { box-shadow: 0 0 20px rgba(239,68,68,0.6); }
+}
+
+.animate-pulse-red {
+  animation: pulse-red 1.5s ease-in-out infinite;
+}

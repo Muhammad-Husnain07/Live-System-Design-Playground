@@ -15,39 +15,107 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { useProjectStore } from "../store/projectStore";
+import { nodeTypes, edgeTypes, getReactFlowType } from "../components/canvas/nodeTypes";
+import { NODE_REGISTRY } from "../utils/nodeRegistry";
+import type { NodeType } from "../types/canvas";
 
-const initialNodes: Node[] = [
+function enrichNode(node: Node): Node {
+  const nt = (node as any).data?.nodeType as NodeType | undefined;
+  if (nt && NODE_REGISTRY[nt]) {
+    return { ...node, type: getReactFlowType(nt) };
+  }
+  return node;
+}
+
+const defaultNodes: Node[] = [
   {
-    id: "client",
+    id: "web-browser",
     type: "default",
     position: { x: 250, y: 0 },
-    data: { label: "Client" },
+    data: {
+      nodeType: "WebBrowser",
+      label: "Web Browser",
+      config: { instances: 0, region: "us-east-1", maxRPS: 3000, latencyMs: 100, errorRate: 0.001, isFailed: false, isBottleneck: false, deployment: { strategy: "rolling", canaryPercent: 0, canaryVersion: "", isCanaryActive: false }, security: { isPublicFacing: false, requiresTLS: false, allowedInbound: [], vpcId: "" } },
+      simulationState: { status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0 },
+      metrics: { currentRPS: 0, cpuPercent: 0, memoryPercent: 0, queueDepth: 0, errorCount: 0, p99LatencyMs: 0, canaryRPS: 0 },
+    },
   },
   {
-    id: "server",
-    type: "default",
-    position: { x: 250, y: 150 },
-    data: { label: "Server" },
+    id: "lb",
+    type: "loadBalancer",
+    position: { x: 250, y: 120 },
+    data: {
+      nodeType: "LoadBalancer",
+      label: "Load Balancer",
+      config: { instances: 2, region: "us-east-1", maxRPS: 10000, latencyMs: 5, errorRate: 0.01, isFailed: false, isBottleneck: false, deployment: { strategy: "rolling", canaryPercent: 20, canaryVersion: "v2", isCanaryActive: true }, security: { isPublicFacing: true, requiresTLS: true, allowedInbound: [], vpcId: "" } },
+      simulationState: { status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0 },
+      metrics: { currentRPS: 0, cpuPercent: 0, memoryPercent: 0, queueDepth: 0, errorCount: 0, p99LatencyMs: 0, canaryRPS: 0 },
+    },
   },
   {
-    id: "database",
+    id: "app",
     type: "default",
-    position: { x: 250, y: 300 },
-    data: { label: "Database" },
+    position: { x: 250, y: 260 },
+    data: {
+      nodeType: "AppServer",
+      label: "App Server",
+      config: { instances: 3, region: "us-east-1", maxRPS: 2000, latencyMs: 30, errorRate: 0.01, isFailed: false, isBottleneck: false, deployment: { strategy: "rolling", canaryPercent: 0, canaryVersion: "", isCanaryActive: false }, security: { isPublicFacing: false, requiresTLS: false, allowedInbound: [], vpcId: "" } },
+      simulationState: { status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0 },
+      metrics: { currentRPS: 0, cpuPercent: 0, memoryPercent: 0, queueDepth: 0, errorCount: 0, p99LatencyMs: 0, canaryRPS: 0 },
+    },
+  },
+  {
+    id: "db",
+    type: "database",
+    position: { x: 250, y: 400 },
+    data: {
+      nodeType: "PostgreSQLDB",
+      label: "PostgreSQL",
+      config: { instances: 1, region: "us-east-1", maxRPS: 1000, latencyMs: 50, errorRate: 0.001, isFailed: false, isBottleneck: false, deployment: { strategy: "rolling", canaryPercent: 0, canaryVersion: "", isCanaryActive: false }, security: { isPublicFacing: false, requiresTLS: false, allowedInbound: [], vpcId: "" } },
+      simulationState: { status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0 },
+      metrics: { currentRPS: 0, cpuPercent: 0, memoryPercent: 0, queueDepth: 0, errorCount: 0, p99LatencyMs: 0, canaryRPS: 0 },
+    },
+  },
+  {
+    id: "queue",
+    type: "messageQueue",
+    position: { x: 450, y: 260 },
+    data: {
+      nodeType: "MessageQueue",
+      label: "Message Queue",
+      config: { instances: 3, region: "us-east-1", maxRPS: 10000, latencyMs: 15, errorRate: 0.005, isFailed: false, isBottleneck: false, deployment: { strategy: "rolling", canaryPercent: 0, canaryVersion: "", isCanaryActive: false }, security: { isPublicFacing: false, requiresTLS: false, allowedInbound: [], vpcId: "" } },
+      simulationState: { status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0 },
+      metrics: { currentRPS: 4500, cpuPercent: 0, memoryPercent: 0, queueDepth: 340, errorCount: 0, p99LatencyMs: 0, canaryRPS: 0 },
+    },
+  },
+  {
+    id: "cluster",
+    type: "containerCluster",
+    position: { x: 450, y: 400 },
+    data: {
+      nodeType: "ContainerCluster",
+      label: "K8s Cluster",
+      config: { instances: 5, region: "us-east-1", maxRPS: 5000, latencyMs: 15, errorRate: 0.01, isFailed: false, isBottleneck: false, deployment: { strategy: "rolling", canaryPercent: 0, canaryVersion: "", isCanaryActive: false }, security: { isPublicFacing: false, requiresTLS: false, allowedInbound: [], vpcId: "" } },
+      simulationState: { status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0 },
+      metrics: { currentRPS: 0, cpuPercent: 0, memoryPercent: 0, queueDepth: 0, errorCount: 0, p99LatencyMs: 0, canaryRPS: 0 },
+    },
   },
 ];
 
-const initialEdges: Edge[] = [
-  { id: "e-client-server", source: "client", target: "server" },
-  { id: "e-server-db", source: "server", target: "database" },
+const defaultEdges: Edge[] = [
+  { id: "e-browser-lb", source: "web-browser", target: "lb", type: "default", data: { routing: { protocol: "HTTP", isSync: true, trafficPercent: 100, requiresTLS: true }, throughputRPS: 0, latencyMs: 0, isAnimated: true, isSaturated: false, isSecure: true } },
+  { id: "e-lb-app", source: "lb", target: "app", type: "default", data: { routing: { protocol: "HTTP", isSync: true, trafficPercent: 80, requiresTLS: false }, throughputRPS: 0, latencyMs: 0, isAnimated: true, isSaturated: false, isSecure: true } },
+  { id: "e-lb-queue", source: "lb", target: "queue", type: "default", data: { routing: { protocol: "HTTP", isSync: true, trafficPercent: 20, requiresTLS: false }, throughputRPS: 0, latencyMs: 0, isAnimated: true, isSaturated: false, isSecure: true } },
+  { id: "e-app-db", source: "app", target: "db", type: "default", data: { routing: { protocol: "TCP", isSync: true, trafficPercent: 100, requiresTLS: false }, throughputRPS: 0, latencyMs: 0, isAnimated: false, isSaturated: true, isSecure: false } },
+  { id: "e-queue-cluster", source: "queue", target: "cluster", type: "default", data: { routing: { protocol: "AMQP", isSync: false, trafficPercent: 100, requiresTLS: false }, throughputRPS: 0, latencyMs: 0, isAnimated: false, isSaturated: false, isSecure: true } },
 ];
 
 export default function ProjectPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentProject, isLoading, error, getProject, saveCanvas } = useProjectStore();
-  const [nodes, setNodes] = useState<Node[]>(initialNodes);
-  const [edges, setEdges] = useState<Edge[]>(initialEdges);
+  const [nodes, setNodes] = useState<Node[]>(defaultNodes.map(enrichNode));
+  const [edges, setEdges] = useState<Edge[]>(defaultEdges);
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,7 +132,7 @@ export default function ProjectPage() {
   useEffect(() => {
     if (currentProject?.canvas_data?.nodes || currentProject?.canvas_data?.edges) {
       const cd = currentProject.canvas_data;
-      if (cd.nodes?.length) setNodes(cd.nodes);
+      if (cd.nodes?.length) setNodes(cd.nodes.map(enrichNode));
       if (cd.edges?.length) setEdges(cd.edges);
     }
     }, [currentProject]);
@@ -103,7 +171,19 @@ export default function ProjectPage() {
 
   const onConnect = useCallback(
     (params: Connection) => {
-      setEdges((eds) => addEdge(params, eds));
+      if (!params.source || !params.target) return;
+      setEdges((eds) => addEdge({
+        ...params,
+        type: "default",
+        data: {
+          routing: { protocol: "HTTP", isSync: true, trafficPercent: 100, requiresTLS: false },
+          throughputRPS: 0,
+          latencyMs: 0,
+          isAnimated: false,
+          isSaturated: false,
+          isSecure: true,
+        },
+      } as Edge, eds));
       scheduleSave();
     },
     [scheduleSave],
@@ -170,6 +250,8 @@ export default function ProjectPage() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           fitView
         >
           <Background color="#27272a" gap={20} />
