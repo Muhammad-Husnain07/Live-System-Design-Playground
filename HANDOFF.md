@@ -876,29 +876,362 @@ DashboardPage
 - **Empty state**: Central icon (SVG grid), descriptive text, and a CTA button to create first project
 - **Responsive grid**: 1 column mobile, 2 columns sm, 3 columns lg
 
+## Phase 3.1 — Advanced Canvas Type System
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/types/canvas.ts` | Core type definitions: node categories, node types, configs, metrics, edge routing, CanvasNode/CanvasEdge interfaces |
+| `frontend/src/utils/nodeRegistry.ts` | `NODE_REGISTRY` — metadata for all 25 node types with defaults, icons, colors |
+
+### Type Architecture
+
+```
+NodeCategory          NodeType (union)        NodeMetadata
+  ├ infrastructure      ├ LoadBalancer         ├ label, description
+  ├ data               ├ PostgreSQLDB         ├ icon, color
+  ├ network            ├ CDN                  ├ category
+  ├ messaging          ├ MessageQueue         └ defaultConfig
+  ├ compute            ├ ContainerCluster
+  └ external           └ 20 more...
+
+NodeConfig                    CanvasNode (extends ReactFlow Node)
+  ├ instances, region          ├ data.nodeType: NodeType
+  ├ maxRPS, latencyMs          ├ data.label: string
+  ├ errorRate, isFailed        ├ data.config: NodeConfig
+  ├ isBottleneck               ├ data.simulationState: SimulationNodeState
+  ├ deployment                  └ data.metrics: NodeMetrics
+  │  ├ strategy (rolling|blue_green|canary)
+  │  ├ canaryPercent (0-100)
+  │  └ canaryVersion
+  └ security
+     ├ isPublicFacing
+     ├ requiresTLS
+     ├ allowedInbound
+     └ vpcId
+
+EdgeRoutingConfig             CanvasEdge (extends ReactFlow Edge)
+  ├ protocol (HTTP|gRPC|TCP|WS|AMQP)  ├ data.routing
+  ├ isSync (sync vs async)            ├ data.throughputRPS
+  ├ trafficPercent (0-100)            ├ data.latencyMs
+  └ requiresTLS                       ├ data.isAnimated
+                                      ├ data.isSaturated
+                                      └ data.isSecure
+```
+
+### Node Categories & Types (25 total)
+
+| Category | Color | Types |
+|----------|-------|-------|
+| **Infrastructure** | `#3B82F6` (blue) | LoadBalancer, APIGateway, WebServer, AppServer, Microservice |
+| **Data** | `#F97316` (orange) | PostgreSQLDB, MySQLDB, MongoDB, Redis, Elasticsearch |
+| **Network** | `#A855F7` (purple) | CDN, DNS, Firewall, VPC, Subnet |
+| **Messaging** | `#06B6D4` (cyan) | MessageQueue, EventBus, PubSub |
+| **Compute** | `#22C55E` (green) | ContainerCluster, ServerlessFunction, BatchProcessor, WorkerService |
+| **External** | `#6B7280` (gray) | ExternalClient, ThirdPartyAPI, MobileClient, WebBrowser |
+
+### Deployment Config
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `strategy` | `"rolling" \| "blue_green" \| "canary"` | Deployment strategy for this node |
+| `canaryPercent` | `number` (0-100) | Traffic percentage directed to canary version |
+| `canaryVersion` | `string` | Version identifier for the canary (e.g. "v2") |
+| `isCanaryActive` | `boolean` | Whether canary deployment is currently active |
+
+### Security Config
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `isPublicFacing` | `boolean` | Whether the node is exposed to the internet |
+| `requiresTLS` | `boolean` | Whether TLS is required for incoming connections |
+| `allowedInbound` | `string[]` | Node IDs permitted to connect to this node |
+| `vpcId` | `string` | VPC or Subnet node ID this node belongs to |
+
+### Edge Routing Config
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `protocol` | `"HTTP" \| "gRPC" \| "TCP" \| "WebSocket" \| "AMQP"` | Communication protocol |
+| `isSync` | `boolean` | Sync (web/REST) vs async (queue) communication |
+| `trafficPercent` | `number` (0-100) | Traffic split percentage for load balancer routing |
+| `requiresTLS` | `boolean` | Whether TLS is required on this edge |
+
+### Simulation Node State
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | `"healthy" \| "degraded" \| "failing" \| "down"` | Current health status |
+| `uptimeSeconds` | `number` | Seconds since last failure |
+| `lastFailure` | `string \| null` | ISO timestamp of last failure event |
+| `failureCount` | `number` | Total failure count since simulation start |
+
+### Node Metrics (Runtime Values)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `currentRPS` | `number` | Current requests per second |
+| `cpuPercent` | `number` (0-100) | CPU utilization |
+| `memoryPercent` | `number` (0-100) | Memory utilization |
+| `queueDepth` | `number` | Pending request queue depth |
+| `errorCount` | `number` | Error count in current window |
+| `p99LatencyMs` | `number` | P99 latency in milliseconds |
+| `canaryRPS` | `number` | RPS hitting the canary version |
+
+### NODE_REGISTRY Default Configurations
+
+Each of the 25 node types has sensible defaults:
+
+| Node Type | Instances | Max RPS | Latency | Error Rate | Public? | TLS? |
+|-----------|-----------|---------|---------|------------|---------|------|
+| LoadBalancer | 2 | 10,000 | 5ms | 1% | ✅ | ✅ |
+| APIGateway | 2 | 5,000 | 10ms | 1% | ✅ | ✅ |
+| WebServer | 3 | 2,000 | 20ms | 1% | ❌ | ❌ |
+| AppServer | 3 | 2,000 | 30ms | 1% | ❌ | ❌ |
+| Microservice | 3 | 1,500 | 25ms | 1% | ❌ | ❌ |
+| PostgreSQLDB | 1 | 1,000 | 50ms | 0.1% | ❌ | ❌ |
+| MySQLDB | 1 | 1,000 | 50ms | 0.1% | ❌ | ❌ |
+| MongoDB | 1 | 2,000 | 30ms | 0.1% | ❌ | ❌ |
+| Redis | 2 | 10,000 | 5ms | 0.1% | ❌ | ❌ |
+| Elasticsearch | 3 | 3,000 | 30ms | 0.1% | ❌ | ❌ |
+| CDN | 1 | 50,000 | 2ms | 0.1% | ✅ | ✅ |
+| DNS | 1 | 50,000 | 2ms | 0.1% | ✅ | ❌ |
+| Firewall | 2 | 20,000 | 5ms | 0.1% | ✅ | ❌ |
+| VPC | 0 | — | — | — | ❌ | ❌ |
+| Subnet | 0 | — | — | — | ❌ | ❌ |
+| MessageQueue | 3 | 10,000 | 15ms | 0.5% | ❌ | ❌ |
+| EventBus | 3 | 15,000 | 10ms | 0.5% | ❌ | ❌ |
+| PubSub | 3 | 20,000 | 8ms | 0.5% | ❌ | ❌ |
+| ContainerCluster | 5 | 5,000 | 15ms | 1% | ❌ | ❌ |
+| ServerlessFunction | 10 | 1,000 | 100ms | 1% | ✅ | ✅ |
+| BatchProcessor | 2 | 500 | 5,000ms | 1% | ❌ | ❌ |
+| WorkerService | 4 | 3,000 | 50ms | 1% | ❌ | ❌ |
+| ExternalClient | 0 | 1,000 | 100ms | 0.1% | — | — |
+| ThirdPartyAPI | 0 | 500 | 200ms | 0.1% | — | — |
+| MobileClient | 0 | 2,000 | 150ms | 0.1% | — | — |
+| WebBrowser | 0 | 3,000 | 100ms | 0.1% | — | — |
+
+### CanvasState Shape
+
+What `projects.canvas_data` (JSONB) stores:
+
+```json
+{
+  "nodes": [
+    {
+      "id": "uuid",
+      "type": "default",
+      "position": { "x": 250, "y": 0 },
+      "data": {
+        "nodeType": "LoadBalancer",
+        "label": "Main LB",
+        "config": { "instances": 2, "region": "us-east-1", "maxRPS": 10000, ... },
+        "simulationState": { "status": "healthy", "uptimeSeconds": 3600, ... },
+        "metrics": { "currentRPS": 4500, "cpuPercent": 62, ... }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-1-2",
+      "source": "node-1",
+      "target": "node-2",
+      "data": {
+        "routing": { "protocol": "HTTP", "isSync": true, "trafficPercent": 100, "requiresTLS": true },
+        "throughputRPS": 4500,
+        "latencyMs": 8,
+        "isAnimated": true,
+        "isSaturated": false,
+        "isSecure": true
+      }
+    }
+  ],
+  "viewport": { "x": 0, "y": 0, "zoom": 1 }
+}
+```
+
+## Phase 3.2 — Custom React Flow Node Components & Edges
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/components/canvas/BaseNode.tsx` | Core shared node component — handles, badges, indicators, metrics bar, framer-motion mount animation |
+| `frontend/src/components/canvas/DatabaseNode.tsx` | Database cylinder/drum CSS aesthetic (renders inside BaseNode children slot) |
+| `frontend/src/components/canvas/LoadBalancerNode.tsx` | Traffic split visual — SVG lines diverging from center node |
+| `frontend/src/components/canvas/MessageQueueNode.tsx` | Queue depth fill bar — color-coded by utilization (cyan/orange/red) |
+| `frontend/src/components/canvas/ContainerClusterNode.tsx` | Pod grid — 3x3 grid of green/empty boxes representing pod health |
+| `frontend/src/components/canvas/CustomEdge.tsx` | Custom bezier edge with sync/async styling, saturation coloring, security violations, animated dots, and hover tooltip |
+| `frontend/src/components/canvas/nodeTypes.ts` | Node type ↔ React Flow type mapper + `getReactFlowType()` helper, exports `nodeTypes` and `edgeTypes` registrations |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ProjectPage.tsx` | Replaced static initialNodes with typed demo architecture (WebBrowser → LoadBalancer → App Server + DB + Queue + Cluster); added `enrichNode()` mapper to set correct React Flow type from `data.nodeType`; wired `nodeTypes`/`edgeTypes` to `<ReactFlow>`; new edges now get default routing data |
+| `frontend/src/index.css` | Added `@keyframes edge-dash` for animated edge stroke, `@keyframes pulse-red` for failed node |
+| `frontend/src/types/canvas.ts` | Changed `CanvasNode`/`CanvasEdge` from `interface extends` to `type = Node<...>` / `type = Edge<...>` for TypeScript 6.0 compatibility (computed symbol in Node type) |
+| `frontend/src/utils/nodeRegistry.ts` | Simplified override type helpers — removed overly strict `Omit<>` that prevented security field overrides |
+
+### Node Component Architecture
+
+```
+ProjectPage (ReactFlow)
+  ├── nodeTypes
+  │   ├── "default"         → BaseNode
+  │   ├── "database"        → DatabaseNode (wraps BaseNode + cylinder CSS)
+  │   ├── "loadBalancer"    → LoadBalancerNode (wraps BaseNode + SVG traffic split)
+  │   ├── "messageQueue"    → MessageQueueNode (wraps BaseNode + queue bar)
+  │   └── "containerCluster" → ContainerClusterNode (wraps BaseNode + pod grid)
+  └── edgeTypes
+       └── "default"        → CustomEdge
+
+BaseNode (shared frame)
+  ├── Handles: Left(target), Right(source), Top(target), Bottom(source)
+  │            (appear on hover via group-hover:opacity-100)
+  ├── Header: icon + label + 🌐 badge (if isPublicFacing)
+  ├── Type row: colored dot + type name + canary badge (if isCanaryActive)
+  ├── Children slot (custom content from specific nodes)
+  ├── Bottleneck warning (⚠️ if isBottleneck)
+  ├── Metrics bar (CPU bar, MEM bar, RPS text - only when metrics exist)
+  ├── Failed overlay (❌ + red pulse border if isFailed)
+  ├── Selected glow (blue box-shadow)
+  └── Mount animation (framer-motion scale 0.85→1, opacity 0→1)
+```
+
+### Specific Node Visuals
+
+| Node | Feature | Implementation |
+|------|---------|----------------|
+| **DatabaseNode** | Cylinder/drum | CSS half-ellipse at top (`rounded-t-full`) + gradient from `surface-700/40` |
+| **LoadBalancerNode** | Traffic split | SVG with 3 lines diverging from center circle, 8px tall |
+| **MessageQueueNode** | Queue depth bar | Colored bar (cyan < 50%, orange < 80%, red ≥ 80%) + "N queued" label |
+| **ContainerClusterNode** | Pod grid | 3×3 grid of dots; first `instances` dots green, rest gray |
+
+### Custom Edge Visual Rules
+
+| Condition | Stroke | Pattern |
+|-----------|--------|---------|
+| Normal | `#a1a1aa` (zinc-400) | Solid |
+| Saturated (`isSaturated`) | `#F97316` (orange-500) | Solid |
+| Async (`isSync=false`) | zinc-400 | Dashed (`8 4`) |
+| Insecure (`!isSecure && requiresTLS`) | `#EF4444` (red-500) | Dashed (`6 4`) |
+| Animated (`isAnimated`) | Inherited | Dashed (`8 4`) + moving circle via `<animateMotion>` |
+| Selected | Inherited | Width 3 instead of 2 |
+| Hovered | + tooltip | SVG rect + text showing `Protocol | Traffic% | Throughput RPS` |
+
+Edge path: Smooth bezier via `getBezierPath()` from `@reactflow/core`.
+
+### Canvas State Shape (updated)
+
+When saving, each edge now includes routing data:
+
+```json
+{
+  "nodes": [
+    {
+      "id": "web-browser",
+      "type": "default",
+      "position": { "x": 250, "y": 0 },
+      "data": {
+        "nodeType": "WebBrowser",
+        "label": "Web Browser",
+        "config": { "instances": 0, "region": "us-east-1", "maxRPS": 3000, ... },
+        "simulationState": { "status": "healthy", "uptimeSeconds": 0, ... },
+        "metrics": { "currentRPS": 0, "cpuPercent": 0, ... }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-lb-app",
+      "source": "lb", "target": "app",
+      "type": "default",
+      "data": {
+        "routing": { "protocol": "HTTP", "isSync": true, "trafficPercent": 80, "requiresTLS": false },
+        "throughputRPS": 0, "latencyMs": 0, "isAnimated": true, "isSaturated": false, "isSecure": true
+      }
+    }
+  ],
+  "viewport": { "x": 0, "y": 0, "zoom": 1 }
+}
+```
+
+### React Flow Type Mapping
+
+`getReactFlowType(nodeType)` helper maps `NodeType` to React Flow registered component:
+
+| NodeType | React Flow `type` | Component |
+|----------|-------------------|-----------|
+| `PostgreSQLDB`, `MySQLDB`, `MongoDB`, `Redis`, `Elasticsearch` | `"database"` | DatabaseNode |
+| `LoadBalancer` | `"loadBalancer"` | LoadBalancerNode |
+| `MessageQueue` | `"messageQueue"` | MessageQueueNode |
+| `ContainerCluster` | `"containerCluster"` | ContainerClusterNode |
+| All others | `"default"` | BaseNode |
+
 ## Status
 
-**Phase 2.2 — Dashboard complete**
+**Phase 3.2 — Custom React Flow node components and edges complete**
 
 ### Verification: PASSED — 2026-05-16
-- Store restructured: `totalProjects`, `currentPage`, `currentProject`, `setCurrentProject()`
-- `ProjectCard.tsx` created with name, description, public/private badge, hover delete
-- `NewProjectModal.tsx` created with name/description/public fields, green accent
-- `DashboardPage.tsx` rewritten: LSDP header, user dropdown, empty state with icon, responsive grid, green accent theme
-- Build results: `tsc --noEmit` ✅, `npm run build` (255 modules, 449KB JS) ✅
 
-### Re-Verification: FIXED — 2026-05-16
-- Fixed: Empty state text changed from "Create your first architecture to get started" to match spec "Create your first architecture"
-- All spec items verified:
-  - Store: `projects`, `totalProjects`, `currentPage`, `currentProject`, `isLoading` — all present ✅
-  - Actions: `fetchProjects(page)`, `createProject()`, `deleteProject()`, `setCurrentProject()`, `updateProject()` — all present ✅
-  - DashboardPage: LSDP logo header ✅, user dropdown (Profile/Logout) ✅, New Project button (green) ✅, ProjectCard grid ✅
-  - Empty state: icon ✅, "Create your first architecture" ✅, CTA button ✅
-  - ProjectCard: name/description/date/badge ✅, click navigates ✅, hover delete with 2-click confirm ✅
-  - NewProjectModal: name/description/public fields ✅, green submit button ✅
-  - Layout: responsive grid sm:2 lg:3 ✅, dark theme ✅, green accent (#22c55e) ✅
-- Build results: `tsc --noEmit` ✅, `npm run build` ✅
+| Check | Status |
+|-------|--------|
+| `BaseNode.tsx` — Handles on all 4 sides (appear on hover) | ✅ |
+| `BaseNode.tsx` — Color-coded border from NODE_REGISTRY | ✅ |
+| `BaseNode.tsx` — Selected state: blue glow (`box-shadow` + thicker border) | ✅ |
+| `BaseNode.tsx` — isFailed: ❌ overlay + red pulsing border + `bg-red-500/10` | ✅ |
+| `BaseNode.tsx` — isBottleneck: ⚠️ warning text | ✅ |
+| `BaseNode.tsx` — Canary badge (purple "v2" pill, conditional on `isCanaryActive`) | ✅ |
+| `BaseNode.tsx` — Public facing: 🌐 badge in header | ✅ |
+| `BaseNode.tsx` — Metrics bar: CPU bar, MEM bar, RPS text (only when `metrics` exists) | ✅ |
+| `BaseNode.tsx` — Framer-motion mount animation (scale + opacity) | ✅ |
+| `BaseNode.tsx` — Fallback for unknown nodeType (red "Unknown" box) | ✅ |
+| `DatabaseNode.tsx` — Cylinder/drum CSS (border half-ellipse + gradient) | ✅ |
+| `LoadBalancerNode.tsx` — SVG 3-line traffic split visual | ✅ |
+| `MessageQueueNode.tsx` — Queue depth fill bar (cyan/orange/red) + count label | ✅ |
+| `ContainerClusterNode.tsx` — 3×3 pod grid, green=healthy gray=unhealthy | ✅ |
+| `CustomEdge.tsx` — Smooth bezier path via `getBezierPath()` | ✅ |
+| `CustomEdge.tsx` — Normal: zinc-400 solid, Saturated: orange solid | ✅ |
+| `CustomEdge.tsx` — Async: dashed stroke (`8 4`), Sync: solid | ✅ |
+| `CustomEdge.tsx` — Insecure TLS mismatch: red dashed (`6 4`) | ✅ |
+| `CustomEdge.tsx` — Animated: `circle` + `animateMotion` along path | ✅ |
+| `CustomEdge.tsx` — Hover tooltip: SVG rect+text with protocol/traffic%/throughput | ✅ |
+| `nodeTypes.ts` — `nodeTypes` map (default/database/loadBalancer/messageQueue/containerCluster) | ✅ |
+| `nodeTypes.ts` — `edgeTypes` map (default = CustomEdge) | ✅ |
+| `nodeTypes.ts` — `getReactFlowType()` maps 7 data node types → "database", LB → "loadBalancer", MQ → "messageQueue", CC → "containerCluster", rest → "default" | ✅ |
+| `ProjectPage.tsx` — `nodeTypes`/`edgeTypes` passed to `<ReactFlow>` | ✅ |
+| `ProjectPage.tsx` — `enrichNode()` maps `data.nodeType` to correct React Flow type on load | ✅ |
+| `ProjectPage.tsx` — `onConnect` creates edges with default routing data | ✅ |
+| `index.css` — `@keyframes edge-dash` for animated edge stroke, `@keyframes pulse-red` | ✅ |
+| `canvas.ts` — `CanvasNode`/`CanvasEdge` changed to `type = Node<...>` (TS 6.0 compat) | ✅ |
+| `nodeRegistry.ts` — Override helpers accept `security` field | ✅ |
+| Backend build: `go build ./...` | ✅ |
+| Frontend build: `npm run build` (663 modules, 587KB JS) | ✅ |
+
+### Re-Verification: PASSED — 2026-05-16
+
+| Check | Status |
+|-------|--------|
+| HANDOFF.md structure — no duplicate Status sections (old Phase 3.1 status removed) | ✅ |
+| `BaseNode.tsx` — Handles (4 sides, hover reveal), icon+label header, colored dot+badge row, children slot | ✅ |
+| `BaseNode.tsx` — Selected glow, failed overlay+pulse, bottleneck warning, canary badge, public badge | ✅ |
+| `BaseNode.tsx` — MiniBar CPU/MEM bars, RPS text, framer-motion animation, unknown fallback | ✅ |
+| `DatabaseNode.tsx` — Cylinder CSS (rounded-t-full + gradient), renders via children slot | ✅ |
+| `LoadBalancerNode.tsx` — SVG 3-line traffic split from center circle, renders via children slot | ✅ |
+| `MessageQueueNode.tsx` — Queue fill bar (cyan/orange/red), depth label, renders via children slot | ✅ |
+| `ContainerClusterNode.tsx` — 3×3 pod grid (green=healthy, gray=unhealthy), renders via children slot | ✅ |
+| `CustomEdge.tsx` — Bezier path via `getBezierPath()`, default zinc-400, saturated orange | ✅ |
+| `CustomEdge.tsx` — Async dashed (8 4), TLS violation red dashed (6 4), animated circle+animateMotion | ✅ |
+| `CustomEdge.tsx` — Hover tooltip (rect+text) with protocol/traffic%/throughput | ✅ |
+| `nodeTypes.ts` — Registers 5 node types + 1 edge type, `getReactFlowType()` maps all 25 NodeTypes | ✅ |
+| `ProjectPage.tsx` — `nodeTypes`/`edgeTypes` wired to `<ReactFlow>`, `enrichNode()` for type mapping | ✅ |
+| `ProjectPage.tsx` — `onConnect` creates edges with default routing data | ✅ |
+| `index.css` — `@keyframes edge-dash` and `@keyframes pulse-red` | ✅ |
+| Backend build: `go build ./...` | ✅ |
+| Frontend build: `npm run build` (tsc -b + vite build, 663 modules) | ✅ |
 
 ## Next Step
 
-Phase 3: Implement WebSocket real-time collaboration — sync canvas state (nodes, edges) across multiple users via WebSocket, with Yjs or Socket.IO integration.
+Phase 3.3: Implement WebSocket real-time collaboration — sync canvas state (nodes, edges) across multiple users via WebSocket, with Yjs or Socket.IO integration.
