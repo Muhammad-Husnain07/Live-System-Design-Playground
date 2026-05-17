@@ -1477,6 +1477,940 @@ Re-verified all Phase 3.5 items. No issues found.
 | `go build ./...` — 0 errors | ✅ |
 | `go vet ./...` — 0 errors | ✅ |
 
+## Phase 3.6 — Top Toolbar
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/components/toolbar/TopToolbar.tsx` | Full-width top toolbar with project name, simulation controls, export, and user dropdown |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ProjectPage.tsx` | Replaced inline `<header>` with `<TopToolbar projectId={projectId} saving={saving} />`; removed `saveIndicator` variable and unused destructured fields |
+
+### Toolbar Layout
+
+```
+header.h-[52px] (flex items-center, surface-950, border-b surface-800)
+├── Left section (flex, gap-3)
+│   ├── ← (Back to Dashboard)
+│   ├── Project name (inline editable: click → input, Enter/blur → save, Escape → cancel)
+│   ├── Role badge (owner/editor/viewer pill)
+│   └── Save status (Saving... / Unsaved changes / Saved)
+│
+├── Center section (flex-1, justify-center, gap-2)
+│   ├── ↩ (Undo, disabled when pastStates empty)
+│   ├── ↪ (Redo, disabled when futureStates empty)
+│   ├── │ separator
+│   ├── ▶ Run / ■ Stop (green/red accent)
+│   ├── Speed selector (1x / 2x / 5x)
+│   └── Timer (mm:ss, visible only while running)
+│
+└── Right section (flex, gap-2)
+    ├── 👥 Collaborators
+    ├── Share button
+    ├── Export ▾ dropdown (click-away-to-close)
+    │   ├── 📷 Export as PNG
+    │   └── 📄 Export as JSON
+    ├── │ separator
+    ├── 📊 Observability → /project/:id/observe
+    └── User dropdown (click-away-to-close)
+        ├── Avatar (first letter) + username
+        ├── email
+        ├── Settings → /settings
+        └── Sign Out → logout + redirect /login
+```
+
+### Store Integration
+
+| Store | Fields Used |
+|-------|-------------|
+| `useCanvasStore` | `isDirty`, `lastSaved`, `pastStates`, `futureStates`, `undo`, `redo`, `isSimulationRunning`, `simulationSpeed`, `setSimulationRunning`, `setSimulationSpeed` |
+| `useProjectStore` | `currentProject` (name, role), `updateProject(projectId, { name })` |
+| `useAuthStore` | `user` (username, email), `logout` |
+
+### Props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `projectId` | `string` | Current project UUID (passed from ProjectPage) |
+| `saving` | `boolean` | Whether an auto-save request is in-flight |
+
+### Design Decisions
+
+- **Inline name editing**: Click the project name to turn it into an `<input>`; Enter or blur commits via `updateProject(id, { name })`; Escape discards changes. Stale-closure-safe via `useCallback`.
+- **Simulation timer**: Local `useState` + `useEffect` with `setInterval(1000)` while simulation runs. Resets to `0` on every start.
+- **Save indicator**: Derived from `saving` prop (yellow "Saving..."), `isDirty` (orange "Unsaved changes"), or `lastSaved` (green "Saved").
+- **Export dropdown**: Uses `useRef` + `mousedown` document listener for click-away-to-close. Export actions are placeholders (no side effects yet).
+- **User dropdown**: Same pattern as export dropdown with click-away-to-close. Shows avatar circle, username, email divider, then Settings/Sign Out actions.
+- **Undo/Redo**: Buttons match the previous inline header behavior; `disabled` when respective stack is empty.
+- **Observability button**: Navigates to `/project/:id/observe` (existing route).
+
+## Verification: PASSED — 2026-05-16
+
+| Check | Result |
+|-------|--------|
+| `TopToolbar.tsx` — Left: back button, inline-editable name, role badge, save status | ✅ |
+| `TopToolbar.tsx` — Center: undo/redo, run/stop toggle, speed selector (1x/2x/5x), simulation timer | ✅ |
+| `TopToolbar.tsx` — Right: collaborators, share, export dropdown, observability, user dropdown | ✅ |
+| `TopToolbar.tsx` — Props: `projectId`, `saving` passed from `ProjectPage` | ✅ |
+| `TopToolbar.tsx` — Inline name edit: click → input, Enter/blur → save, Escape → cancel | ✅ |
+| `TopToolbar.tsx` — Timer: resets on start, setInterval(1000), format mm:ss | ✅ |
+| `TopToolbar.tsx` — Export dropdown: click-away-to-close, PNG/JSON placeholder options | ✅ |
+| `TopToolbar.tsx` — User dropdown: click-away-to-close, avatar, settings, sign out | ✅ |
+| `TopToolbar.tsx` — Undo/Redo disabled state from pastStates/futureStates length | ✅ |
+| `ProjectPage.tsx` — Inline `<header>` replaced with `<TopToolbar>` | ✅ |
+| `ProjectPage.tsx` — Removed `saveIndicator`, unused `pastStates`/`futureStates`/`isDirty`/`lastSaved` destructuring | ✅ |
+| `npm run build` (tsc -b + vite build) — 667 modules, 615KB JS, 0 errors | ✅ |
+
+### Re-Verification: PASSED — 2026-05-16
+
+| Check | Result |
+|-------|--------|
+| `TopToolbar.tsx` exists at `frontend/src/components/toolbar/TopToolbar.tsx` with default export | ✅ |
+| Props: `projectId: string`, `saving: boolean` | ✅ |
+| Left: back button (← → /dashboard) + inline-editable name + role badge + save status | ✅ |
+| Center: undo/redo + run/stop toggle + speed selector (1x/2x/5x) + timer (mm:ss) | ✅ |
+| Right: collaborators + share + export dropdown (PNG/JSON) + observability + user dropdown (avatar/settings/logout) | ✅ |
+| Stores used: `useCanvasStore` (isDirty, lastSaved, pastStates, futureStates, undo, redo, isSimulationRunning, simulationSpeed, setSimulationRunning, setSimulationSpeed) | ✅ |
+| Stores used: `useProjectStore` (currentProject, updateProject) | ✅ |
+| Stores used: `useAuthStore` (user, logout) | ✅ |
+| Inline name edit: click → input, Enter/blur → save via updateProject, Escape → cancel | ✅ |
+| Timer: resets on start, setInterval(1000), mm:ss format | ✅ |
+| Export dropdown: click-away-to-close, 2 placeholder options | ✅ |
+| User dropdown: click-away-to-close, avatar circle, email divider, settings + sign out | ✅ |
+| Undo/Redo disabled when respective stack empty | ✅ |
+| `ProjectPage.tsx`: inline `<header>` replaced with `<TopToolbar projectId={projectId} saving={saving} />` | ✅ |
+| `ProjectPage.tsx`: removed unused `saveIndicator`, `pastStates`, `futureStates`, `isDirty`, `lastSaved` | ✅ |
+| `npm run build` (tsc -b + vite build) — 667 modules, 615KB JS, 0 errors | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+
+## Phase 4.1 — Advanced Simulation Engine
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `backend/simulation/models.go` | All simulation data types: `Config`, `Node`, `Edge`, `Tick`, `NodeMetricsSnapshot`, `DeploymentConfig`, `SecurityConfig`, `NodeType` constants with `IsAsyncNodeType()` helper |
+| `backend/simulation/propagator.go` | Topological sort (Kahn's algorithm), cycle detection (DFS with temporary marks), cycle breaking at async boundaries, traffic propagation across sync/async paths, deployment strategy splits |
+| `backend/simulation/traffic.go` | `LoadGenerator` with 3 traffic patterns (Steady, RampUp, Spike) and ±15% uniform noise |
+| `backend/simulation/metrics.go` | `SnapshotTick()` — builds `Tick` struct with per-node metrics snapshots and global aggregates (TotalRPS, GlobalErrorRate, ActiveRequests); `mathRound()` helper |
+| `backend/simulation/engine.go` | `Engine` struct with concurrent tick loop: `Start()`, `Stop()`, `RunTick()`, `OnTick()` callback, `Ticks()` history accessor |
+
+### Architecture
+
+```
+Engine (goroutine tick loop)
+  ├── Start() → launches runLoop() goroutine
+  ├── Stop()  → sets running=false, loop exits on next tick
+  ├── RunTick()
+  │   ├── LoadGenerator.RPSAtTick() → base RPS for this tick
+  │   ├── PropagationContext.PropagateTick(rps) → process all nodes
+  │   └── SnapshotTick() → collect metrics
+  └── OnTick() callback (optional, for real-time streaming)
+
+PropagationContext
+  ├── TopologicalSort() → Kahn's algorithm
+  ├── BreakCycles() → find async boundaries in cycles
+  └── PropagateTick() → per-tick request lifecycle
+
+LoadGenerator
+  ├── Steady → baseRPS + noise
+  ├── RampUp → 30% → 100% over duration + noise
+  └── Spike → 2x-5x bursts every N ticks + noise
+```
+
+### Topological Sort with Cycle Detection
+
+The propagator uses **Kahn's algorithm** to compute a topological ordering of the node graph:
+
+1. Compute in-degree for every node by counting incoming edges
+2. Enqueue nodes with in-degree 0 (these become **entry nodes**)
+3. Dequeue a node, append to `order`, decrement in-degree for each successor
+4. If a successor's in-degree reaches 0, enqueue it
+5. After processing, any node not in `order` belongs to a **cycle**
+
+**Cycle detection** uses DFS with a temporary mark stack (`inStack` map):
+- Traverse unprocessed nodes
+- Mark `visited` when first seen, `inStack` when on current DFS path
+- If we encounter a node already in `inStack`, we've found a cycle — trace back through the path to extract the cycle members
+
+### Cycle Breaking at Async Boundaries
+
+Cycles are broken at **async boundary nodes** (MessageQueue, EventBus, PubSub):
+
+1. For each detected cycle, scan for the first async node type
+2. If found, that node is designated the **break node** — its incoming traffic is processed but its outgoing traffic is **deferred one tick** via `asyncDelayedIncoming`
+3. If no async node exists in the cycle, the first node is treated as the break point (the cycle is still valid — traffic flows but downstream nodes appear one tick delayed)
+4. This models real-world async boundaries: a queue receives messages in tick N, and consumers only dequeue starting in tick N+1
+
+### Layer Grouping
+
+| Layer | Definition | Use |
+|-------|-----------|-----|
+| **Entry** | `in-degree == 0` | BaseRPS is injected here |
+| **Intermediate** | `in-degree > 0 && out-degree > 0` | Normal processing |
+| **Exit** | `out-degree == 0` | Sink nodes (e.g. databases, external APIs) |
+
+### Request Lifecycle per Tick
+
+```
+1. Generate base RPS (LoadGenerator.RPSAtTick())
+2. Inject BaseRPS at each entry node
+3. For each node in topological order:
+   a. Sum incoming edge ThroughputRPS → node.IncomingRPS
+   b. If node is failed → skip (set CurrentRPS=0)
+   c. If async (MessageQueue/EventBus/PubSub):
+      - QueueDepth += IncomingRPS * tickDurationSec
+      - ServeRPS = min(QueueDepth, Instances * MaxRPS * tickDurationSec)
+      - QueueDepth -= ServeRPS
+      - CurrentRPS = ServeRPS
+      - If break node for a cycle → defer outgoing to next tick
+   d. If sync:
+      - Capacity = Instances * MaxRPS
+      - If IncomingRPS > Capacity: IsBottleneck=true, OverflowRPS=incoming-capacity, CurrentRPS=Capacity
+      - Else: CurrentRPS = IncomingRPS
+   e. Apply error rate: CurrentRPS -= CurrentRPS * ErrorRate
+   f. Apply deployment strategy (canary split)
+   g. Distribute CurrentRPS to outgoing edges by TrafficPercent
+   h. Set Edge.ThroughputRPS and Edge.LatencyMs
+
+4. Compute utilization metrics:
+   - CPU%  = CurrentRPS / Capacity * 100
+   - MEM%  = 50 + CPU% * 0.5 (base + load correlation)
+   - P99   = linear regression on LatencyMs * load factors
+```
+
+### Sync vs Async Propagation
+
+| Property | Sync Node | Async Node (Queue) |
+|----------|-----------|-------------------|
+| Incoming | Sum of all edge throughput | Added to QueueDepth |
+| Capacity check | Immediate: `incoming > max × instances` | `serveRPS = min(queue, max × instances × tick)` |
+| Bottleneck | When incoming exceeds capacity | When queue grows unbounded |
+| Backpressure | OverflowRPS reported | QueueDepth grows |
+| Timing | Same tick | Outgoing deferred one tick when cycle break |
+
+### Deployment Strategy Splits
+
+When `Deployment.IsCanaryActive == true` and `Deployment.Strategy == "canary"`:
+
+1. **CanaryRPS** = `CurrentRPS * (CanaryPercent / 100)`
+2. This split is tracked as a separate metric (`NodeMetricsSnapshot.CanaryRPS`) but doesn't physically split the node — both versions share capacity
+3. In future phases, canary RPS could route to separate canary node instances
+
+The `TrafficPercent` on each edge determines how a node's `CurrentRPS` is distributed:
+- Edges from a node are normalized by total percent (if sum is 0, equal distribution assumed)
+- Each edge gets `CurrentRPS * (TrafficPercent / totalPercent)` throughput
+
+### Traffic Patterns
+
+| Pattern | Behavior | Noise |
+|---------|----------|-------|
+| **Steady** | Constant `baseRPS` every tick | ±15% uniform |
+| **RampUp** | Linear from 30% to 100% over duration | ±15% uniform |
+| **Spike** | 2x-5x bursts every N/5 ticks (min 5 ticks between spikes) | ±15% uniform |
+
+Noise is applied as `rps * (1.0 + uniform(-0.15, +0.15))` for realism.
+
+### Engine Lifecycle
+
+```
+NewEngine(cfg) → creates PropagationContext + LoadGenerator
+
+Start() → launches goroutine with time.Ticker
+  │ Tick interval = cfg.TickRateMs / cfg.SpeedMultiplier
+  │ Loop until tickNum >= totalTicks or Stop() called
+  │
+  └─ each tick → RunTick()
+       ├── gen.RPSAtTick()
+       ├── ctx.PropagateTick(rps)
+       ├── SnapshotTick()
+       └── onTick callback (if set)
+
+Stop() → sets running=false, goroutine exits on next tick
+Ticks() → returns copy of all recorded ticks
+```
+
+### Verification: PASSED — 2026-05-16
+
+| Check | Result |
+|-------|--------|
+| `backend/simulation/models.go` — Config, Node, Edge, Tick, NodeMetricsSnapshot, 25 NodeType constants, IsAsyncNodeType() | ✅ |
+| `backend/simulation/models.go` — DeploymentConfig (strategy, canaryPercent, canaryVersion, isCanaryActive), SecurityConfig, TrafficPattern | ✅ |
+| `backend/simulation/propagator.go` — TopologicalSort with Kahn's algorithm, DFS cycle detection, BreakCycles at async boundaries | ✅ |
+| `backend/simulation/propagator.go` — GroupIntoLayer (Entry/Intermediate/Exit), UtilizationMetrics (CPU/MEM/P99) | ✅ |
+| `backend/simulation/propagator.go` — PropagateTick: sync capacity check, async queue depth, edge traffic distribution, error rate loss, canary split | ✅ |
+| `backend/simulation/traffic.go` — LoadGenerator with Steady/RampUp/Spike patterns, ±15% noise | ✅ |
+| `backend/simulation/metrics.go` — SnapshotTick builds NodeMetricsSnapshot per node + global totals | ✅ |
+| `backend/simulation/engine.go` — Engine with Start/Stop/RunTick, goroutine tick loop, OnTick callback, Ticks() history | ✅ |
+| `backend/simulation/engine.go` — respect DurationSeconds, TickRateMs, SpeedMultiplier for timing | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+
+### Re-Verification: FIXED — 2026-05-16
+
+**Fixes applied during re-verification:**
+
+| # | Issue | Fix |
+|---|-------|-----|
+| 1 | Cycle-break nodes incorrectly skipped incoming edge throughput via `shouldDelayAsync` check, so their queue never accumulated traffic from cycle sources | Removed `shouldDelayAsync` guard from incoming edge summation. Break nodes now receive incoming RPS normally and accumulate queue depth. |
+| 2 | Deferred output from cycle-break nodes used a local `asyncDelayedIncoming` map (cleared per-tick), so deferred RPS was lost rather than persisted to the next tick | Replaced local map with persistent `ctx.DeferredOutput map[string]float64` on `PropagationContext`. Applied at the start of the next `PropagateTick`. |
+| 3 | BFS traversal skipped enqueuing successors of cycle-break nodes, causing downstream cycle nodes to be missed during BFS | Removed special-case `continue` for break nodes in BFS. All nodes are now traversed via BFS regardless of cycle-break status. |
+| 4 | Break nodes still set `ThroughputRPS` on edges (same-tick delivery) while also writing to `asyncDelayedIncoming` | Break nodes now **only** write to `ctx.DeferredOutput` (per-target map) and do NOT set edge `ThroughputRPS`. Normal nodes still use edge throughput as before. |
+
+**Corrected cycle-break behavior:**
+```
+Tick N:   A → B(MessageQueue) → [deferred to Tick N+1] → C → A
+                           ↓
+                   ctx.DeferredOutput["C"] += served
+
+Tick N+1: Apply deferred["C"] → C.IncomingRPS
+          C processes normally → sends to A
+          A processes → sends to B
+          B (break) defers output to C again → deferred["C"] for N+2
+          (cycle continues with one tick of latency at the async boundary)
+```
+
+| Check | Result |
+|-------|--------|
+| `backend/simulation/models.go` — `Config` (ProjectID, Nodes, Edges, TargetRPS, DurationSeconds, SpeedMultiplier), `Node` (ID, NodeType, MaxRPS, LatencyMs, ErrorRate, Instances, IsFailed, DeploymentConfig, SecurityConfig), `Edge` (ID, Source, Target, IsSync, TrafficPercent, RequiresTLS), `Tick` (TickNumber, Timestamp, NodeMetrics, TotalRPS, GlobalErrorRate, ActiveRequests) | ✅ |
+| `backend/simulation/models.go` — `NodeMetricsSnapshot` with all 18 fields, `DeploymentConfig`, `SecurityConfig`, 25 `NodeType` constants, `IsAsyncNodeType()` | ✅ |
+| `backend/simulation/propagator.go` — `TopologicalSort()` Kahn's algorithm with in-degree queue, `findCycleDFS()` with temporary marks/inStack, `BreakCycles()` at async boundaries | ✅ |
+| `backend/simulation/propagator.go` — `GroupIntoLayer()` entry/intermediate/exit, `PropagateTick()` with sync capacity check, async queue depth, traffic distribution, error rate loss, canary split | ✅ |
+| `backend/simulation/propagator.go` — `UtilizationMetrics()` computing CPU%, MEM%, P99 latency from utilization factors | ✅ |
+| `backend/simulation/propagator.go` — `DeferredOutput` map correctly persists break-node output across ticks; break nodes receive incoming edge throughput normally | ✅ FIXED |
+| `backend/simulation/traffic.go` — `LoadGenerator` with Steady (constant), RampUp (30%→100% linear), Spike (2x-5x bursts every N/5 ticks), ±15% uniform noise | ✅ |
+| `backend/simulation/metrics.go` — `SnapshotTick()` builds per-node `NodeMetricsSnapshot` slice + global totals (TotalRPS, GlobalErrorRate, ActiveRequests) | ✅ |
+| `backend/simulation/engine.go` — `Engine` with `Start()` (goroutine tick loop), `Stop()` (running=false), `RunTick()` (load→propagate→snapshot), `OnTick()` callback, `Ticks()` history | ✅ |
+| `backend/simulation/engine.go` — Respects `DurationSeconds`, `TickRateMs`, `SpeedMultiplier` for timing | ✅ |
+| Backend: `go build ./...` — 0 errors | ✅ |
+| Backend: `go vet ./...` — 0 errors | ✅ |
+| Frontend: `npm run build` (tsc -b + vite build) — 667 modules, 0 errors (no regressions) | ✅ |
+
+## Phase 4.2 — Simulation WebSocket Streaming
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `backend/ws/client.go` | WebSocket client: ticket auth, read/write pumps, ping/pong keepalive, gorilla-compatible fasthttp WebSocket |
+| `backend/ws/hub.go` | Hub pattern: clients grouped by `projectID`, register/unregister/broadcast with `sync.RWMutex` |
+| `backend/handlers/simulation.go` | REST endpoints: start/stop simulation, run history; WS upgrade handler; canvas-to-simulation type mapper |
+| `backend/migrations/008_create_simulation_runs.sql` | `simulation_runs` table (id, project_id, user_id, config JSONB, timestamps, status) + `simulation_ticks` table (run_id, tick_number, data JSONB) |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/main.go` | Added hub init, simulation routes (`POST /start`, `POST /:id/stop`, `GET /history/:projectId`), WS endpoint at `GET /ws/simulation?ticket=&projectId=` |
+| `backend/go.mod` | Added `github.com/fasthttp/websocket@v1.5.8` for Fiber-native WebSocket upgrades |
+
+### WS Ticket Authentication Flow
+
+```
+1. Frontend calls POST /api/auth/ws-ticket (JWT-protected)
+   → Backend stores "ws_ticket:<uuid>" → user_id in Redis (60s TTL)
+   → Returns ticket UUID
+
+2. Frontend opens WebSocket: ws://host/ws/simulation?ticket=<uuid>&projectId=<id>
+
+3. Backend WS handler:
+   a. Reads ticket and projectId from query params
+   b. Calls ValidateTicket() → Redis GET "ws_ticket:<ticket>"
+   c. If found: retrieves user_id, DEL the key (one-time use)
+   d. If not found: returns 401, connection rejected
+
+4. On successful auth:
+   a. Creates Client struct with conn, hub, projectID, userID
+   b. Hub.Register(client) → adds to clients[projectID] set
+   c. Starts WritePump goroutine (sends ticks + ping keepalive)
+   d. Runs ReadPump (handles pong responses + incoming ping messages)
+   e. On disconnect: ReadPump returns → Hub.Unregister(client) removes from set, closes send chan
+```
+
+### Hub Architecture
+
+```
+Hub (global singleton)
+├── clients: map[projectID]map[*Client]bool
+├── Register(client)     → Lock, add to map
+├── Unregister(client)   → Lock, remove from map, close send chan
+└── BroadcastToProject(projectID, tick)
+      → RLock, marshal Tick to JSON
+      → Iterate clients[projectID], non-blocking send on client.send chan
+      → Buffer: 256 messages per client (drops oldest if full)
+
+Client
+├── send chan (256 buffer)
+├── ReadPump()  → pong handling, incoming "ping" → "pong" response
+├── WritePump() → reads from send chan, writes to WS, 54s ping interval
+└── TicketAuth → Redis lookup, 5s timeout, one-time-use deletion
+```
+
+### REST Endpoints
+
+#### `POST /api/simulations/start` (JWT-protected)
+
+```
+Request:
+{
+  "projectId": "uuid",
+  "targetRPS": 2000,
+  "durationSeconds": 60,
+  "speedMultiplier": 2.0,
+  "trafficPattern": "steady" | "ramp_up" | "spike"
+}
+
+Response 201:
+{
+  "simulationRunId": "uuid",
+  "status": "running",
+  "totalTicks": 600
+}
+```
+
+**Flow:**
+1. Parse request body (with defaults: targetRPS=1000, duration=60, speed=1, pattern=steady)
+2. `services.GetProjectByID()` to fetch project + canvas_data
+3. `parseCanvasToSimNodes()` converts canvas JSON → `[]simulation.Node` + `[]simulation.Edge`
+   - Reads nodeType, instances, maxRPS, latencyMs, errorRate, isFailed, deployment, security from each canvas node
+   - Reads trafficPercent, isSync, requiresTLS from each canvas edge
+4. Builds `simulation.Config` with TickRateMs=100 (10 ticks/sim-second)
+5. Creates `simulation.Engine` + sets `OnTick` callback that calls `Hub.BroadcastToProject()`
+6. Stores run in `simulation_runs` DB table (status='running')
+7. Returns run ID
+
+#### `POST /api/simulations/:id/stop` (JWT-protected)
+
+```
+Response 200:
+{ "status": "stopped" }
+
+Response 404:
+{ "error": "simulation run not found" }
+```
+
+Stops engine + updates DB `status='stopped'`, `stopped_at=now()`.
+
+#### `GET /api/simulations/history/:projectId` (JWT-protected)
+
+```
+Response 200:
+{
+  "runs": [
+    { "id": "uuid", "projectId": "uuid", "userId": "uuid",
+      "config": "{...}", "status": "running|stopped",
+      "startedAt": "...", "stoppedAt": "..." }
+  ]
+}
+```
+
+Returns last 50 runs for the project, ordered by `started_at DESC`.
+
+#### `GET /ws/simulation?ticket=<uuid>&projectId=<uuid>` (Ticket-auth)
+
+Upgrades to WebSocket. On connection:
+- Client sends `{"type":"ping"}` → server responds `{"type":"pong"}`
+- Server streams `{"type":"tick","tick":{...}}` every 100ms (configurable via TickRateMs)
+- Client disconnect auto-cleans via ReadPump exit → Hub.Unregister
+
+### Canvas-to-Simulation Type Mapping
+
+| Canvas JSON field | Simulation Go type |
+|-------------------|--------------------|
+| `nodeType` (string) | `simulation.NodeType` (const) |
+| `config.instances` (number) | `Node.Instances` (int) |
+| `config.maxRPS` (number) | `Node.MaxRPS` (float64) |
+| `config.latencyMs` (number) | `Node.LatencyMs` (float64) |
+| `config.errorRate` (number 0-1) | `Node.ErrorRate` (float64) |
+| `config.isFailed` (bool) | `Node.IsFailed` (bool) |
+| `config.deployment.*` (object) | `Node.Deployment` (struct) |
+| `config.security.*` (object) | `Node.Security` (struct) |
+| `routing.trafficPercent` (number) | `Edge.TrafficPercent` (float64) |
+| `routing.isSync` (bool) | `Edge.IsSync` (bool) |
+| `routing.requiresTLS` (bool) | `Edge.RequiresTLS` (bool) |
+
+### Dependencies Added
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `github.com/fasthttp/websocket` | v1.5.8 | WebSocket server for fasthttp/Fiber — fork of gorilla/websocket with fasthttp-compatible `FastHTTPUpgrader` |
+| `golang.org/x/net` | v0.21.0 | Required by fasthttp/websocket for proxy support |
+
+### Verification: PASSED — 2026-05-16
+
+| Check | Result |
+|-------|--------|
+| `backend/ws/client.go` — `Client` struct with conn/hub/projectID/userID/send chan | ✅ |
+| `backend/ws/client.go` — `ReadPump()` with pong handler, ping/pong keepalive, close detection | ✅ |
+| `backend/ws/client.go` — `WritePump()` with non-blocking send channel, ping timer (54s interval) | ✅ |
+| `backend/ws/client.go` — `ValidateTicket()` Redis GET lookup, 5s timeout, one-time DEL | ✅ |
+| `backend/ws/hub.go` — `Hub` with `map[projectID]map[*Client]bool`, `sync.RWMutex` | ✅ |
+| `backend/ws/hub.go` — `Register()` / `Unregister()` with lock, close send chan on unregister | ✅ |
+| `backend/ws/hub.go` — `BroadcastToProject()` marshal Tick to JSON, non-blocking per-client send | ✅ |
+| `backend/ws/hub.go` — `ClientCount()` for monitoring | ✅ |
+| `backend/handlers/simulation.go` — `POST /api/simulations/start`: parse request, fetch canvas, build Config, create Engine, set OnTick → Hub.BroadcastToProject, store run in DB | ✅ |
+| `backend/handlers/simulation.go` — `POST /api/simulations/:id/stop`: find engine, stop, update DB status | ✅ |
+| `backend/handlers/simulation.go` — `GET /api/simulations/history/:projectId`: last 50 runs, ordered by started_at DESC | ✅ |
+| `backend/handlers/simulation.go` — `GET /ws/simulation?ticket=&projectId=`: ticket auth via `ValidateTicket()`, `FastHTTPUpgrader.Upgrade()` with fasthttp context | ✅ |
+| `backend/handlers/simulation.go` — `parseCanvasToSimNodes()`: converts canvas_data JSON → simulation.Node/Edge with all fields (instances, maxRPS, latencyMs, errorRate, deployment, security, trafficPercent) | ✅ |
+| `backend/handlers/simulation.go` — `storeRun()` / `storeTick()`: persist run and tick data to DB | ✅ |
+| `backend/handlers/simulation.go` — `findEngineFromDB()`: reconstruct engine from stored config for stop-by-DB-fallback | ✅ |
+| `backend/migrations/008_create_simulation_runs.sql` — `simulation_runs` table with id/project_id/user_id/config/status/timestamps + indexes on project_id, user_id, status | ✅ |
+| `backend/migrations/008_create_simulation_runs.sql` — `simulation_ticks` table with id/run_id/tick_number/data JSONB + indexes on run_id and (run_id, tick_number) | ✅ |
+| `backend/main.go` — Hub init, simulation routes wired, WS endpoint at `/ws/simulation` | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+
+### Re-Verification: PASSED — 2026-05-16
+
+| Check | Result |
+|-------|--------|
+| `backend/ws/client.go` — Client struct, ReadPump/WritePump, ValidateTicket (Redis GET+DEL, 5s timeout) | ✅ |
+| `backend/ws/hub.go` — Hub with map[projectID]map[*Client]bool, sync.RWMutex, Register/Unregister/BroadcastToProject/ClientCount | ✅ |
+| `backend/handlers/simulation.go` — POST /start (parse canvas→sim nodes, engine+OnTick broadcast, store run/ticks in DB) | ✅ |
+| `backend/handlers/simulation.go` — POST /stop (engine stop + DB status update + findEngineFromDB fallback) | ✅ |
+| `backend/handlers/simulation.go` — GET /history/:projectId (last 50 runs ordered by started_at DESC) | ✅ |
+| `backend/handlers/simulation.go` — WS handler via FastHTTPUpgrader + ticket auth + hub register | ✅ |
+| `backend/handlers/simulation.go` — parseCanvasToSimNodes() maps nodeType/instances/maxRPS/latencyMs/errorRate/isFailed/deployment/security + edge routing fields | ✅ |
+| `backend/migrations/008_create_simulation_runs.sql` — simulation_runs + simulation_ticks tables with all indexes | ✅ |
+| `backend/main.go` — hub init, simGroup routes (start/stop/history), `/ws/simulation` endpoint with ticket auth | ✅ |
+| `backend/main.go` — Handles missing ticket/projectId (400), invalid ticket (401), upgrade failure (500) | ✅ |
+| `backend/go.mod` — github.com/fasthttp/websocket@v1.5.8 added | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+| `npm run build` (tsc -b + vite build, frontend/) — 667 modules, 615KB JS, 0 errors | ✅ |
+
+## Phase 4.3 — Simulation Fully Integrated
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/store/simulationStore.ts` | Zustand store: `isRunning`, `ticks[]`, `latestTick`, `config` (targetRPS/duration/speed/pattern), `connectionStatus`, `elapsed`; actions: `setConfig`, `setRunning`, `setRunId`, `onTick`, `reset` |
+| `frontend/src/hooks/useSimulation.ts` | React hook: WebSocket connection lifecycle (ticket auth via `/api/auth/ws-ticket`, auto-connect on `runId` set), ping keepalive (30s), `applyTickToCanvas` callback that dispatches tick data to canvasStore for live node/edge visual updates, `start()`/`stop()` API orchestration |
+| `frontend/src/components/panels/SimulationPanel.tsx` | Right-side panel with config form (traffic pattern selector, target RPS slider 1–10000, duration input, speed selector) and live stats grid (Total RPS, Error Rate, Active Requests, Elapsed time) + per-node metrics list with bottleneck/failed/async markers |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/components/canvas/CustomEdge.tsx` | Sync vs async animation: sync uses `dur="0.8s"` + dash `"4 4"` (fast pulses); async uses `dur="3s"` + dash `"8 4"` (slow chunky pulses); sync circle r=3, async circle r=4 |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | New props: `onStart`, `onStop`, `showSimPanel`, `onToggleSimPanel`. Run/Stop buttons now call real `onStart()`/`onStop()` callbacks instead of toggling local state. Added "Sim" toggle button in right section. Removed unused `setSimRunning`. |
+| `frontend/src/pages/ProjectPage.tsx` | Integrated `useSimulation(projectId)` hook; added `showSimPanel` local state; conditionally renders `SimulationPanel` or `NodeConfigPanel` on the right side; passes `onStart`/`onStop`/`showSimPanel`/`onToggleSimPanel` to `TopToolbar` |
+
+### Data Flow
+
+```
+User clicks ▶ Run (TopToolbar or SimulationPanel)
+  │
+  ├─ useSimulation.start()
+  │   ├─ POST /api/simulations/start → receives simulationRunId
+  │   ├─ Sets runId in simulationStore
+  │   ├─ Triggers useEffect([runId]) → connectWs()
+  │   ├─ Starts elapsed timer (1s interval)
+  │   └─ Sets canvasStore.isSimulationRunning = true
+  │
+  └─ connectWs()
+      ├─ POST /api/auth/ws-ticket → receives WS ticket UUID
+      ├─ Opens WebSocket: ws://host/ws/simulation?ticket=<uuid>&projectId=<id>
+      ├─ onopen: starts ping interval (30s)
+      ├─ onmessage: parses {"type":"tick","tick":{...}}
+      │   └─ onTick() → appends to simulationStore.ticks[], sets latestTick
+      │   └─ applyTickToCanvas(tick):
+      │       ├─ nodeMetrics[].currentRPS/cpuPercent/etc → node.data.metrics
+      │       ├─ nodeMetrics[].isBottleneck → node.data.config.isBottleneck
+      │       ├─ nodeMetrics[].isFailed → node.data.config.isFailed
+      │       ├─ Bottleneck nodes (isBottleneck || cpuPercent>80) → saturatedNodeIds set
+      │       ├─ Edges from/to saturated nodes → edge.data.isSaturated = true (orange)
+      │       ├─ Edges with throughput>0 → edge.data.isAnimated = true
+      │       └─ useCanvasStore.setState({ nodes, edges }) — single batch update
+      │
+      └─ onclose or catch:
+          ├─ If manualClose: cleanup, stop
+          └─ If unexpected (isRunning still true):
+              ├─ reconnectAttempt += 1
+              ├─ delay = min(1000 × 2^attempt, 30000)  [1s, 2s, 4s, 8s, … 30s]
+              └─ setTimeout → connectWsRef.current() (fetches new ticket, reopens WS)
+
+User clicks ■ Stop
+  │
+  └─ useSimulation.stop()
+      ├─ POST /api/simulations/:runId/stop
+      ├─ closeWs() → closes WebSocket, clears ping timer
+      ├─ Clears elapsed timer
+      ├─ simulationStore.reset() → clears runId, ticks, latestTick
+      └─ canvasStore.setSimulationRunning(false)
+```
+
+### WS Message Types
+
+| Direction | Type | Payload | Frequency |
+|-----------|------|---------|-----------|
+| Server → Client | `tick` | `{"type":"tick","tick":{tickNumber,timestamp,nodeMetrics[],totalRPS,globalErrorRate,activeRequests}}` | Every 100ms × speedMultiplier |
+| Client → Server | `ping` | `{"type":"ping"}` | Every 30s (keepalive) |
+| Server → Client | `pong` | `{"type":"pong"}` | Response to ping |
+
+### Canvas Live Update Rules
+
+| Condition | Visual Effect |
+|-----------|---------------|
+| `snap.isBottleneck` + `snap.cpuPercent > 80` | Node gets orange bottleneck indicator (⚠️), outgoing edges turn orange (`isSaturated=true`) |
+| `snap.isFailed` | Node shows red ❌ overlay, red pulsing border |
+| Edge `throughputRPS > 0` | Edge animates: moving circle along bezier path |
+| Sync edge (isSync=true) + animated | Fast pulses: `dur="0.8s"`, dash `"4 4"`, circle `r=3` |
+| Async edge (isSync=false) + animated | Slow chunky pulses: `dur="3s"`, dash `"8 4"`, circle `r=4` |
+| Source or target node is bottleneck | Edge turns orange (`isSaturated=true`, stroke `#F97316`) |
+
+### SimulationPanel Layout
+
+```
+aside.w-80 (bg-surface-950, border-l surface-800)
+├── Header: "Simulation" + ConnectionBadge (green/yellow/red dot)
+│
+├── [Idle state] — ConfigForm
+│   ├── Traffic Pattern (select: Steady / Ramp Up / Spike)
+│   ├── Target RPS (range slider 1–10000 + numeric label)
+│   ├── Duration (number input, min 5, max 3600)
+│   ├── Speed (select: 1x / 2x / 5x)
+│   └── ▶ Start Simulation button (green accent)
+│
+└── [Running state] — LiveStats
+    ├── 2×2 stat cards: Total RPS, Error Rate, Active Req, Elapsed
+    ├── Per-node metrics list (max-height scrollable)
+    │   └── Each row: icon (✗/⚠/↻) + label + "N RPS"
+    └── ■ Stop Simulation button (red accent)
+```
+
+### simulationStore State Shape
+
+```typescript
+interface SimulationState {
+  isRunning: boolean;
+  ticks: TickData[];
+  latestTick: TickData | null;
+  config: { targetRPS, durationSeconds, speedMultiplier, trafficPattern };
+  runId: string | null;
+  connectionStatus: "disconnected" | "connecting" | "connected" | "error";
+  elapsed: number;
+}
+```
+
+### Build Results
+
+- `go build ./...` — ✅ 0 errors
+- `go vet ./...` — ✅ 0 errors
+- `npm run build` (tsc -b + vite build) — ✅ 670 modules, 625KB JS, 0 errors
+
+### Verification: PASSED — 2026-05-16
+
+| Check | Result |
+|-------|--------|
+| `simulationStore.ts` — State shape (isRunning, ticks, latestTick, config, runId, connectionStatus, elapsed) + actions (setConfig, onTick, reset) | ✅ |
+| `useSimulation.ts` — WS lifecycle: ticket auth, connect on runId, ping keepalive, auto-cleanup | ✅ |
+| `useSimulation.ts` — `start()`: POST /simulations/start, set runId, elapsed timer, canvasStore.sync | ✅ |
+| `useSimulation.ts` — `stop()`: POST /stop, close WS, clear timers, reset store, canvasStore.sync | ✅ |
+| `useSimulation.ts` — `applyTickToCanvas()`: updates node metrics, bottleneck/failed flags, edge saturation/animation | ✅ |
+| `SimulationPanel.tsx` — Config form: traffic pattern selector, RPS slider (1-10000), duration input, speed selector | ✅ |
+| `SimulationPanel.tsx` — Live stats: Total RPS, Error Rate, Active Req, Elapsed (2×2 grid) | ✅ |
+| `SimulationPanel.tsx` — Per-node metrics list with bottleneck/failed/async indicators | ✅ |
+| `SimulationPanel.tsx` — Start/Stop buttons with proper accent colors | ✅ |
+| `CustomEdge.tsx` — Sync animation: dur="0.8s", dash "4 4", r=3 | ✅ |
+| `CustomEdge.tsx` — Async animation: dur="3s", dash "8 4", r=4 | ✅ |
+| `TopToolbar.tsx` — onStart/onStop/onToggleSimPanel props, Run/Stop wired to real callbacks, "Sim" toggle button | ✅ |
+| `ProjectPage.tsx` — useSimulation integrated, showSimPanel toggle, conditional SimulationPanel/NodeConfigPanel render | ✅ |
+| `npm run build` — 670 modules, 625KB JS, 0 errors | ✅ |
+
+### Re-Verification: FIXED — 2026-05-16
+
+| Issue | Fix |
+|-------|-----|
+| `useSimulation.ts` — Missing auto-reconnect on WebSocket disconnect or fetch error | Added exponential backoff reconnection (`1s, 2s, 4s, 8s, …` up to 30s) via `reconnectAttemptRef`, `reconnectTimer`, and `connectWsRef` pattern to avoid circular dependency between `connectWs` and reconnect scheduling. `manualCloseRef` flag prevents reconnection loops on intentional `stop()`. Reconnection only fires when `isRunning` is still true. |
+
+| Check | Result |
+|-------|--------|
+| `useSimulation.ts` — Auto-reconnect on WS onclose (exponential backoff, capped at 30s) | ✅ FIXED |
+| `useSimulation.ts` — Auto-reconnect on WS ticket fetch failure (exponential backoff, capped at 30s) | ✅ FIXED |
+| `useSimulation.ts` — `manualCloseRef` prevents reconnect loop on intentional `closeWs()` / `stop()` | ✅ FIXED |
+| `useSimulation.ts` — Reconnect only fires when `isRunning` is still true (avoids orphaned reconnects) | ✅ FIXED |
+
+## Phase 5.1 — Chaos Engine
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `backend/simulation/chaos.go` | `ChaosEventType` (8 types), `ChaosEvent` struct, `ChaosManager` with thread-safe event registry, `ApplyPreTick()` (applies chaos before traffic propagation), `ApplyPostTick()` (gradual effects like memory leak), per-event-type effect logic |
+| `backend/handlers/chaos.go` | `ChaosHandler` with `Inject` (POST) and `Active` (GET) endpoints; validates event type, severity range, engine running state; calculates duration in ticks (10 ticks/sim-second) |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/simulation/engine.go` | Added `RunID` field, `originalNodes []Node` (config copy for per-tick restoration), `SetChaosManager()`, `restoreNodes()` (resets `IsFailed`/`LatencyMs`/`ErrorRate`/`MaxRPS`/`Instances` to original before each tick). `RunTick()` calls `restoreNodes()` + `chaos.ApplyPreTick()` before `PropagateTick()`, and `chaos.ApplyPostTick()` after. |
+| `backend/handlers/simulation.go` | `SimulationHandler` now holds `Chaos *simulation.ChaosManager`. `NewSimulationHandler()` takes a `*simulation.ChaosManager`. `Start()` sets `engine.RunID` and calls `engine.SetChaosManager()`. Added exported `FindEngine()` method for ChaosHandler. |
+| `backend/main.go` | Imports `systemdesign/simulation`. Creates `chaosMgr` and passes to `NewSimulationHandler`. Wires `/api/chaos/inject` (POST) and `/api/chaos/active/:simulationRunId` (GET) with JWT auth. |
+
+### Chaos Event Types (8)
+
+| Type | Effect | Implementation |
+|------|--------|---------------|
+| `NodeFailure` | Target node goes down | Sets `IsFailed = true` — PropagateTick skips the node |
+| `LatencySpike` | Latency multiplied | `LatencyMs *= (1 + severity × 9)` (up to 10× at severity 1.0) |
+| `ErrorRateSpike` | Error rate spikes | Sets `ErrorRate = max(current, severity)` up to 1.0 |
+| `NetworkPartition` | Node isolated | Sets `Instances = 0`, `MaxRPS = 0` — all incoming traffic dropped |
+| `DDoS` | Node overwhelmed | Reduces `MaxRPS` by `severity × 90%`, reduces instances, raises `ErrorRate` |
+| `RegionDown` | Entire region fails | Sets `IsFailed`, `MaxRPS = 0`, `Instances = 0` on all targeted nodes |
+| `MemoryLeak` | Gradual degradation | Applied in PostTick: increases `MemoryPercent` and `CPUPercent` each tick; also raises `ErrorRate` and `LatencyMs` pre-tick |
+| `CPUSaturation` | CPU pinned at 100% | Reduces `MaxRPS` by `severity × 95%`, sets `CPUPercent = 95` |
+
+### API Endpoints
+
+#### `POST /api/chaos/inject` (JWT-protected)
+
+```
+Request:
+{
+  "simulationRunId": "uuid",
+  "nodeId": "node-1",
+  "eventType": "NodeFailure",
+  "severity": 0.8,
+  "durationSeconds": 30
+}
+
+Response 201:
+{
+  "event": {
+    "id": "uuid",
+    "simulationRunId": "uuid",
+    "nodeId": "node-1",
+    "eventType": "NodeFailure",
+    "severity": 0.8,
+    "durationTicks": 300,
+    "startedAt": 15,
+    "active": true
+  }
+}
+
+Response 400:
+{ "error": "invalid eventType" | "severity must be between 0 and 1" | ... }
+
+Response 404:
+{ "error": "simulation run not found" }
+```
+
+Validates: `eventType` ∈ {NodeFailure, LatencySpike, ErrorRateSpike, NetworkPartition, DDoS, RegionDown, MemoryLeak, CPUSaturation}, `severity` ∈ (0, 1], engine is running. Converts `durationSeconds` to ticks (×10 for 100ms tick rate). `durationSeconds = 0` = indefinite.
+
+#### `GET /api/chaos/active/:simulationRunId` (JWT-protected)
+
+```
+Response 200:
+{
+  "events": [
+    { "id": "uuid", "simulationRunId": "uuid", "nodeId": "node-1", ... }
+  ]
+}
+```
+
+### Chaos Lifecycle
+
+```
+POST /api/chaos/inject
+  │
+  ├─ Validate event type, severity, engine running
+  ├─ Convert durationSeconds → ticks (×10)
+  ├─ Create ChaosEvent with UUID, StartedAt = engine.CurrentTick()
+  ├─ ChaosManager.Inject(event) → adds to events[runID] map
+  └─ Return event to caller
+
+Engine.RunTick(tickNum)
+  │
+  ├─ restoreNodes() → copies original IsFailed/LatencyMs/ErrorRate/MaxRPS/Instances from originalNodes
+  │
+  ├─ chaos.ApplyPreTick(runID, nodes, tickNum):
+  │   ├─ Iterates active events for runID
+  │   ├─ Skips expired events (durationTicks > 0 && elapsed >= durationTicks) → marks Active=false
+  │   ├─ For each active event:
+  │   │   ├─ NodeFailure → n.IsFailed = true
+  │   │   ├─ LatencySpike → n.LatencyMs *= (1 + severity×9)
+  │   │   ├─ ErrorRateSpike → n.ErrorRate = max(current, severity)
+  │   │   ├─ NetworkPartition → n.Instances=0, MaxRPS=0
+  │   │   ├─ DDoS → n.MaxRPS *= (1 - severity×0.9), Instances *= factor
+  │   │   ├─ RegionDown → n.IsFailed=true, MaxRPS=0, Instances=0
+  │   │   ├─ CPUSaturation → n.MaxRPS *= (1 - severity×0.95), CPUPercent=95
+  │   │   └─ MemoryLeak → n.ErrorRate += 0.05×severity, LatencyMs *= (1 + 0.1×severity)
+  │   └─ Removes expired events from active set
+  │
+  ├─ ctx.PropagateTick(rps) → traffic flows through chaos-modified nodes
+  │
+  ├─ chaos.ApplyPostTick(runID, nodes):
+  │   └─ MemoryLeak: accumulates MemoryPercent and CPUPercent each tick
+  │
+  ├─ SnapshotTick → captures metrics with chaos effects visible
+  └─ Broadcast tick via WebSocket (frontend sees chaos in real-time)
+```
+
+### Per-Tick Restoration
+
+Each tick, `restoreNodes()` resets 5 node fields from the original config copy (`originalNodes []Node`):
+
+| Field | Restored To | Why |
+|-------|-------------|-----|
+| `IsFailed` | Original canvas value | NodeFailure/RegionDown sets it; must be cleared when event expires |
+| `LatencyMs` | Original canvas value | LatencySpike/MemoryLeak multiplies it; reset prevents compounding |
+| `ErrorRate` | Original canvas value | ErrorRateSpike/DDoS/MemoryLeak raises it; reset prevents compounding |
+| `MaxRPS` | Original canvas value | DDoS/CPUSaturation/NetworkPartition/RegionDown reduces it |
+| `Instances` | Original canvas value | NetworkPartition/DDoS/RegionDown sets to 0 |
+
+This ensures chaos effects don't permanently corrupt the node config and that expired events cleanly restore normal behavior.
+
+### Build Results
+
+- `go build ./...` — ✅ 0 errors
+- `go vet ./...` — ✅ 0 errors
+- `npm run build` — ✅ 670 modules, 0 errors (no regressions)
+
+### Verification: PASSED — 2026-05-16
+
+| Check | Result |
+|-------|--------|
+| `simulation/chaos.go` — 8 ChaosEventType constants + ValidChaosTypes map + IsValidChaosType() | ✅ |
+| `simulation/chaos.go` — ChaosEvent struct (id, runId, nodeId, eventType, severity, durationTicks, startedAt, active) | ✅ |
+| `simulation/chaos.go` — ChaosManager with sync.RWMutex, events[runID][eventID] map | ✅ |
+| `simulation/chaos.go` — Inject() / RemoveEvent() / ActiveEvents() / ClearRun() | ✅ |
+| `simulation/chaos.go` — ApplyPreTick(): iterates active events, applies effects, handles expiry | ✅ |
+| `simulation/chaos.go` — ApplyPostTick(): MemoryLeak accumulation (MemoryPercent, CPUPercent) | ✅ |
+| `simulation/chaos.go` — NodeFailure: IsFailed=true | ✅ |
+| `simulation/chaos.go` — LatencySpike: LatencyMs × (1 + severity×9) | ✅ |
+| `simulation/chaos.go` — ErrorRateSpike: ErrorRate = max(original, severity) | ✅ |
+| `simulation/chaos.go` — NetworkPartition: Instances=0, MaxRPS=0 | ✅ |
+| `simulation/chaos.go` — DDoS: MaxRPS × (1 - severity×0.9), Instances × factor, ErrorRate raised | ✅ |
+| `simulation/chaos.go` — RegionDown: IsFailed=true, MaxRPS=0, Instances=0 | ✅ |
+| `simulation/chaos.go` — MemoryLeak: pre-tick (ErrorRate, LatencyMs) + post-tick (MemoryPercent, CPUPercent) | ✅ |
+| `simulation/chaos.go` — CPUSaturation: MaxRPS × (1 - severity×0.95), CPUPercent=95, MemoryPercent raised | ✅ |
+| `simulation/engine.go` — RunID field, originalNodes copy, SetChaosManager() | ✅ |
+| `simulation/engine.go` — restoreNodes(): resets IsFailed/LatencyMs/ErrorRate/MaxRPS/Instances from originalNodes | ✅ |
+| `simulation/engine.go` — RunTick(): restoreNodes → ApplyPreTick → PropagateTick → ApplyPostTick | ✅ |
+| `handlers/simulation.go` — Chaos field, NewSimulationHandler takes chaos, Start() wires chaos and RunID on engine | ✅ |
+| `handlers/simulation.go` — FindEngine() exported method for ChaosHandler lookup | ✅ |
+| `handlers/chaos.go` — POST /api/chaos/inject: validates eventType/severity/engine, creates event, injects | ✅ |
+| `handlers/chaos.go` — GET /api/chaos/active/:simulationRunId: returns active events | ✅ |
+| `main.go` — Creates chaosMgr, passes to NewSimulationHandler, wires chaos routes | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+| `npm run build` — 670 modules, 0 errors | ✅ |
+
+## Phase 5.2 — Chaos UI
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/store/chaosStore.ts` | Zustand store: `activeEvents` array, `activeNodeIds` derived set (for canvas reactions), `showChaosPanel` toggle, `CHAOS_TYPES` definitions (8 types with icons/colors/descriptions) |
+| `frontend/src/store/toastStore.ts` | Zustand store: auto-dismissing toast notifications (`success`, `error`, `info`, `warning`) with configurable duration |
+| `frontend/src/components/ui/Toast.tsx` | Fixed-position bottom-right toast container with per-type styling (success/error/info/warning) and dismiss button |
+| `frontend/src/components/panels/ChaosPanel.tsx` | Main chaos panel: danger zone header, 2×4 grid of chaos cards with config popovers, active events list with countdown timers |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ProjectPage.tsx` | Added `showChaosPanel` from chaosStore, `ChaosPanel` import, `ToastContainer` import; right panel shows `ChaosPanel` when chaos toggled (priority over SimPanel/NodeConfigPanel); passes `showChaosPanel`/`onToggleChaosPanel` to TopToolbar |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | Added `showChaosPanel`/`onToggleChaosPanel` props; added skull (☠️) toggle button with red accent styling |
+| `frontend/src/components/canvas/BaseNode.tsx` | Added `useChaosStore` subscription per node via `activeNodeIds`; shows skull badge (☠️) on nodes with active chaos; applies orange flashing border (`animate-chaos-flash`) and orange glow shadow when chaos active but node not failed |
+| `frontend/src/components/canvas/CustomEdge.tsx` | Added `useChaosStore` subscription for source/target nodes; edges connected to chaos-affected nodes show orange stroke, fast dash pattern (`2 3`), rapid flashing (`animate-chaos-flash` on `<g>`), and fast moving circle (`0.3s` animation) |
+| `frontend/src/hooks/useSimulation.ts` | Imports `useChaosStore`; calls `chaosStore.reset()` on simulation `stop()` to clear events |
+| `frontend/src/index.css` | Added `@keyframes slide-up` (toast entrance), `.animate-slide-up` utility, `@keyframes chaos-flash` (rapid opacity pulse), `.animate-chaos-flash` utility |
+
+### Chaos Panel UI
+
+**Header**: ☠️ "Chaos Engineering" badge with red active-count pill
+
+**Inject Section** (2×4 grid of cards):
+
+| Card | Icon | Color | Description |
+|------|------|-------|-------------|
+| Node Failure | 💥 | Red | Target node goes down — traffic is dropped |
+| Latency Spike | 🐢 | Orange | Multiply latency up to 10× — requests slow down |
+| Error Rate Spike | ⚠️ | Yellow | Spike error rate — responses start failing |
+| Network Partition | 🔌 | Purple | Node isolated — all incoming traffic dropped |
+| DDoS Attack | ⚡ | Pink | Overwhelm node — capacity crushed |
+| Region Down | 🌍 | Red | Entire region fails |
+| Memory Leak | 📈 | Cyan | Gradual degradation — memory creeps up over time |
+| CPU Saturation | 🔥 | Orange | CPU pinned at 100% — throughput collapses |
+
+**Card Popover** (opens on card click): Target node selector (dropdown from canvas nodes), severity slider (5%–100%), duration input (1–300s), "Inject Chaos" button → calls `POST /api/chaos/inject` → shows toast warning on success or error toast on failure
+
+**Active Events List**: Each event row shows icon + label, countdown timer (M:SS format, updates every 250ms), target node label, severity bar, remove button (x). Polls `GET /api/chaos/active/:simulationRunId` every 3 seconds during simulation.
+
+**Empty State**: "No active chaos events" with helper text
+
+### Canvas Visual Reactions
+
+| Reaction | Trigger | Implementation |
+|----------|---------|---------------|
+| **Skull badge** | Node has active chaos event | `animate-pulse` ☠️ emoji positioned `-top-2 -right-2` on the node |
+| **Orange flashing border** | Node has active chaos event | `animate-chaos-flash` CSS class with `border-orange-500`, 0.5s opacity pulse |
+| **Orange glow** | Node has active chaos event | `box-shadow: 0 0 16px rgba(249,115,22,0.5)` |
+| **Flashing edges** | Edge source/target has active chaos | `animate-chaos-flash` on `<g>` wrapper, 0.5s opacity pulse |
+| **Orange edge stroke** | Edge connected to chaos node | Stroke color set to `#F97316` (orange) |
+| **Fast dash pattern** | Edge connected to chaos node | `strokeDasharray: "2 3"` (rapid dash) |
+| **Fast moving circle** | Edge connected to chaos node | `<animateMotion dur="0.3s">` (vs 0.8s/3s normal) |
+
+### Toast Notifications
+
+- **Success**: Green theme, used for chaos injection confirmation ("Chaos injected: Node Failure" with severity % and node label)
+- **Error**: Red theme, used for injection failures ("Chaos injection failed" with API error message)
+- Auto-dismiss after 4 seconds (configurable)
+- Fixed bottom-right position with slide-up entrance animation
+
+### Build Results
+
+- `go build ./...` — ✅ 0 errors
+- `go vet ./...` — ✅ 0 errors
+- `npm run build` — ✅ 674 modules, 0 errors (4 new: chaosStore, toastStore, Toast, ChaosPanel)
+
+### Verification: PASSED — 2026-05-17
+
+| Check | Result |
+|-------|--------|
+| `chaosStore.ts` — `CHAOS_TYPES` array with 8 entries (type, label, description, icon, color) | ✅ |
+| `chaosStore.ts` — `activeEvents: ChaosEventData[]` | ✅ |
+| `chaosStore.ts` — `activeNodeIds: string[]` derived from events | ✅ |
+| `chaosStore.ts` — `setActiveEvents` / `addActiveEvent` / `removeActiveEvent` / `setShowChaosPanel` / `reset` | ✅ |
+| `toastStore.ts` — `Toast` interface (id, type, title, message, duration, createdAt) | ✅ |
+| `toastStore.ts` — `addToast` auto-dismiss via setTimeout | ✅ |
+| `toastStore.ts` — `removeToast` | ✅ |
+| `Toast.tsx` — Fixed bottom-right container with `z-[9999]` | ✅ |
+| `Toast.tsx` — 4 type styles (success/error/info/warning) with distinct bg/border/icon | ✅ |
+| `Toast.tsx` — `animate-slide-up` entrance animation | ✅ |
+| `ChaosPanel.tsx` — Danger zone header with active count pill | ✅ |
+| `ChaosPanel.tsx` — 2×4 grid of `ChaosCard` components | ✅ |
+| `ChaosPanel.tsx` — `ChaosConfigPopover` with node selector/severity slider/duration/inject button | ✅ |
+| `ChaosPanel.tsx` — `ActiveEventRow` with countdown timer (M:SS, 250ms update) | ✅ |
+| `ChaosPanel.tsx` — Polls `GET /api/chaos/active/:runId` every 3s during simulation | ✅ |
+| `ChaosPanel.tsx` — Calls `POST /api/chaos/inject` with toast feedback | ✅ |
+| `ChaosPanel.tsx` — Empty state when no active events | ✅ |
+| `BaseNode.tsx` — `nodeId` from ReactFlow `id` prop, `useChaosStore` subscription | ✅ |
+| `BaseNode.tsx` — Skull badge (☠️) on nodes with active chaos | ✅ |
+| `BaseNode.tsx` — Orange flashing border + glow on chaos-affected nodes | ✅ |
+| `CustomEdge.tsx` — `useChaosStore` subscription for source/target | ✅ |
+| `CustomEdge.tsx` — Orange stroke + fast dash on chaos-affected edges | ✅ |
+| `CustomEdge.tsx` — `animate-chaos-flash` on `<g>` wrapper | ✅ |
+| `CustomEdge.tsx` — Fast `0.3s` animated circle on chaos edges | ✅ |
+| `TopToolbar.tsx` — ☠️ chaos toggle button with red accent | ✅ |
+| `ProjectPage.tsx` — ChaosPanel in right panel stack (priority over SimPanel/NodeConfig) | ✅ |
+| `ProjectPage.tsx` — ToastContainer rendered at root level | ✅ |
+| `useSimulation.ts` — Resets chaosStore on simulation stop | ✅ |
+| `index.css` — `slide-up`, `chaos-flash` keyframes | ✅ |
+| `npm run build` — 674 modules, 0 errors | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+
 ## Next Step
 
 Phase 3.3: Implement WebSocket real-time collaboration — sync canvas state (nodes, edges) across multiple users via WebSocket, with Yjs or Socket.IO integration.
