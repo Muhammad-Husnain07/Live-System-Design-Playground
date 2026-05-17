@@ -9,6 +9,8 @@ import (
 	"systemdesign/config"
 	"systemdesign/handlers"
 	"systemdesign/middleware"
+	"systemdesign/simulation"
+	"systemdesign/ws"
 )
 
 func main() {
@@ -82,6 +84,35 @@ func main() {
 	projectGroup.Post("/:id/collaborators", projects.AddCollaborator)
 	projectGroup.Get("/:id/collaborators", projects.ListCollaborators)
 	projectGroup.Put("/:id/canvas", projects.SaveCanvas)
+
+	hub := ws.NewHub()
+	chaosMgr := simulation.NewChaosManager()
+	sim := handlers.NewSimulationHandler(config.DB, config.RedisClient, hub, chaosMgr)
+
+	simGroup := api.Group("/simulations", middleware.JWTAuth(cfg.JWTSecret))
+	simGroup.Post("/start", sim.Start)
+	simGroup.Post("/:id/stop", sim.Stop)
+	simGroup.Get("/history/:projectId", sim.History)
+
+	chaos := handlers.NewChaosHandler(sim)
+	chaosGroup := api.Group("/chaos", middleware.JWTAuth(cfg.JWTSecret))
+	chaosGroup.Post("/inject", chaos.Inject)
+	chaosGroup.Get("/active/:simulationRunId", chaos.Active)
+
+	app.Get("/ws/simulation", func(c *fiber.Ctx) error {
+		ctx := c.Context()
+		ticket := string(ctx.QueryArgs().Peek("ticket"))
+		projectID := string(ctx.QueryArgs().Peek("projectId"))
+		if ticket == "" || projectID == "" {
+			return c.Status(400).JSON(fiber.Map{"error": "ticket and projectId query params required"})
+		}
+		auth := ws.ValidateTicket(config.RedisClient, ticket)
+		if !auth.OK {
+			return c.Status(401).JSON(fiber.Map{"error": "invalid or expired ticket"})
+		}
+		// FastHTTPUpgrader handles the connection hijack in-place
+		return handlers.FastHTTPUpgrade(c, hub, auth.UserID, projectID)
+	})
 
 	port := cfg.Port
 	log.Printf("Backend starting on port %s", port)
