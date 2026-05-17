@@ -2,6 +2,7 @@ import { memo, type ReactNode } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { motion } from "framer-motion";
 import { NODE_REGISTRY } from "../../utils/nodeRegistry";
+import { useChaosStore } from "../../store/chaosStore";
 import type { CanvasNode } from "../../types/canvas";
 
 export type BaseNodeData = CanvasNode["data"];
@@ -10,7 +11,7 @@ export interface BaseNodeProps extends NodeProps<BaseNodeData> {
   children?: ReactNode;
 }
 
-function BaseNode({ data, selected, isConnectable, children }: BaseNodeProps) {
+function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps) {
   const nodeType = data?.nodeType;
   const meta = nodeType ? NODE_REGISTRY[nodeType] : null;
 
@@ -22,11 +23,13 @@ function BaseNode({ data, selected, isConnectable, children }: BaseNodeProps) {
     );
   }
 
+  const nodeId = id ?? "";
   const { config, label, metrics } = data;
   const isFailed = config?.isFailed ?? false;
   const isBottleneck = config?.isBottleneck ?? false;
   const isCanary = config?.deployment?.isCanaryActive ?? false;
   const isPublic = config?.security?.isPublicFacing ?? false;
+  const hasChaos = useChaosStore((s) => s.activeNodeIds.includes(nodeId));
   const handleClass = "!opacity-0 group-hover:!opacity-100 !transition-opacity !w-3 !h-3 !border-2 !bg-surface-800 !border-surface-500";
 
   return (
@@ -47,17 +50,31 @@ function BaseNode({ data, selected, isConnectable, children }: BaseNodeProps) {
         </div>
       )}
 
+      {hasChaos && !isFailed && (
+        <div className="absolute -top-2 -right-2 z-20">
+          <span className="text-sm drop-shadow-lg animate-pulse">☠️</span>
+        </div>
+      )}
+
       <div
         className={`bg-surface-900 rounded-lg border-2 shadow-lg transition-shadow ${
-          isFailed ? "animate-pulse border-red-500" : selected ? "border-3" : ""
+          isFailed
+            ? "animate-pulse border-red-500"
+            : hasChaos
+              ? "animate-chaos-flash border-orange-500"
+              : selected
+                ? "border-3"
+                : ""
         }`}
         style={{
-          borderColor: isFailed ? "#EF4444" : selected ? "#60A5FA" : meta.color,
+          borderColor: isFailed ? "#EF4444" : hasChaos ? "#F97316" : selected ? "#60A5FA" : meta.color,
           boxShadow: isFailed
             ? "0 0 14px rgba(239,68,68,0.4)"
-            : selected
-              ? "0 0 14px rgba(96,165,250,0.4)"
-              : undefined,
+            : hasChaos
+              ? "0 0 16px rgba(249,115,22,0.5)"
+              : selected
+                ? "0 0 14px rgba(96,165,250,0.4)"
+                : undefined,
         }}
       >
         <div className="flex items-center gap-2 px-3 py-2 border-b border-surface-700/50">

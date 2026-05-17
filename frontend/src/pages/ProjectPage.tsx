@@ -20,6 +20,12 @@ import { nodeTypes, edgeTypes, getReactFlowType } from "../components/canvas/nod
 import { NODE_REGISTRY } from "../utils/nodeRegistry";
 import NodePanel from "../components/sidebar/NodePanel";
 import NodeConfigPanel from "../components/panels/NodeConfigPanel";
+import SimulationPanel from "../components/panels/SimulationPanel";
+import ChaosPanel from "../components/panels/ChaosPanel";
+import TopToolbar from "../components/toolbar/TopToolbar";
+import ToastContainer from "../components/ui/Toast";
+import { useSimulation } from "../hooks/useSimulation";
+import { useChaosStore } from "../store/chaosStore";
 import type { NodeType, NodeMetrics, SimulationNodeState } from "../types/canvas";
 
 const DEFAULT_SIM: SimulationNodeState = {
@@ -48,7 +54,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
 
   const store = useCanvasStore();
   const {
-    nodes, edges, isDirty, lastSaved, pastStates, futureStates,
+    nodes, edges,
     setNodes, setEdges, addNode, removeNode, removeEdge,
     selectNode, selectEdge, markDirty, markSaved,
     pushUndoState, undo, redo, addEdge, loadTemplate,
@@ -60,7 +66,12 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   useEffect(() => { edgesRef.current = edges; }, [edges]);
 
   const [saving, setSaving] = useState(false);
+  const [showSimPanel, setShowSimPanel] = useState(false);
+  const showChaosPanel = useChaosStore((s) => s.showChaosPanel);
+  const setShowChaosPanel = useChaosStore((s) => s.setShowChaosPanel);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { start: simStart, stop: simStop } = useSimulation(projectId);
 
   useEffect(() => {
     if (projectId) getProject(projectId);
@@ -225,8 +236,6 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onKeyDown]);
 
-  const saveIndicator = saving ? "Saving..." : isDirty ? "Unsaved changes" : lastSaved ? "Saved ✓" : "";
-
   if (isLoading && !currentProject) {
     return (
       <div className="h-screen bg-surface-950 flex items-center justify-center">
@@ -250,51 +259,16 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
 
   return (
     <div className="h-screen bg-surface-950 text-surface-100 flex flex-col">
-      {/* Top Toolbar */}
-      <header className="border-b border-surface-800 px-4 py-2 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/dashboard")} className="text-sm text-surface-400 hover:text-surface-200 transition-colors">
-            &larr; Dashboard
-          </button>
-          <h1 className="text-sm font-medium">{currentProject?.name || "Project"}</h1>
-          {currentProject?.role && (
-            <span className="text-xs text-surface-500 bg-surface-800 px-2 py-0.5 rounded">
-              {currentProject.role}
-            </span>
-          )}
-          {/* Save indicator */}
-          <span className={`text-[10px] ${saving ? "text-yellow-400" : isDirty ? "text-orange-400" : "text-green-500"}`}>
-            {saveIndicator}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Undo / Redo */}
-          <button
-            onClick={undo}
-            disabled={pastStates.length === 0}
-            title="Undo (Ctrl+Z)"
-            className="px-2 py-1 text-xs bg-surface-800 hover:bg-surface-700 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
-          >
-            ↩
-          </button>
-          <button
-            onClick={redo}
-            disabled={futureStates.length === 0}
-            title="Redo (Ctrl+Shift+Z)"
-            className="px-2 py-1 text-xs bg-surface-800 hover:bg-surface-700 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
-          >
-            ↪
-          </button>
-
-          <button
-            onClick={() => navigate(`/project/${projectId}/observe`)}
-            className="px-3 py-1.5 text-xs bg-surface-800 hover:bg-surface-700 rounded-lg transition-colors"
-          >
-            Observability
-          </button>
-        </div>
-      </header>
+      <TopToolbar
+        projectId={projectId}
+        saving={saving}
+        onStart={simStart}
+        onStop={simStop}
+        showSimPanel={showSimPanel}
+        onToggleSimPanel={() => setShowSimPanel((v) => !v)}
+        showChaosPanel={showChaosPanel}
+        onToggleChaosPanel={() => setShowChaosPanel(!showChaosPanel)}
+      />
 
       {/* 3-panel body */}
       <div className="flex-1 flex overflow-hidden">
@@ -335,8 +309,16 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
             />
           </ReactFlow>
         </div>
-        <NodeConfigPanel />
+        {showChaosPanel ? (
+          <ChaosPanel />
+        ) : showSimPanel ? (
+          <SimulationPanel onStart={simStart} onStop={simStop} />
+        ) : (
+          <NodeConfigPanel />
+        )}
       </div>
+
+      <ToastContainer />
     </div>
   );
 }

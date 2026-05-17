@@ -1,11 +1,13 @@
 import { memo, useState } from "react";
 import { BaseEdge, getBezierPath, type EdgeProps } from "reactflow";
+import { useChaosStore } from "../../store/chaosStore";
 import type { CanvasEdge } from "../../types/canvas";
 
 type CustomEdgeData = CanvasEdge["data"];
 
 function CustomEdge({
   id,
+  source, target,
   sourceX, sourceY, sourcePosition,
   targetX, targetY, targetPosition,
   data,
@@ -24,6 +26,9 @@ function CustomEdge({
   const isSecure = data?.isSecure ?? true;
   const requiresTLS = routing?.requiresTLS ?? false;
 
+  const activeNodeIds = useChaosStore((s) => s.activeNodeIds);
+  const hasChaos = activeNodeIds.includes(source) || activeNodeIds.includes(target);
+
   let strokeColor = "#a1a1aa";
   let strokeDasharray: string | undefined;
   let strokeWidth = selected ? 3 : 2;
@@ -41,8 +46,13 @@ function CustomEdge({
     strokeDasharray = "6 4";
   }
 
+  if (hasChaos && !isSaturated) {
+    strokeColor = "#F97316";
+  }
+
   return (
     <g
+      className={hasChaos ? "animate-chaos-flash" : ""}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{ cursor: "pointer" }}
@@ -53,13 +63,13 @@ function CustomEdge({
         style={{
           stroke: strokeColor,
           strokeWidth,
-          strokeDasharray: isAnimated ? "8 4" : strokeDasharray,
+          strokeDasharray: hasChaos ? "2 3" : isAnimated ? (isSync ? "4 4" : "8 4") : strokeDasharray,
         }}
       />
 
-      {isAnimated && (
-        <circle r="3" fill={strokeColor}>
-          <animateMotion dur="1.5s" repeatCount="indefinite" path={edgePath} />
+      {(isAnimated || hasChaos) && (
+        <circle r={hasChaos ? 5 : isSync ? 3 : 4} fill={strokeColor}>
+          <animateMotion dur={hasChaos ? "0.3s" : isSync ? "0.8s" : "3s"} repeatCount="indefinite" path={edgePath} />
         </circle>
       )}
 
