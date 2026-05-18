@@ -2,33 +2,49 @@ package simulation
 
 import "time"
 
-func SnapshotTick(tickNum int, nodes []Node, edges []Edge) Tick {
+func SnapshotTick(tickNum int, nodes []Node, edges []Edge, depMgr *DeploymentManager) Tick {
 	metrics := make([]NodeMetricsSnapshot, 0, len(nodes))
 	totalRPS := 0.0
 	totalErrors := 0.0
 	totalRequests := 0.0
 
+	depStates := make(map[string]*NodeDeploymentState)
+	if depMgr != nil {
+		for _, s := range depMgr.AllStates() {
+			depStates[s.NodeID] = s
+		}
+	}
+
 	for _, n := range nodes {
+		activeGroup := ""
+		blueGreenGroup := ""
+		if ds, ok := depStates[n.ID]; ok {
+			activeGroup = ds.ActiveGroup
+			blueGreenGroup = ds.BlueGreenGroup
+		}
+
 		snapshot := NodeMetricsSnapshot{
-			NodeID:        n.ID,
-			NodeType:      n.NodeType,
-			Label:         n.Label,
-			IncomingRPS:   n.IncomingRPS,
-			CurrentRPS:    n.CurrentRPS,
-			CanaryRPS:     n.CanaryRPS,
-			MaxRPS:        n.MaxRPS,
-			Instances:     n.Instances,
-			LatencyMs:     n.P99LatencyMs,
-			ErrorRate:     n.ErrorRate,
-			QueueDepth:    n.QueueDepth,
-			IsBottleneck:  n.IsBottleneck,
-			OverflowRPS:   n.OverflowRPS,
-			CPUPercent:    n.CPUPercent,
-			MemoryPercent: n.MemoryPercent,
-			ErrorCount:    n.ErrorCount,
-			P99LatencyMs:  n.P99LatencyMs,
-			IsFailed:      n.IsFailed,
-			IsAsync:       IsAsyncNodeType(n.NodeType),
+			NodeID:         n.ID,
+			NodeType:       n.NodeType,
+			Label:          n.Label,
+			IncomingRPS:    n.IncomingRPS,
+			CurrentRPS:     n.CurrentRPS,
+			CanaryRPS:      n.CanaryRPS,
+			MaxRPS:         n.MaxRPS,
+			Instances:      n.Instances,
+			LatencyMs:      n.P99LatencyMs,
+			ErrorRate:      n.ErrorRate,
+			QueueDepth:     n.QueueDepth,
+			IsBottleneck:   n.IsBottleneck,
+			OverflowRPS:    n.OverflowRPS,
+			CPUPercent:     n.CPUPercent,
+			MemoryPercent:  n.MemoryPercent,
+			ErrorCount:     n.ErrorCount,
+			P99LatencyMs:   n.P99LatencyMs,
+			IsFailed:       n.IsFailed,
+			IsAsync:        IsAsyncNodeType(n.NodeType),
+			ActiveGroup:    activeGroup,
+			BlueGreenGroup: blueGreenGroup,
 		}
 		metrics = append(metrics, snapshot)
 

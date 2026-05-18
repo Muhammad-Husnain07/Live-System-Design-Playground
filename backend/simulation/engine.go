@@ -15,6 +15,7 @@ type Engine struct {
 	ticks         []Tick
 	onTick        func(tick Tick, tickNum int)
 	chaos         *ChaosManager
+	deployment    *DeploymentManager
 	RunID         string
 	originalNodes []Node
 }
@@ -22,13 +23,31 @@ type Engine struct {
 func NewEngine(cfg *Config) *Engine {
 	orig := make([]Node, len(cfg.Nodes))
 	copy(orig, cfg.Nodes)
+	dep := NewDeploymentManager()
+	dep.InitFromNodes(cfg.Nodes)
+	ctx := NewPropagationContext(cfg)
+	ctx.DepManager = dep
 	return &Engine{
 		config:        cfg,
-		ctx:           NewPropagationContext(cfg),
+		ctx:           ctx,
 		gen:           NewLoadGenerator(cfg.Pattern, cfg.TargetRPS),
 		tickNum:       0,
 		originalNodes: orig,
+		deployment:    dep,
 	}
+}
+
+func (e *Engine) GetDeploymentManager() *DeploymentManager {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.deployment
+}
+
+func (e *Engine) SetDeploymentManager(dm *DeploymentManager) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.deployment = dm
+	e.ctx.DepManager = dm
 }
 
 func (e *Engine) SetChaosManager(cm *ChaosManager) {
@@ -46,6 +65,15 @@ func (e *Engine) restoreNodes() {
 			n.ErrorRate = orig.ErrorRate
 			n.MaxRPS = orig.MaxRPS
 			n.Instances = orig.Instances
+		}
+	}
+	// Sync deployment state from manager into node configs
+	if e.deployment != nil {
+		for _, ds := range e.deployment.AllStates() {
+			if n, ok := e.ctx.Nodes[ds.NodeID]; ok {
+				n.Deployment.CanaryPercent = ds.CanaryPercent
+				n.Deployment.IsCanaryActive = ds.CanaryActive
+			}
 		}
 	}
 }
@@ -176,7 +204,7 @@ func (e *Engine) RunTick() {
 		cm.ApplyPostTick(runID, ctx.Nodes)
 	}
 
-	tick := SnapshotTick(tickNum, cfg.Nodes, cfg.Edges)
+	tick := SnapshotTick(tickNum, cfg.Nodes, cfg.Edges, e.deployment)
 
 	e.mu.Lock()
 	e.ticks = append(e.ticks, tick)

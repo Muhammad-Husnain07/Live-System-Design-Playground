@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useProjectStore } from "../../store/projectStore";
 import { useAuthStore } from "../../store/authStore";
+import { useExportStore } from "../../store/exportStore";
+import ImportModal from "../panels/ImportModal";
 
 interface TopToolbarProps {
   projectId: string;
@@ -13,9 +15,15 @@ interface TopToolbarProps {
   onToggleSimPanel: () => void;
   showChaosPanel: boolean;
   onToggleChaosPanel: () => void;
+  showDeployPanel: boolean;
+  onToggleDeployPanel: () => void;
+  showSecurityPanel: boolean;
+  onToggleSecurityPanel: () => void;
+  collabConnected: boolean;
+  remoteUsers: { clientId: number; name: string; color: string }[];
 }
 
-export default function TopToolbar({ projectId, saving, onStart, onStop, showSimPanel, onToggleSimPanel, showChaosPanel, onToggleChaosPanel }: TopToolbarProps) {
+export default function TopToolbar({ projectId, saving, onStart, onStop, showSimPanel, onToggleSimPanel, showChaosPanel, onToggleChaosPanel, showDeployPanel, onToggleDeployPanel, showSecurityPanel, onToggleSecurityPanel, collabConnected, remoteUsers }: TopToolbarProps) {
   const navigate = useNavigate();
   const { currentProject, updateProject } = useProjectStore();
   const { user, logout } = useAuthStore();
@@ -30,6 +38,9 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
   const isSimRunning = useCanvasStore((s) => s.isSimulationRunning);
   const simSpeed = useCanvasStore((s) => s.simulationSpeed);
   const setSimSpeed = useCanvasStore((s) => s.setSimulationSpeed);
+
+  /* ---- export ---- */
+  const openExport = useExportStore((s) => s.openExport);
 
   /* ---- inline name edit ---- */
   const [editingName, setEditingName] = useState(false);
@@ -73,6 +84,9 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
     const s = sec % 60;
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
+
+  /* ---- import modal ---- */
+  const [showImport, setShowImport] = useState(false);
 
   /* ---- export dropdown ---- */
   const [showExport, setShowExport] = useState(false);
@@ -217,6 +231,15 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           Share
         </button>
 
+        {/* Import */}
+        <button
+          onClick={() => setShowImport(true)}
+          className="px-2 py-1 text-[10px] bg-surface-800 hover:bg-surface-700 rounded transition-colors text-surface-300"
+          title="Import IaC file"
+        >
+          Import
+        </button>
+
         {/* Export dropdown */}
         <div className="relative" ref={exportRef}>
           <button
@@ -238,6 +261,13 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
                 className="w-full text-left px-3 py-1.5 text-[11px] text-surface-300 hover:bg-surface-800 hover:text-surface-100 transition-colors"
               >
                 📄 Export as JSON
+              </button>
+              <div className="border-t border-surface-700 my-1" />
+              <button
+                onClick={() => { setShowExport(false); openExport(); }}
+                className="w-full text-left px-3 py-1.5 text-[11px] text-green-400 hover:bg-green-900/20 transition-colors"
+              >
+                🏗️ IaC Export
               </button>
             </div>
           )}
@@ -268,6 +298,48 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
         >
           ☠️
         </button>
+
+        {/* Deployment toggle */}
+        <button
+          onClick={onToggleDeployPanel}
+          className={`px-2 py-1 text-[10px] rounded transition-colors ${
+            showDeployPanel
+              ? "bg-purple-500/20 text-purple-400"
+              : "bg-surface-800 hover:bg-surface-700 text-surface-300"
+          }`}
+          title="Deployment Panel"
+        >
+          🚀
+        </button>
+
+        {/* Security toggle */}
+        <button
+          onClick={onToggleSecurityPanel}
+          className={`px-2 py-1 text-[10px] rounded transition-colors ${
+            showSecurityPanel
+              ? "bg-blue-500/20 text-blue-400"
+              : "bg-surface-800 hover:bg-surface-700 text-surface-300"
+          }`}
+          title="Security Audit Panel"
+        >
+          🛡️
+        </button>
+
+        {/* Remote users */}
+        {collabConnected && remoteUsers.length > 0 && (
+          <div className="flex items-center -space-x-1.5">
+            {remoteUsers.map((u) => (
+              <div
+                key={u.clientId}
+                className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border border-surface-950"
+                style={{ background: u.color }}
+                title={u.name}
+              >
+                {u.name.charAt(0).toUpperCase()}
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="w-px h-4 bg-surface-700 mx-0.5" />
 
@@ -311,6 +383,10 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           )}
         </div>
       </div>
+      <ImportModal
+        isOpen={showImport}
+        onClose={() => setShowImport(false)}
+      />
     </header>
   );
 }

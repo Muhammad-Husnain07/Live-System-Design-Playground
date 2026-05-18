@@ -43,7 +43,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://postgres:4JJVDD8F@postgres:5432/systemdesign
+      DATABASE_URL: postgresql://postgres:4JJVDD8F@postgres:5432/systemdesign?sslmode=disable
       REDIS_URL: redis://redis:6379
       PORT: "8080"
       FRONTEND_URL: http://localhost:5173

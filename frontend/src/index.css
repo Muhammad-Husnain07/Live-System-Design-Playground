@@ -48,3 +48,12 @@ body {
 .animate-chaos-flash {
   animation: chaos-flash 0.5s ease-in-out infinite;
 }
+
+@keyframes security-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(239,68,68,0.3); }
+  50% { box-shadow: 0 0 20px rgba(239,68,68,0.7); }
+}
+
+.animate-security-pulse {
+  animation: security-pulse 1.2s ease-in-out infinite;
+}

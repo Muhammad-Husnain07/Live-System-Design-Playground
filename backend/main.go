@@ -99,6 +99,26 @@ func main() {
 	chaosGroup.Post("/inject", chaos.Inject)
 	chaosGroup.Get("/active/:simulationRunId", chaos.Active)
 
+	deploy := handlers.NewDeploymentHandler(sim)
+	deployGroup := api.Group("/simulations", middleware.JWTAuth(cfg.JWTSecret))
+	deployGroup.Post("/:id/deployment/shift", deploy.Shift)
+	deployGroup.Post("/:id/deployment/failover", deploy.Failover)
+	deployGroup.Post("/:id/deployment/promote", deploy.Promote)
+	deployGroup.Get("/:id/deployment/state", deploy.GetState)
+	deployGroup.Post("/:id/deployment/set-group", deploy.SetGroup)
+
+	sec := handlers.NewSecurityHandler(config.DB, config.RedisClient)
+	secGroup := api.Group("/security", middleware.JWTAuth(cfg.JWTSecret))
+	secGroup.Post("/audit", sec.Audit)
+
+	export := handlers.NewExportHandler(config.DB, config.RedisClient)
+	exportGroup := api.Group("/export", middleware.JWTAuth(cfg.JWTSecret))
+	exportGroup.Post("/", export.Export)
+
+	importHandler := handlers.NewImportHandler(config.DB, config.RedisClient, cfg)
+	importGroup := api.Group("/import", middleware.JWTAuth(cfg.JWTSecret))
+	importGroup.Post("/", importHandler.Import)
+
 	app.Get("/ws/simulation", func(c *fiber.Ctx) error {
 		ctx := c.Context()
 		ticket := string(ctx.QueryArgs().Peek("ticket"))
@@ -110,8 +130,20 @@ func main() {
 		if !auth.OK {
 			return c.Status(401).JSON(fiber.Map{"error": "invalid or expired ticket"})
 		}
-		// FastHTTPUpgrader handles the connection hijack in-place
 		return handlers.FastHTTPUpgrade(c, hub, auth.UserID, projectID)
+	})
+
+	app.Get("/ws/yjs/:projectId", func(c *fiber.Ctx) error {
+		projectID := c.Params("projectId")
+		ticket := c.Query("ticket")
+		if projectID == "" || ticket == "" {
+			return c.Status(400).JSON(fiber.Map{"error": "projectId path param and ticket query param required"})
+		}
+		auth := ws.ValidateTicket(config.RedisClient, ticket)
+		if !auth.OK {
+			return c.Status(401).JSON(fiber.Map{"error": "invalid or expired ticket"})
+		}
+		return ws.UpgradeYjs(c, config.RedisClient, projectID, auth.UserID)
 	})
 
 	port := cfg.Port

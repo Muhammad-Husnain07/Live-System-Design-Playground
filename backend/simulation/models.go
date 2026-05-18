@@ -117,25 +117,27 @@ type Config struct {
 }
 
 type NodeMetricsSnapshot struct {
-	NodeID        string  `json:"nodeId"`
-	NodeType      NodeType `json:"nodeType"`
-	Label         string   `json:"label"`
-	IncomingRPS   float64  `json:"incomingRPS"`
-	CurrentRPS    float64  `json:"currentRPS"`
-	CanaryRPS     float64  `json:"canaryRPS"`
-	MaxRPS        float64  `json:"maxRPS"`
-	Instances     int      `json:"instances"`
-	LatencyMs     float64  `json:"latencyMs"`
-	ErrorRate     float64  `json:"errorRate"`
-	QueueDepth    float64  `json:"queueDepth"`
-	IsBottleneck  bool     `json:"isBottleneck"`
-	OverflowRPS   float64  `json:"overflowRPS"`
-	CPUPercent    float64  `json:"cpuPercent"`
-	MemoryPercent float64  `json:"memoryPercent"`
-	ErrorCount    float64  `json:"errorCount"`
-	P99LatencyMs  float64  `json:"p99LatencyMs"`
-	IsFailed      bool     `json:"isFailed"`
-	IsAsync       bool     `json:"isAsync"`
+	NodeID         string   `json:"nodeId"`
+	NodeType       NodeType `json:"nodeType"`
+	Label          string   `json:"label"`
+	IncomingRPS    float64  `json:"incomingRPS"`
+	CurrentRPS     float64  `json:"currentRPS"`
+	CanaryRPS      float64  `json:"canaryRPS"`
+	MaxRPS         float64  `json:"maxRPS"`
+	Instances      int      `json:"instances"`
+	LatencyMs      float64  `json:"latencyMs"`
+	ErrorRate      float64  `json:"errorRate"`
+	QueueDepth     float64  `json:"queueDepth"`
+	IsBottleneck   bool     `json:"isBottleneck"`
+	OverflowRPS    float64  `json:"overflowRPS"`
+	CPUPercent     float64  `json:"cpuPercent"`
+	MemoryPercent  float64  `json:"memoryPercent"`
+	ErrorCount     float64  `json:"errorCount"`
+	P99LatencyMs   float64  `json:"p99LatencyMs"`
+	IsFailed       bool     `json:"isFailed"`
+	IsAsync        bool     `json:"isAsync"`
+	ActiveGroup    string   `json:"activeGroup,omitempty"`
+	BlueGreenGroup string   `json:"blueGreenGroup,omitempty"`
 }
 
 type Tick struct {
