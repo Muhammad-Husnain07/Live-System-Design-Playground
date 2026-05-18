@@ -4,6 +4,7 @@ import { useAuthStore } from "../store/authStore";
 import { useProjectStore } from "../store/projectStore";
 import ProjectCard from "../components/ui/ProjectCard";
 import NewProjectModal from "../components/ui/NewProjectModal";
+import ImportModal from "../components/panels/ImportModal";
 
 const PAGE_SIZE = 20;
 
@@ -12,6 +13,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { projects, totalProjects, currentPage, isLoading, error, fetchProjects, createProject, deleteProject } = useProjectStore();
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(1);
@@ -86,12 +88,20 @@ export default function DashboardPage() {
       <main className="flex-1 p-6 max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-medium text-surface-100">Projects</h2>
-          <button
-            onClick={() => setShowNewModal(true)}
-            className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm font-medium text-white transition-colors"
-          >
-            New Project
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white transition-colors"
+            >
+              Import
+            </button>
+            <button
+              onClick={() => setShowNewModal(true)}
+              className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm font-medium text-white transition-colors"
+            >
+              New Project
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -153,6 +163,10 @@ export default function DashboardPage() {
         )}
       </main>
 
+      <ImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+      />
       <NewProjectModal
         isOpen={showNewModal}
         onClose={() => setShowNewModal(false)}
