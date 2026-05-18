@@ -200,6 +200,7 @@ type PropagationContext struct {
 	TopoOrder       []string
 	CycleBreaks     []CycleBreak
 	TickDurationSec float64
+	DepManager      *DeploymentManager
 	// DeferredOutput accumulates RPS from cycle-break nodes that should arrive
 	// at downstream nodes on the NEXT tick (keyed by target node ID).
 	DeferredOutput map[string]float64
@@ -313,6 +314,15 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64) {
 			continue
 		}
 
+		// Blue/green: skip node if its group is not the active set
+		if ctx.DepManager != nil && n.Deployment.Strategy == StrategyBlueGreen {
+			if !ctx.DepManager.IsActiveForBlueGreen(n.ID) {
+				n.CurrentRPS = 0
+				n.IncomingRPS = 0
+				continue
+			}
+		}
+
 		incomingRPS := n.IncomingRPS
 		for _, e := range ctx.EdgeInMap[id] {
 			incomingRPS += e.ThroughputRPS
@@ -349,9 +359,14 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64) {
 		}
 		n.ErrorCount = errorLoss
 
-		if n.Deployment.IsCanaryActive && n.Deployment.CanaryPercent > 0 && n.Deployment.Strategy == StrategyCanary {
-			canary := n.CurrentRPS * (n.Deployment.CanaryPercent / 100.0)
+		if ctx.DepManager != nil && n.Deployment.Strategy == StrategyCanary {
+			stable, canary, failedOver := ctx.DepManager.ApplyCanarySplit(n.ID, n.CurrentRPS, n.ErrorRate)
+			n.CurrentRPS = stable
 			n.CanaryRPS = canary
+			if failedOver {
+				n.Deployment.IsCanaryActive = false
+				n.Deployment.CanaryPercent = 0
+			}
 		}
 
 		outEdges := ctx.EdgeOutMap[id]

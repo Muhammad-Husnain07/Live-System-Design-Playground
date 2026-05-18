@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef } from "react";
 import { useSimulationStore, type TickData, type SimConfig } from "../store/simulationStore";
 import { useCanvasStore } from "../store/canvasStore";
 import { useChaosStore } from "../store/chaosStore";
+import { useDeployStore, type DeployNodeState } from "../store/deploymentStore";
+import { useSecurityStore } from "../store/securityStore";
 import api from "../utils/api";
 
 const WS_BASE =
@@ -23,6 +25,16 @@ export function useSimulation(projectId: string) {
 
   const applyTickToCanvas = useCallback((tick: TickData) => {
     const { nodes, edges } = useCanvasStore.getState();
+
+    const depStates: Record<string, DeployNodeState> = {};
+    for (const m of tick.nodeMetrics) {
+      if (m.activeGroup !== undefined || m.blueGreenGroup !== undefined) {
+        depStates[m.nodeId] = { activeGroup: m.activeGroup ?? "blue", blueGreenGroup: m.blueGreenGroup ?? "" };
+      }
+    }
+    if (Object.keys(depStates).length > 0) {
+      useDeployStore.getState().setNodeStates(depStates);
+    }
 
     const bottleneckIds = new Set(
       tick.nodeMetrics.filter((m) => m.isBottleneck || m.cpuPercent > 80).map((m) => m.nodeId),
@@ -48,6 +60,7 @@ export function useSimulation(projectId: string) {
             errorCount: snap.errorCount ?? 0,
             p99LatencyMs: snap.p99LatencyMs ?? 0,
             canaryRPS: snap.canaryRPS ?? 0,
+            errorRate: snap.errorRate ?? 0,
           },
         },
       };
@@ -200,6 +213,8 @@ export function useSimulation(projectId: string) {
     useSimulationStore.getState().reset();
     useCanvasStore.getState().setSimulationRunning(false);
     useChaosStore.getState().reset();
+    useDeployStore.getState().reset();
+    useSecurityStore.getState().reset();
   }, [closeWs]);
 
   useEffect(() => {

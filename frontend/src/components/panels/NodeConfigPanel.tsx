@@ -262,16 +262,23 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
             />
           </>
         )}
+        {cfg.deployment.strategy === "blue_green" && (
+          <Field label="Blue/Green Group">
+            <TextInput value={cfg.deployment.blueGreenGroup || ""} onChange={(v) => onUpdate({ deployment: { ...cfg.deployment, blueGreenGroup: v } })} placeholder="blue or green" />
+          </Field>
+        )}
         {cfg.deployment.strategy !== "rolling" && (
           <Field label="Canary Version">
             <TextInput value={cfg.deployment.canaryVersion} onChange={(v) => onUpdate({ deployment: { ...cfg.deployment, canaryVersion: v } })} placeholder="e.g. v2" />
           </Field>
         )}
-        <Toggle
-          label="Activate Canary"
-          checked={cfg.deployment.isCanaryActive}
-          onChange={(v) => onUpdate({ deployment: { ...cfg.deployment, isCanaryActive: v } })}
-        />
+        {cfg.deployment.strategy !== "blue_green" && (
+          <Toggle
+            label="Activate Canary"
+            checked={cfg.deployment.isCanaryActive}
+            onChange={(v) => onUpdate({ deployment: { ...cfg.deployment, isCanaryActive: v } })}
+          />
+        )}
       </Section>
 
       {/* Section 5 — Security */}

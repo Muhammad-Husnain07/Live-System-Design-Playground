@@ -44,6 +44,9 @@ export interface DeploymentConfig {
   canaryPercent: number;
   canaryVersion: string;
   isCanaryActive: boolean;
+  canaryFailed?: boolean;
+  blueGreenGroup?: string;
+  activeGroup?: string;
 }
 
 export interface SecurityConfig {
@@ -73,6 +76,7 @@ export interface NodeMetrics {
   errorCount: number;
   p99LatencyMs: number;
   canaryRPS: number;
+  errorRate: number;
 }
 
 export interface SimulationNodeState {

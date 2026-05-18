@@ -20,6 +20,8 @@ export interface NodeMetricsSnapshot {
   p99LatencyMs: number;
   isFailed: boolean;
   isAsync: boolean;
+  activeGroup?: string;
+  blueGreenGroup?: string;
 }
 
 export interface TickData {
