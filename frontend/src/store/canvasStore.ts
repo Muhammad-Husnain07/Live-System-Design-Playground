@@ -19,6 +19,8 @@ interface CanvasStore {
   lastSaved: string | null;
   pastStates: CanvasState[];
   futureStates: CanvasState[];
+  collabConnected: boolean;
+  exportMode: boolean;
 
   setNodes: (nodes: Node[]) => void;
   setEdges: (edges: Edge[]) => void;
@@ -40,6 +42,8 @@ interface CanvasStore {
   redo: () => void;
   setSimulationRunning: (running: boolean) => void;
   setSimulationSpeed: (speed: number) => void;
+  setCollabConnected: (connected: boolean) => void;
+  setExportMode: (mode: boolean) => void;
 }
 
 export const useCanvasStore = create<CanvasStore>((set, get) => ({
@@ -53,6 +57,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   lastSaved: null,
   pastStates: [],
   futureStates: [],
+  collabConnected: false,
+  exportMode: false,
 
   setNodes: (nodes) => set({ nodes, isDirty: true }),
 
@@ -214,4 +220,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   setSimulationRunning: (running) => set({ isSimulationRunning: running }),
 
   setSimulationSpeed: (speed) => set({ simulationSpeed: speed }),
+
+  setCollabConnected: (connected) => set({ collabConnected: connected }),
+
+  setExportMode: (mode) => set({ exportMode: mode }),
 }));
