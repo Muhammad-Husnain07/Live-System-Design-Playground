@@ -75,7 +75,7 @@ A collaborative web application for designing, simulating, and analyzing system 
 
 | Variable       | Description                  | Default                                 |
 |----------------|------------------------------|-----------------------------------------|
-| DATABASE_URL   | PostgreSQL connection string | postgresql://postgres:4JJVDD8F@localhost:5432/systemdesign |
+| DATABASE_URL   | PostgreSQL connection string | postgresql://postgres:4JJVDD8F@localhost:5432/systemdesign?sslmode=disable |
 | REDIS_URL      | Redis connection URL         | redis://localhost:6379                  |
 | PORT           | Backend server port          | 8080                                    |
 | JWT_SECRET     | JWT signing secret           | your_secret_here                        |
@@ -2411,6 +2411,1075 @@ This ensures chaos effects don't permanently corrupt the node config and that ex
 | `npm run build` — 674 modules, 0 errors | ✅ |
 | `go build ./...` — 0 errors | ✅ |
 
-## Next Step
+## Phase 6.1 — Deployment Simulation Logic
 
-Phase 3.3: Implement WebSocket real-time collaboration — sync canvas state (nodes, edges) across multiple users via WebSocket, with Yjs or Socket.IO integration.
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `backend/simulation/deployment.go` | `DeploymentManager` with per-node `NodeDeploymentState`; `ApplyCanarySplit()` for stable/canary RPS split with auto-failover; `ShiftCanary()` for dynamic traffic shifting; `Failover()` for emergency rollback; `PromoteBlueGreen()` for blue/green promotion; `IsActiveForBlueGreen()` for active-set filtering |
+| `backend/handlers/deployment.go` | `DeploymentHandler` with `Shift` (POST) and `Failover` (POST) endpoints; validates engine running, delegates to `DeploymentManager` |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/simulation/engine.go` | Added `deployment *DeploymentManager` field; `GetDeploymentManager()` / `SetDeploymentManager()` methods; `NewEngine()` creates and init's `DeploymentManager` and sets it on `PropagationContext`; `restoreNodes()` syncs deployment state from manager into node configs |
+| `backend/simulation/propagator.go` | Added `DepManager *DeploymentManager` to `PropagationContext`; replaced simple `CanaryRPS` calculation with `DepManager.ApplyCanarySplit()` — splits `CurrentRPS` into stable and canary portions, auto-failover sets `IsCanaryActive=false`; added blue/green active-set skip (node with inactive group gets 0 throughput) |
+| `backend/main.go` | Wires `/api/simulations/:id/deployment/shift` (POST) and `/api/simulations/:id/deployment/failover` (POST) routes |
+
+### Deployment Strategies Modeled
+
+#### Rolling (default)
+- No special handling; traffic flows through all instances as normal
+- Successive instance replacement is abstracted — all instances are treated uniformly
+
+#### Canary
+- **Traffic split**: `StableRPS = TotalRPS × (1 - canaryPercent/100)`, `CanaryRPS = TotalRPS × canaryPercent/100`
+- `CanaryRPS` is tracked on the `Node.CanaryRPS` field and exposed in `NodeMetricsSnapshot`
+- The total `CurrentRPS` flowing through the node = stable + canary combined (realistic — same hardware handles both)
+- **Auto-failover**: if `errorRate > 0.3` on the node during a tick, the `DeploymentManager` marks `CanaryFailed=true`, sets `CanaryPercent=0`, and all traffic shifts back to stable
+- **Dynamic shift**: `ShiftCanary(nodeId, percent)` adjusts the split mid-simulation (no restart needed)
+- **Emergency failover**: `Failover(nodeId, "stable")` zeros canary instantly; `Failover(nodeId, "canary")` promotes canary to 100%
+
+#### Blue/Green
+- Two parallel node groups (`blue` and `green`) coexist on the canvas
+- Nodes can be tagged with a `BlueGreenGroup` (`"blue"` or `"green"`)
+- `DeploymentManager` tracks `ActiveGroup` (defaults to `"blue"`)
+- During `PropagateTick`, nodes in the inactive group are skipped (`CurrentRPS=0`), effectively receiving zero traffic
+- `Failover(nodeId, "blue"|"green")` switches the active set | `PromoteBlueGreen(nodeId)` toggles to the opposite group
+- **Promotion**: `Failover` with direction `"blue"` or `"green"` flips all traffic to that group in one tick
+
+### API Endpoints
+
+#### `POST /api/simulations/:id/deployment/shift` (JWT-protected)
+
+```
+Request:
+{
+  "nodeId": "AppServer-1234",
+  "canaryPercent": 30
+}
+
+Response 200:
+{
+  "status": "shifted",
+  "nodeId": "AppServer-1234",
+  "canaryPercent": 30
+}
+```
+
+Validates: `canaryPercent` ∈ [0, 100], engine exists and is running. Updates the `DeploymentManager` state immediately. Next tick uses the new split.
+
+#### `POST /api/simulations/:id/deployment/failover` (JWT-protected)
+
+```
+Request (canary):
+{
+  "nodeId": "AppServer-1234",
+  "direction": "stable"
+}
+
+Request (blue/green):
+{
+  "nodeId": "Microservice-blue",
+  "direction": "green"
+}
+
+Response 200:
+{
+  "status": "failover_complete",
+  "nodeId": "AppServer-1234",
+  "direction": "stable"
+}
+```
+
+For canary: direction `"stable"` zeros canary immediately; direction `"canary"` promotes canary to 100%. For blue/green: direction `"blue"` or `"green"` switches the active set.
+
+### Deployment Lifecycle
+
+```
+POST /api/simulations/:id/deployment/shift
+  │
+  ├─ Validate canaryPercent ∈ [0,100], engine running
+  ├─ DeploymentManager.ShiftCanary(nodeId, percent)
+  │   ├─ Updates NodeDeploymentState.CanaryPercent
+  │   ├─ Sets CanaryActive = (percent > 0)
+  │   └─ Clears CanaryFailed flag
+  └─ Return { status: "shifted", nodeId, canaryPercent }
+
+POST /api/simulations/:id/deployment/failover
+  │
+  ├─ Validate direction, engine running
+  ├─ DeploymentManager.Failover(nodeId, direction)
+  │   ├─ Canary + "stable": CanaryPercent=0, CanaryActive=false, CanaryFailed=true
+  │   ├─ Canary + "canary": CanaryPercent=100, CanaryActive=true
+  │   ├─ BlueGreen + "blue"/"green": ActiveGroup = direction
+  │   └─ (noop for other strategy/direction combos)
+  └─ Return { status: "failover_complete", nodeId, direction }
+
+Engine.RunTick(tickNum)
+  │
+  ├─ restoreNodes() — also syncs CanaryPercent/IsCanaryActive from DeploymentManager
+  │
+  ├─ chaos.ApplyPreTick()
+  │
+  ├─ ctx.PropagateTick(rps):
+  │   │
+  │   ├─ For each node in topological order:
+  │   │   ├─ Skip if IsFailed
+  │   │   ├─ [Blue/Green] Skip if node's group ≠ active set
+  │   │   ├─ Compute capacity, CurrentRPS, error loss
+  │   │   ├─ [Canary] DepManager.ApplyCanarySplit():
+  │   │   │   ├─ CanaryActive=false → stable=totalRPS, canary=0
+  │   │   │   ├─ CanaryActive=true & errorRate>0.3 → auto-failover (all to stable)
+  │   │   │   └─ CanaryActive=true & errorRate≤0.3 → stable=total×(1-pct), canary=total×pct
+  │   │   ├─ Distribute stable portion to output edges
+  │   │   └─ CanaryRPS tracked on node (visible in metrics)
+  │   │
+  │   └─ UtilizationMetrics()
+  │
+  ├─ chaos.ApplyPostTick()
+  │
+  ├─ SnapshotTick → captures deployment metrics (CanaryRPS, IsFailed, etc.)
+  └─ Broadcast tick via WebSocket
+```
+
+### Build Results
+
+- `go build ./...` — ✅ 0 errors
+- `go vet ./...` — ✅ 0 errors
+
+### Verification: FIXED — 2026-05-17
+
+**Fix applied:** `handlers/deployment.go` — `Shift` handler was calling `engine.OnTick(func(...) {})` which replaced the simulation's WS broadcasting callback with a no-op, breaking WebSocket tick streaming. Removed the bogus `OnTick` call. Deployment changes are reflected in the next tick's metrics automatically via `PropagateTick` reading the updated `DeploymentManager` state.
+
+| Check | Result |
+|-------|--------|
+| `deployment.go` — `NodeDeploymentState` struct (NodeID, Strategy, CanaryPercent, CanaryActive, CanaryFailed, BlueGreenGroup, ActiveGroup) | ✅ |
+| `deployment.go` — `DeploymentManager` with sync.RWMutex, states map, `NewDeploymentManager()` | ✅ |
+| `deployment.go` — `InitFromNodes(nodes)` populates states from canvas node configs | ✅ |
+| `deployment.go` — `GetState(nodeID)` / `AllStates()` | ✅ |
+| `deployment.go` — `ShiftCanary(nodeID, percent)` clips to [0,100], sets CanaryActive | ✅ |
+| `deployment.go` — `Failover(nodeID, direction)` — canary "stable" zeros canary | ✅ |
+| `deployment.go` — `Failover(nodeID, direction)` — canary "canary" promotes to 100% | ✅ |
+| `deployment.go` — `Failover(nodeID, direction)` — blue/green "blue"/"green" switches ActiveGroup | ✅ |
+| `deployment.go` — `PromoteBlueGreen(nodeID)` toggles ActiveGroup | ✅ |
+| `deployment.go` — `IsActiveForBlueGreen(nodeID)` returns true if node's group matches active set (or not blue/green) | ✅ |
+| `deployment.go` — `ApplyCanarySplit(nodeID, totalRPS, errorRate)` — auto-failover when errorRate > 0.3 | ✅ |
+| `deployment.go` — `ApplyCanarySplit` stable = total × (1-pct), canary = total × pct | ✅ |
+| `propagator.go` — `DepManager` field on PropagationContext | ✅ |
+| `propagator.go` — Blue/green active-set skip (CurrentRPS=0 for inactive group) | ✅ |
+| `propagator.go` — Canary split via `DepManager.ApplyCanarySplit()` replaces old hardcoded CanaryRPS | ✅ |
+| `engine.go` — `deployment` field, `GetDeploymentManager()` / `SetDeploymentManager()` | ✅ |
+| `engine.go` — NewEngine() creates DeploymentManager, calls InitFromNodes, sets on ctx | ✅ |
+| `engine.go` — restoreNodes() syncs CanaryPercent/IsCanaryActive from DeploymentManager | ✅ |
+| `handlers/deployment.go` — `POST /:id/deployment/shift` validates nodeId, canaryPercent [0,100], engine running | ✅ |
+| `handlers/deployment.go` — `POST /:id/deployment/failover` validates nodeId, direction, engine running | ✅ |
+| `main.go` — Wires shift and failover routes | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+
+## Phase 6.2 — Deployment Strategy Control UI
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/store/deploymentStore.ts` | Zustand store: `showDeployPanel` toggle + reset |
+| `frontend/src/components/panels/DeploymentPanel.tsx` | Full deployment control panel: node selector, traffic slider, promote/rollback, live metrics |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/types/canvas.ts` | Added `errorRate` to `NodeMetrics`, `canaryFailed` to `DeploymentConfig` |
+| `frontend/src/hooks/useSimulation.ts` | Passes `errorRate` through tick→node metrics mapping; resets deploy store on stop |
+| `frontend/src/components/canvas/BaseNode.tsx` | Added blue (stable) + purple (canary) split traffic bar; warning badge when canary failing |
+| `frontend/src/components/canvas/CustomEdge.tsx` | Dual-path rendering (solid blue stable + dashed purple canary) when source node has active canary; hover tooltip shows split percentages |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | Added 🚀 deploy toggle button (purple when active) |
+| `frontend/src/pages/ProjectPage.tsx` | DeploymentPanel in right panel priority stack (highest); `showDeployPanel`/`setShowDeployPanel` wired; `DEFAULT_METRICS` includes `errorRate` |
+
+### DeploymentPanel Features
+
+- **Empty state**: Shows "Start a simulation to control deployments" when not running
+- **Node selector**: Filters canvas nodes whose `deployment.strategy === "canary"`
+- **Traffic slider**: Range 0–100%, step 5, debounced (200ms) API call to `POST /api/simulations/:id/deployment/shift`
+- **Visual split display**: "Stable v1: X% \| Canary v2: Y%" with combined blue (stable) + purple (canary) stacked bar
+- **Live metrics grid**: Stable RPS (blue), Canary RPS (purple), Error Rate (red/orange threshold), Status badge
+- **Warning banner**: Red alert when `errorRate > 0.3` and canary active — "Canary degrading — auto-failover imminent"
+- **Promote Canary button**: Calls `POST /api/simulations/:id/deployment/failover` with `direction: "canary"`, sets slider to 100%
+- **Rollback button** (red): Calls failover with `direction: "stable"`, sets slider to 0%
+- **Toasts**: Success/error notifications for all API calls
+
+### Canvas Visual Reactions
+
+**BaseNode traffic bar** (when `deployment.strategy === "canary"`):
+- Blue bar width = stableRPS / totalRPS × 100%
+- Purple bar width = canaryRPS / totalRPS × 100%
+- Computed from `metrics.currentRPS` and `metrics.canaryRPS` (set by latest tick)
+- Only renders when `totalRPS > 0`
+
+**BaseNode canary failing badge** (when `isCanaryActive && errorRate > 0.3`):
+- Animated pulse: ⚠️ Canary failing
+
+**CustomEdge split traffic** (when source node has `deployment.strategy === "canary"` and `isCanaryActive`):
+- Two `BaseEdge` paths overlaid: solid `#3B82F6` (stable) + dashed `#A855F7` (canary)
+- Animated purple dot following the path
+- Hover tooltip extended to show "Canary X% | Stable Y%" on second line
+
+### Build Results
+
+- `npm run build` — ✅ 0 errors (676 modules, 647 KB JS)
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `deploymentStore.ts` — Zustand store with `showDeployPanel` + `setShowDeployPanel` + `reset` | ✅ |
+| `DeploymentPanel.tsx` — Node selector filters nodes with canary strategy | ✅ |
+| `DeploymentPanel.tsx` — Traffic slider (0-100%, step 5) with debounced shift API | ✅ |
+| `DeploymentPanel.tsx` — Visual split display (Stable v1 X% \| Canary v2 Y%) with stacked bar | ✅ |
+| `DeploymentPanel.tsx` — Live metrics grid (Stable RPS, Canary RPS, Error Rate, Status) | ✅ |
+| `DeploymentPanel.tsx` — Warning banner when errorRate > 0.3 & canary active | ✅ |
+| `DeploymentPanel.tsx` — Promote Canary button → failover "canary" + toast | ✅ |
+| `DeploymentPanel.tsx` — Rollback button (red) → failover "stable" + toast | ✅ |
+| `DeploymentPanel.tsx` — Empty/inactive states handled | ✅ |
+| `BaseNode.tsx` — Blue/purple split bar from metrics | ✅ |
+| `BaseNode.tsx` — ⚠️ Canary failing badge on high error rate | ✅ |
+| `CustomEdge.tsx` — Dual-path (solid+dashed) on canary source node | ✅ |
+| `CustomEdge.tsx` — Hover tooltip with canary split percentage | ✅ |
+| `TopToolbar.tsx` — 🚀 deploy toggle button (purple when active) | ✅ |
+| `ProjectPage.tsx` — DeploymentPanel wired in right panel priority stack | ✅ |
+| `useSimulation.ts` — Deploy store reset on simulation stop | ✅ |
+
+## Verification: PASSED — 2026-05-17
+
+| Check | Result |
+|-------|--------|
+| `deploymentStore.ts` — Zustand store with `showDeployPanel` + `setShowDeployPanel` + `reset` | ✅ |
+| `DeploymentPanel.tsx` — 311 lines, all 6 spec features: node selector, slider with debounce, split visual, metrics grid, warning banner, promote+rollback | ✅ |
+| `canvas.ts` — `NodeMetrics.errorRate` + `DeploymentConfig.canaryFailed` | ✅ |
+| `useSimulation.ts` — `errorRate` in tick mapping + `useDeployStore` import + reset on stop | ✅ |
+| `BaseNode.tsx` — `deployStrategy` check, `stablePct`/`canaryPct` bars, `isCanaryFailing` badge | ✅ |
+| `CustomEdge.tsx` — `useCanvasStore` import, `hasCanary` dual-path rendering, hover split tooltip | ✅ |
+| `TopToolbar.tsx` — `showDeployPanel`/`onToggleDeployPanel` props + 🚀 button | ✅ |
+| `ProjectPage.tsx` — `useDeployStore` import, `showDeployPanel`/`setShowDeployPanel` state, `DeploymentPanel` in right stack, `DEFAULT_METRICS.errorRate` | ✅ |
+| `npm run build` — 676 modules, 0 errors | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+| All spec items from Phase 6.2 prompt implemented without stubs | ✅ |
+
+## Phase 7.1 — Security Boundary Validation Engine
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `backend/services/security/auditor.go` | `SecurityAuditor` + `SecurityViolation` + `InfraGraph` + `ParseCanvasData` + 4 audit rules |
+| `backend/handlers/security.go` | `POST /api/security/audit` endpoint — fetches project canvas_data, parses into InfraGraph, runs audit |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/main.go` | Added `/api/security/audit` route (JWT-protected) |
+
+### Core Types
+
+```
+SecurityViolation:
+  Severity     "critical" | "warning"
+  Type         "unencrypted_transit" | "public_database" |
+               "cross_vpc_unfirewalled" | "overly_permissive_inbound"
+  SourceNodeID string
+  TargetNodeID string
+  Message      string
+
+InfraGraph:
+  Nodes []Node     (ID, NodeType, Label, SecurityConfig)
+  Edges []Edge     (ID, Source, Target, RequiresTLS)
+
+SecurityConfig:
+  IsPublicFacing bool
+  RequiresTLS    bool
+  AllowedInbound []string
+  VpcID          string
+```
+
+### Audit Rules
+
+| # | Rule | Logic | Severity |
+|---|------|-------|----------|
+| 1 | **Unencrypted Transit** | Edge has `requiresTLS=true` but target node's `Security.RequiresTLS` is `false` → the encrypted requirement is misconfigured | Critical |
+| 2 | **Public Database** | ExternalClient-type node (ExternalClient, MobileClient, WebBrowser, ThirdPartyAPI) can reach a Data-type node (PostgreSQLDB, MySQLDB, MongoDB, Redis, Elasticsearch) via a path that does NOT pass through a Firewall, LoadBalancer, or APIGateway. Uses BFS path-finding that skips protective node types. | Critical |
+| 3 | **Cross-VPC Unfirewalled** | Edge connects two nodes with different `VpcID` values and neither endpoint is a Firewall-type node. | Warning |
+| 4 | **Overly Permissive Inbound** | Node has empty `AllowedInbound` list and is not `IsPublicFacing` → no allowed inbound traffic sources defined. | Warning |
+
+### Canvas Data Parsing
+
+`ParseCanvasData(raw []byte)` handles the nested `canvas_data` JSONB structure:
+
+```
+canvas_data (JSONB):
+  nodes[]:
+    - id, type, position
+    - data:
+        - nodeType, label
+        - config:
+            - security: { isPublicFacing, requiresTLS, allowedInbound, vpcId }
+  edges[]:
+    - id, source, target
+    - data:
+        - routing: { requiresTLS }
+```
+
+### Endpoint
+
+#### `POST /api/security/audit`
+
+```
+Request:
+{
+  "projectId": "uuid"
+}
+
+Response 200:
+{
+  "violations": [
+    {
+      "severity": "critical",
+      "type": "unencrypted_transit",
+      "sourceNodeId": "WebServer-123",
+      "targetNodeId": "PostgreSQLDB-456",
+      "message": "Edge requires TLS but target node My Database has TLS disabled..."
+    },
+    {
+      "severity": "warning",
+      "type": "cross_vpc_unfirewalled",
+      "sourceNodeId": "AppServer-789",
+      "targetNodeId": "RedisCache-012",
+      "message": "App Server (VPC: private-a) connects to Redis Cache (VPC: data-b) without a firewall..."
+    }
+  ]
+}
+
+Response 403:
+{ "error": "project not found or access denied" }
+```
+
+- JWT-protected — user must be owner or collaborator of the project
+- Queries `canvas_data` directly from the `projects` table
+- Empty violations list returns `"violations": []` (never null)
+
+### Build Results
+
+- `go build ./...` — ✅ 0 errors
+- `go vet ./...` — ✅ 0 errors
+- `npm run build` — ✅ 0 errors (676 modules)
+
+## Phase 7.2 — Security Validation UI
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/store/securityStore.ts` | SecurityViolation interface, Zustand store with violations list, panel toggle, highlightViolation/clearHighlights for click-to-highlight on canvas |
+| `frontend/src/components/panels/SecurityPanel.tsx` | Run Security Audit button (POST /api/security/audit), violation list grouped by critical/warning, clickable rows that highlight nodes/edges on canvas |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/components/canvas/BaseNode.tsx` | Red pulsing border (`animate-security-pulse`) + red boxShadow when node is in `highlightedNodeIds` |
+| `frontend/src/components/canvas/CustomEdge.tsx` | Red dashed stroke (`#EF4444`, `6 3`) + 🔓 label at midpoint when edge is in `highlightedEdgeIds` |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | Added 🛡️ security toggle button with `showSecurityPanel`/`onToggleSecurityPanel` props |
+| `frontend/src/pages/ProjectPage.tsx` | Imports SecurityPanel + useSecurityStore; SecurityPanel rendered as highest priority in right panel stack; `VpcBoundaries` component renders colored dashed SVG rects behind nodes grouped by `vpcId` |
+| `frontend/src/hooks/useSimulation.ts` | Imports useSecurityStore; calls `.reset()` on simulation stop |
+| `frontend/src/index.css` | Added `@keyframes security-pulse` (1.2s ease-in-out) + `.animate-security-pulse` class |
+
+### Canvas Visual Reactions
+
+| Violation Type | Visual |
+|----------------|--------|
+| `unencrypted_transit` | Red dashed edge (`#EF4444`, `6 3` dash) + 🔓 label at edge midpoint |
+| `public_database` | Red pulsing border on the exposed DB node (via `animate-security-pulse`) |
+| General violation | Clicked node/edge pair is highlighted per `highlightViolation()` |
+| VPC boundaries | Semi-transparent colored dashed SVG rects (8 colors) with dynamic padding, rendered behind nodes in ReactFlow |
+
+### Decision: Security Panel Priority
+
+SecurityPanel is the highest priority panel in the right panel stack (checked before Deploy/Chaos/Sim/Config). This matches the security-first principle — audit results should be immediately visible without dismissing other panels.
+
+## Phase 7.1 — Security Boundary Validation Engine
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `backend/services/security/auditor.go` | SecurityAuditor (316 lines) with SecurityViolation struct, InfraGraph, ParseCanvasData for canvas_data JSONB, 4 audit rules: unencrypted_transit (critical), public_database (critical, BFS path-finding), cross_vpc_unfirewalled (warning), overly_permissive_inbound (warning) |
+| `backend/handlers/security.go` | POST /api/security/audit handler: validates projectId, checks owner/collaborator access, queries canvas_data, parses into InfraGraph, runs audit, returns violations |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/main.go` | Wired `/api/security/audit` route with JWTAuth middleware |
+
+### Data Flow
+
+```
+POST /api/security/audit { projectId }
+  → JWTAuth middleware extracts user_id
+  → Handler queries projects table for canvas_data
+  → ParseCanvasData(raw) → InfraGraph{Nodes, Edges}
+  → NewSecurityAuditor(graph).Audit() → []SecurityViolation
+  → JSON response
+```
+
+### Audit Rules Detail
+
+| # | Rule | Logic | Severity |
+|---|------|-------|----------|
+| 1 | **Unencrypted Transit** | Edge has `requiresTLS=true` but target node's `Security.RequiresTLS` is `false` → the encrypted requirement is misconfigured | Critical |
+| 2 | **Public Database** | ExternalClient-type node can reach a Data-type node via a path that does NOT pass through a Firewall, LoadBalancer, or APIGateway. Uses BFS path-finding that skips protective node types. | Critical |
+| 3 | **Cross-VPC Unfirewalled** | Edge connects two nodes with different `VpcID` values and neither endpoint is a Firewall-type node. | Warning |
+| 4 | **Overly Permissive Inbound** | Node has empty `AllowedInbound` list and is not `IsPublicFacing` → no allowed inbound traffic sources defined. | Warning |
+
+### InfraGraph Struct
+
+```go
+type InfraGraph struct {
+    Nodes []InfraNode    (ID, NodeType, Label, SecurityConfig)
+    Edges []InfraEdge    (ID, Source, Target, RequiresTLS)
+}
+
+type SecurityConfig struct {
+    IsPublicFacing bool
+    RequiresTLS    bool
+    AllowedInbound []string
+    VpcID          string
+}
+```
+
+### Canvas Data Parsing
+
+`ParseCanvasData(raw []byte)` handles the nested `canvas_data` JSONB structure:
+
+```
+canvas_data (JSONB):
+  nodes[]:
+    - id, type, position
+    - data:
+        - nodeType, label
+        - config:
+            - security: { isPublicFacing, requiresTLS, allowedInbound, vpcId }
+  edges[]:
+    - id, source, target
+    - data:
+        - routing: { requiresTLS }
+```
+
+### Endpoint
+
+#### `POST /api/security/audit`
+
+```
+Request:
+{
+  "projectId": "uuid"
+}
+
+Response 200:
+{
+  "violations": [
+    {
+      "severity": "critical",
+      "type": "unencrypted_transit",
+      "sourceNodeId": "WebServer-123",
+      "targetNodeId": "PostgreSQLDB-456",
+      "message": "Edge requires TLS but target node My Database has TLS disabled..."
+    },
+    {
+      "severity": "warning",
+      "type": "cross_vpc_unfirewalled",
+      "sourceNodeId": "AppServer-789",
+      "targetNodeId": "RedisCache-012",
+      "message": "App Server (VPC: private-a) connects to Redis Cache (VPC: data-b) without a firewall..."
+    }
+  ]
+}
+
+Response 403:
+{ "error": "project not found or access denied" }
+```
+
+- JWT-protected — user must be owner or collaborator of the project
+- Queries `canvas_data` directly from the `projects` table
+- Empty violations list returns `"violations": []` (never null)
+
+## Verification: PASSED
+
+| Spec Item | Status |
+|-----------|--------|
+| `backend/services/security/auditor.go` — SecurityAuditor, SecurityViolation, InfraGraph, ParseCanvasData, 4 audit rules (unencrypted_transit, public_database BFS, cross_vpc_unfirewalled, overly_permissive_inbound) | ✅ |
+| `backend/handlers/security.go` — POST /api/security/audit, JWT-protected, project access check, canvas_data query | ✅ |
+| `backend/main.go` — /api/security/audit route wired with JWTAuth middleware | ✅ |
+| `frontend/src/store/securityStore.ts` — SecurityViolation interface, Zustand store with all fields + actions | ✅ |
+| `frontend/src/components/panels/SecurityPanel.tsx` — Run Security Audit button, grouped violation list, click-to-highlight | ✅ |
+| `frontend/src/components/canvas/BaseNode.tsx` — Red pulsing border on highlighted nodes | ✅ |
+| `frontend/src/components/canvas/CustomEdge.tsx` — Red dashed stroke + 🔓 on highlighted edges | ✅ |
+| `frontend/src/components/toolbar/TopToolbar.tsx` — 🛡️ security toggle button | ✅ |
+| `frontend/src/pages/ProjectPage.tsx` — SecurityPanel in priority stack, VpcBoundaries colored SVG rects | ✅ |
+| `frontend/src/hooks/useSimulation.ts` — Security store reset on simulation stop | ✅ |
+| `frontend/src/index.css` — @keyframes security-pulse | ✅ |
+| No stubs or placeholder implementations | ✅ |
+
+### Build Results
+- `go build ./...` — ✅ PASSED (0 errors)
+- `go vet ./...` — ✅ PASSED (0 errors)
+- `npm run build` — ✅ PASSED (678 modules, 653 KB JS)
+
+## Phase 8.1 — Real-time Collaborative Editing
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `backend/ws/yjs.go` | Yjs WebSocket handler — binary message relay between clients in same project room, Redis persistence of sync step 2 (full document state), awareness forwarding |
+| `frontend/src/hooks/useCollaboration.ts` | Y.Doc + WebsocketProvider initialization, Yjs↔ReactFlow binding, awareness for cursors, periodic state persistence |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/main.go` | Added `/ws/yjs/:projectId` route with ticket validation and `ws.UpgradeYjs` |
+| `frontend/src/store/canvasStore.ts` | Added `collabConnected` state + `setCollabConnected` action |
+| `frontend/src/pages/ProjectPage.tsx` | Integrated `useCollaboration` hook: Yjs-bound canvas changes (onNodesChange/onEdgesChange/onConnect/onDrop/delete → `debouncedSync`, onNodeDragStop → `syncToYjs`), auto-save suppressed when Yjs connected, remote cursor SVG overlay, mouse position → awareness |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | Remote participant avatar dots from awareness state |
+
+### Yjs ↔ ReactFlow Binding Strategy
+
+```
+ReactFlow is the UI layer. Yjs is the source of truth.
+
+Local change flow:
+  User drags/edits canvas
+    → ReactFlow onNodesChange fires
+    → Zustand store updated (setNodes/applyNodeChanges)
+    → debounced (200ms) syncToYjs()
+      → Yjs doc.transact(() => yCanvas.set('nodes', JSON.stringify(nodes)), 'local')
+      → 'local' origin prevents Yjs observer from re-applying to ReactFlow
+    → WebSocketProvider sends incremental update to peers
+
+Remote change flow:
+  WebSocket receives update from peer
+    → Y.Doc applies update
+    → yCanvas.observe fires with origin !== 'local'
+    → Parse JSON → useCanvasStore.setState({ nodes, edges })
+    → ReactFlow re-renders (no auto-save trigger, isDirty unchanged)
+```
+
+### Infinite Loop Prevention
+
+| Technique | Mechanism |
+|-----------|-----------|
+| **Origin marking** | Local writes set `origin='local'` on `doc.transact()`; observer skips `origin === 'local'` |
+| **Debounced sync** | Position changes during drag are not synced; only `onNodeDragStop` triggers immediate sync |
+| **State vs store** | Remote changes use `useCanvasStore.setState()` (no `isDirty`), not `setNodes()` (which would mark dirty) |
+| **Single binding direction** | Y.Map observer → Zustand store (remote); Zustand → Y.Map (local) — never directly circular |
+
+### Auto-Save vs Yjs Conflict Resolution
+
+**Rule**: When Yjs WebSocket is connected, HTTP auto-save to `PUT /projects/:id/canvas` is **skipped**. The Y.Doc is the source of truth; changes are persisted through two mechanisms:
+
+1. **Yjs binary protocol** (real-time): Incremental updates (`syncUpdate`) forwarded between connected clients; sync step 2 messages (full state) stored in Redis as `yjs:project:{id}` for fast onboarding of late-joining clients
+2. **Periodic state snapshot** (every 30s): One connected client encodes the full Y.Doc (`Y.encodeStateAsUpdate`) and sends it as a sync step 2 message through the WebSocket; the backend stores the state in Redis and broadcasts to other clients (no-op for already-synced peers)
+3. **HTTP fallback** (when Yjs disconnected): When `collabConnected === false`, the 30-second HTTP auto-save timer resumes, saving Zustand store state to PostgreSQL via `PUT /projects/:id/canvas`
+
+**On page load**: canvas_data is loaded from HTTP `GET /projects/:id`, then populated into Y.Doc (if Y.Doc is empty after sync). Subsequent edits use Yjs as source of truth.
+
+### Awareness System
+
+| Feature | Implementation |
+|---------|---------------|
+| **Mouse cursor** | `ReactFlow wrapper onMouseMove` → `provider.awareness.setLocalStateField('cursor', {x, y})` |
+| **User identity** | `provider.awareness.setLocalStateField('name', username); setLocalStateField('color', hexColor)` |
+| **Remote cursors** | SVG cursor pointer + name label, rendered as absolutely-positioned divs on the canvas wrapper (z-50, pointer-events-none) |
+| **Avatar cluster** | TopToolbar shows colored avatar dots for each remote participant |
+| **Color assignment** | Deterministic from username length `% 8` across 8 colors |
+
+### Backend Protocol
+
+The Go backend implements minimal Yjs binary protocol parsing for message routing:
+
+```
+Message format: [messageType: varuint] [content...]
+
+messageType = 0 (messageSync):
+  [messageSync: 0] [syncSubType: varuint] [payload]
+  syncSubType = 0 (syncStep1): Respond with stored Redis state as syncStep2
+  syncSubType = 1 (syncStep2): Store payload in Redis, broadcast to room
+  syncSubType = 2 (syncUpdate): Broadcast to room (no storage)
+
+messageType = 1 (messageAwareness):
+  [messageAwareness: 1] [awarenessPayload: bytes]
+  Broadcast to room (no storage)
+```
+
+### Endpoint
+
+#### `GET /ws/yjs/:projectId?ticket=`
+
+```
+WebSocket upgrade — binary messages (Yjs protocol)
+Query params:
+  - ticket: short-lived WS ticket from POST /api/auth/ws-ticket
+Path params:
+  - projectId: UUID of the project
+```
+
+### Verification: PASSED
+
+| Spec Item | Status |
+|-----------|--------|
+| `backend/ws/yjs.go` — YjsHub, YjsRoom, YjsClient, binary protocol parsing (sync/awareness), Redis persistence, room broadcast | ✅ |
+| `backend/main.go` — `/ws/yjs/:projectId` route with ticket validation | ✅ |
+| `frontend/src/hooks/useCollaboration.ts` — Y.Doc init, WebsocketProvider connection, Y.Map observer for remote changes, Yjs→ReactFlow binding, awareness for cursors, periodic persistence | ✅ |
+| `frontend/src/store/canvasStore.ts` — `collabConnected` state | ✅ |
+| `frontend/src/pages/ProjectPage.tsx` — Yjs-bound canvas changes, auto-save suppression when connected, remote cursor overlay, mouse tracking | ✅ |
+| `frontend/src/components/toolbar/TopToolbar.tsx` — Remote avatar dots | ✅ |
+| Infinite loop prevention (origin marking, debounced sync, store.setState vs setNodes) | ✅ |
+| Auto-save vs Yjs conflict resolution (HTTP suppressed when connected, Yjs + Redis persistence, 30s state snapshots) | ✅ |
+
+### Build Results
+- `go build ./...` — ✅ PASSED (0 errors)
+- `go vet ./...` — ✅ PASSED (0 errors)
+- `npm run build` — ✅ PASSED (721 modules, 745 KB JS)
+
+## Verification: PASSED (2026-05-17)
+
+| Check | Result |
+|-------|--------|
+| `backend/ws/yjs.go` — 238 lines, all structs/functions present, binary protocol parsing (sync/awareness), Redis persistence, room broadcast, no stubs | ✅ |
+| `backend/main.go` — `/ws/yjs/:projectId` route with ticket validation, 400/401 error handling | ✅ |
+| `frontend/src/hooks/useCollaboration.ts` — Y.Doc init, WebsocketProvider with ticket auth, Y.Map observer with origin guard, awareness cursor tracking, periodic 30s persistence, cleanup on unmount, no stubs | ✅ |
+| `frontend/src/store/canvasStore.ts` — `collabConnected` field + `setCollabConnected` action | ✅ |
+| `frontend/src/pages/ProjectPage.tsx` — useCollaboration wired, auto-save suppression, debounced sync on all canvas changes, cursor overlay, mouse tracking | ✅ |
+| `frontend/src/components/toolbar/TopToolbar.tsx` — `collabConnected` + `remoteUsers` props, avatar dots | ✅ |
+| Infinite loop prevention (origin='local', debounced 200ms, setState vs setNodes) | ✅ |
+| Auto-save vs Yjs conflict resolution (HTTP suppressed when collabConnected, 30s snapshots, Redis persistence) | ✅ |
+| `go build ./...` | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+| `npm run build` | ✅ PASSED (721 modules, 745 KB JS) |
+
+## Phase 9.1 — IaC Export Engine (Terraform / K8s / CloudFormation)
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `backend/iac/types.go` | `Resource` struct (ID, Type, Provider, Properties, DependsOn), `ExportData` (Resources, Edges, ResourceByID, ProjectID, ProjectName), `CanvasData`/`CanvasNodeData`/`CanvasEdgeData` for JSON unmarshalling, `ExportFormat` constants |
+| `backend/iac/mapper.go` | `ParseCanvasData()` — unmarshals canvas JSON, maps all 22 AWS-relevant NodeTypes to Terraform resource names, populates dependency map from edges, `SanitizeID()`, `pickInstanceType()`, `merge()` helpers |
+| `backend/iac/terraform.go` | `GenerateTerraform()` — `text/template` producing valid HCL with `hashicorp/aws` provider block, resource blocks with `depends_on`, `formatValue` helper; `GenerateTerraformJSON()` for HCL JSON format |
+| `backend/iac/kubernetes.go` | `GenerateKubernetes()` — `text/template` producing YAML with Deployments, Services (ClusterIP + LoadBalancer), StatefulSets, ConfigMaps, Ingress; all 22 resource types mapped |
+| `backend/iac/cloudformation.go` | `GenerateCloudFormation()` — `text/template` producing JSON with `AWSTemplateFormatVersion: "2010-09-09"`, sorted Resources block, `prop` helper for property serialization |
+| `backend/handlers/export.go` | `ExportHandler` with `POST /api/export` — JWT-protected, validates project ownership/collaboration, queries `canvas_data`, parses via mapper, generates selected format, returns `{ content, filename }` |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/main.go` | Added `POST /api/export` route with JWTAuth middleware |
+
+### Export Endpoint
+
+#### `POST /api/export` (JWT-protected)
+
+```
+Request:
+{
+  "projectId": "uuid",
+  "format": "terraform" | "kubernetes" | "cloudformation"
+}
+
+Response 200:
+{
+  "content": "# Terraform configuration...",
+  "filename": "My Design-infrastructure.tf"
+}
+
+Response 400:
+{ "error": "projectId is required" | "format must be one of: terraform, kubernetes, cloudformation" }
+
+Response 403:
+{ "error": "project not found or access denied" }
+```
+
+### Node Type → Resource Mapping
+
+| Canvas NodeType | Terraform Type | K8s Kind | CF Type |
+|----------------|----------------|----------|---------|
+| LoadBalancer | `aws_lb` | Service (LoadBalancer) | `AWS::ElasticLoadBalancingV2::LoadBalancer` |
+| APIGateway | `aws_api_gateway_rest_api` | Ingress | `AWS::ApiGateway::RestApi` |
+| WebServer | `aws_instance` | Deployment + Service | `AWS::EC2::Instance` |
+| AppServer | `aws_instance` | Deployment + Service | `AWS::EC2::Instance` |
+| Microservice | `aws_ecs_service` | Deployment + Service | `AWS::ECS::Service` |
+| PostgreSQLDB | `aws_db_instance` | StatefulSet + Service | `AWS::RDS::DBInstance` |
+| MySQLDB | `aws_db_instance` | StatefulSet + Service | `AWS::RDS::DBInstance` |
+| MongoDB | `aws_instance` | Deployment + Service | `AWS::EC2::Instance` |
+| Redis | `aws_elasticache_replication_group` | Deployment + Service | `AWS::ElastiCache::ReplicationGroup` |
+| Elasticsearch | `aws_elasticsearch_domain` | StatefulSet + Service | `AWS::Elasticsearch::Domain` |
+| CDN | `aws_cloudfront_distribution` | ConfigMap | `AWS::CloudFront::Distribution` |
+| DNS | `aws_route53_zone` | ConfigMap | `AWS::Route53::HostedZone` |
+| Firewall | `aws_network_firewall_firewall` | ConfigMap | `AWS::NetworkFirewall::Firewall` |
+| VPC | `aws_vpc` | ConfigMap | `AWS::EC2::VPC` |
+| Subnet | `aws_subnet` | ConfigMap | `AWS::EC2::Subnet` |
+| MessageQueue | `aws_sqs_queue` | ConfigMap | `AWS::SQS::Queue` |
+| EventBus | `aws_cloudwatch_event_bus` | ConfigMap | `AWS::Events::EventBus` |
+| PubSub | `aws_sns_topic` | ConfigMap | `AWS::SNS::Topic` |
+| ContainerCluster | `aws_ecs_cluster` | ConfigMap | `AWS::ECS::Cluster` |
+| ServerlessFunction | `aws_lambda_function` | ConfigMap | `AWS::Lambda::Function` |
+| BatchProcessor | `aws_batch_compute_environment` | ConfigMap | `AWS::Batch::ComputeEnvironment` |
+| WorkerService | `aws_ecs_service` | Deployment + Service | `AWS::ECS::Service` |
+| ExternalClient | skipped | skipped | skipped |
+| ThirdPartyAPI | skipped | skipped | skipped |
+| MobileClient | skipped | skipped | skipped |
+| WebBrowser | skipped | skipped | skipped |
+
+### Key Decisions
+
+- **DependsOn from edges**: Each edge from source A to target B generates a `depends_on` on B referencing A. Only mapped resources (not skipped external types) are included.
+- **Template engines**: `text/template` (not `html/template`) for all three formats since they generate structured config files, not HTML.
+- **Property defaults**: Each generator uses sensible inline defaults (e.g. AWS region `us-east-1`, instance type `t3.medium`, DB engine `postgres:16`). These can be overridden by canvas node config fields.
+- **Monaco Editor for preview**: Read-only `@monaco-editor/react` with language-specific syntax highlighting (HCL/YAML/JSON) in vs-dark theme.
+- **HCL vs JSON Terraform**: Both `GenerateTerraform()` (HCL) and `GenerateTerraformJSON()` are provided. The export endpoint uses HCL by default.
+
+### Verification: PASSED — 2026-05-17
+
+| Check | Result |
+|-------|--------|
+| `backend/iac/types.go` — Resource (ID/Type/Provider/Properties/DependsOn), ExportData, CanvasData/CanvasNodeData/CanvasEdgeData | ✅ |
+| `backend/iac/types.go` — ExportFormat constants (terraform/kubernetes/cloudformation) | ✅ |
+| `backend/iac/mapper.go` — ParseCanvasData JSON unmarshalling, all 22 AWS-relevant node types mapped, edges → DependsOn population | ✅ |
+| `backend/iac/mapper.go` — ExternalClient/ThirdPartyAPI/MobileClient/WebBrowser → nil (skipped) | ✅ |
+| `backend/iac/mapper.go` — SanitizeID, pickInstanceType, merge, Quote helpers | ✅ |
+| `backend/iac/terraform.go` — GenerateTerraform: text/template, hashicorp/aws provider, HCL syntax, formatValue for string/float64/int/bool, depends_on | ✅ |
+| `backend/iac/terraform.go` — GenerateTerraformJSON: HCL JSON format with sorted types | ✅ |
+| `backend/iac/kubernetes.go` — GenerateKubernetes: Deployments/Services/StatefulSets/ConfigMaps/Ingress for all 22 resource types | ✅ |
+| `backend/iac/cloudformation.go` — GenerateCloudFormation: JSON with AWSTemplateFormatVersion 2010-09-09, Resources block, prop serialization | ✅ |
+| `backend/handlers/export.go` — ExportHandler: parses request, validates format, checks project access (owner/collaborator), queries canvas_data, calls generator, returns { content, filename } | ✅ |
+| `backend/handlers/export.go` — userID type-safe assertion, proper error codes (400/401/403/500) | ✅ |
+| `backend/main.go` — `POST /api/export` with JWTAuth middleware | ✅ |
+| All generators produce non-empty output with expected content | ✅ |
+| `go build ./...` | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+| `npm run build` | ✅ PASSED (721 modules, 745 KB JS) |
+
+### Fixes Applied During Verification
+
+| Issue | Fix |
+|-------|-----|
+| `DependsOn` never populated in initial mapper | Added edge-based dependency inference in `ParseCanvasData` — iterates edges, builds `depMap[target][source]`, populates `DependsOn` with `resource_type.sanitized_id` |
+| 8 K8s resource types silently produced no output (CDN, DNS, Firewall, VPC, Subnet, EventBus, ContainerCluster, BatchProcessor) | Added ConfigMap generation for all 8 missing types in `kubernetes.go` template |
+| `userID := c.Locals("user_id")` compared to `""` as `any` type | Changed to `userID, ok := c.Locals("user_id").(string); if !ok \|\| userID == ""` |
+| Dead code: `$first` variable in terraform template, `last` function in cloudformation | Removed both unused code paths |
+| Cloudformation `cfTemplate` used `$r.Properties \| prop $k` pipeline syntax (Go templates don't support multi-arg pipelines) | Changed to `prop $props $k` function call syntax |
+
+## Phase 9.2 — IaC Export UI (ExportModal)
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/store/exportStore.ts` | Zustand store: `showModal`, `content`, `format`, `loading`, `error`, `filename`; `NODE_COMPAT` map for all 25 node types; `EXPORT_FORMATS` config array with lang/ext per format |
+| `frontend/src/components/panels/ExportModal.tsx` | Full modal overlay with left sidebar (format tabs, resource summary, action buttons) and right Monaco Editor pane (read-only, vs-dark, language-aware syntax highlighting) |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/store/canvasStore.ts` | Added `exportMode: boolean` + `setExportMode()` action |
+| `frontend/src/components/canvas/BaseNode.tsx` | When `exportMode` is true, renders compatibility badge (✓ green / ⊘ red) on each node |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | Added "🏗️ IaC Export" button in the Export dropdown (calls `useExportStore.openExport()`) |
+| `frontend/src/pages/ProjectPage.tsx` | Wires `showExportModal` → `setExportMode` via useEffect; renders `<ExportModal />` |
+| `frontend/package.json` | Added `@monaco-editor/react` dependency |
+
+### ExportModal UX
+
+```
+Modal overlay (fixed inset-0, z-50, bg-black/50 backdrop-blur-sm)
+└── Modal container (flex, w-[90vw] max-w-6xl, h-[80vh])
+    ├── Left sidebar (w-72, bg-surface-950, border-r, p-4)
+    │   ├── "Export Infrastructure" header
+    │   ├── Format selector
+    │   │   ├── Terraform (HCL)
+    │   │   ├── Kubernetes (YAML)
+    │   │   └── CloudFormation (JSON)
+    │   ├── Resource summary
+    │   │   ├── N supported (green)
+    │   │   └── N skipped (red, only if > 0)
+    │   └── Action buttons (bottom)
+    │       ├── Regenerate (green, re-fetches from API)
+    │       ├── Copy (copies content to clipboard)
+    │       └── Download (triggers file download)
+    │
+    └── Right content pane (flex-1, bg-surface-900)
+        ├── Header bar: filename, byte count badge, close button
+        └── Monaco Editor (read-only, language auto-switches per format)
+```
+
+### Behaviors
+
+- **Auto-generate on open**: `useEffect` triggers `POST /api/export` as soon as the modal opens, with the currently selected format
+- **Format switching**: Clicking a different format tab re-triggers generation (keyed on `format` to force Monaco re-mount)
+- **Generate**: Calls `api.post("/export", { projectId, format })` — shows loading spinner, toasts on success/error
+- **Copy**: `navigator.clipboard.writeText()` with success/error toast
+- **Download**: Creates a Blob, triggers `<a>` click with correct extension (`.tf` / `.yaml` / `.json`)
+- **Close**: Clicking outside modal or the ✕ button calls `closeExport()`, which also sets `canvasStore.exportMode = false`
+- **Node compatibility badges**: When modal is open, every node on the canvas shows a ✓ (green circle, supported) or ⊘ (red circle, skipped) badge at top-left — real-time visual indication of export coverage
+
+### NODE_COMPAT Map
+
+| Status | Node Types |
+|--------|------------|
+| ✅ **supported** (22) | LoadBalancer, APIGateway, WebServer, AppServer, Microservice, PostgreSQLDB, MySQLDB, MongoDB, Redis, Elasticsearch, CDN, DNS, Firewall, VPC, Subnet, MessageQueue, EventBus, PubSub, ContainerCluster, ServerlessFunction, BatchProcessor, WorkerService |
+| ❌ **skipped** (4) | ExternalClient, ThirdPartyAPI, MobileClient, WebBrowser |
+
+## Phase 9.3 — Digital Twin Import Engine
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `backend/iac/parser.go` | Three IaC parsers (`ParseTerraform`, `ParseKubernetes`, `ParseCloudFormation`) that reverse-engineer canvas architectures from IaC files; `InfraGraph` type for parsed resources; `ToCanvasData()` to convert back to canvas format; edge inference from cross-resource references |
+| `backend/handlers/import.go` | `POST /api/import` endpoint — accepts multipart form (file + format), parses IaC, creates a new project with reconstructed canvas |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/main.go` | Added `POST /api/import` route with JWTAuth middleware |
+| `backend/go.mod` | Added `gopkg.in/yaml.v3` for Kubernetes YAML parsing |
+| `backend/handlers/export.go` | Fixed pre-existing bug: `c.Locals("user_id")` → `c.Locals("user").(*config.JWTClaims)` |
+
+### Import Endpoint
+
+#### `POST /api/import` (JWT-protected, multipart/form-data)
+
+```
+Request (multipart/form-data):
+  file: <binary file content>
+  format: "terraform" | "kubernetes" | "cloudformation"
+
+Response 201:
+{
+  "project": {
+    "id": "uuid",
+    "user_id": "uuid",
+    "name": "my-infra-import",
+    "description": "Imported from terraform — 5 resources, 3 edges",
+    "is_public": false,
+    "canvas_data": { "nodes": [...], "edges": [...] },
+    "role": "owner",
+    "created_at": "...",
+    "updated_at": "..."
+  }
+}
+
+Response 400:
+{ "error": "file field is required" | "format must be one of: terraform, kubernetes, cloudformation" }
+{ "error": "no supported resources found in the file" }
+```
+
+### Reverse Mapping (Cloud Resource → NodeType)
+
+The forward mapper (`mapper.go`) converts `CanvasNode → Terraform resource`. The parser does the reverse:
+
+| Terraform Type | K8s Kind | CF Type | NodeType |
+|----------------|----------|---------|----------|
+| `aws_lb` | Service (LoadBalancer) | `AWS::ElasticLoadBalancingV2::LoadBalancer` | LoadBalancer |
+| `aws_api_gateway_rest_api` | Ingress | `AWS::ApiGateway::RestApi` | APIGateway |
+| `aws_instance` | Deployment | `AWS::EC2::Instance` | WebServer (heuristic: image-based) |
+| `aws_ecs_service` | Deployment | `AWS::ECS::Service` | Microservice |
+| `aws_db_instance` | StatefulSet | `AWS::RDS::DBInstance` | PostgreSQLDB (MySQLDB if engine=mysql) |
+| `aws_elasticache_replication_group` | Deployment (redis image) | `AWS::ElastiCache::ReplicationGroup` | Redis |
+| `aws_elasticsearch_domain` | StatefulSet (es image) | `AWS::Elasticsearch::Domain` | Elasticsearch |
+| `aws_cloudfront_distribution` | ConfigMap (cdn) | `AWS::CloudFront::Distribution` | CDN |
+| `aws_route53_zone` | ConfigMap (dns) | `AWS::Route53::HostedZone` | DNS |
+| `aws_network_firewall_firewall` | ConfigMap (fw) | `AWS::NetworkFirewall::Firewall` | Firewall |
+| `aws_vpc` | ConfigMap (vpc) | `AWS::EC2::VPC` | VPC |
+| `aws_subnet` | ConfigMap (subnet) | `AWS::EC2::Subnet` | Subnet |
+| `aws_sqs_queue` | ConfigMap (queue) | `AWS::SQS::Queue` | MessageQueue |
+| `aws_cloudwatch_event_bus` | ConfigMap (eventbus) | `AWS::Events::EventBus` | EventBus |
+| `aws_sns_topic` | ConfigMap (topic) | `AWS::SNS::Topic` | PubSub |
+| `aws_ecs_cluster` | ConfigMap (cluster) | `AWS::ECS::Cluster` | ContainerCluster |
+| `aws_lambda_function` | ConfigMap (fn) | `AWS::Lambda::Function` | ServerlessFunction |
+| `aws_batch_compute_environment` | ConfigMap (batch) | `AWS::Batch::ComputeEnvironment` | BatchProcessor |
+
+### Edge Inference Strategies
+
+**Terraform:**
+- Regex extracts `${resource_type.resource_name.attribute}` references within resource blocks
+- Maps each cross-resource reference: source=containing resource, target=referenced resource
+- Deduplicates to avoid parallel edges
+
+**Kubernetes:**
+- Services carry `spec.selector` (label key-value pairs)
+- Deployments/StatefulSets carry `spec.template.metadata.labels`
+- Edge created when a Service's selector matches a Deployment's pod labels
+- LoadBalancer-type Services generate a LoadBalancer node with edges to matched deployments
+- Ingress resources generate APIGateway nodes
+
+**CloudFormation:**
+- Recursive walk of each resource's `Properties` object
+- `{"Ref": "LogicalName"}` → edge to that logical resource
+- `{"Fn::GetAtt": ["LogicalName", "attribute"]}` → edge to that logical resource
+- Deduplicates to avoid parallel edges
+
+### Key Decisions
+
+- **No full HCL parser**: Terraform parsing uses regex (`resource "type" "name"` blocks + attribute extraction) since only resource blocks matter. This avoids a heavy dependency but limits to common patterns.
+- **WebServer vs AppServer heuristic**: In K8s, `aws_instance` in TF, and `AWS::EC2::Instance` in CF default to WebServer. For K8s Deployments, container image naming hints distinguish WebServer (`nginx`/`apache`) from AppServer (`api`/`app`).
+- **MySQL vs PostgreSQL**: `aws_db_instance` defaults to PostgreSQLDB (the common case). If engine=`mysql` is found in the TF or CF properties, it's mapped to MySQLDB.
+- **ConfigMap-based types**: CDN, DNS, Firewall, VPC, Subnet, EventBus, ContainerCluster, BatchProcessor are recognized from the ConfigMap `name` suffix heuristic in K8s (e.g. `*-cdn`, `*-dns`, `*-cluster`).
+- **Edge direction**: Terraform `depends_on`/refs → edge from referencer to referenced. K8s Service → Deployment (traffic flow direction). CF `Ref` → edge from referencer to referenced.
+
+## Phase 6.3 — Blue/Green Deployment UI
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/handlers/deployment.go` | Added 3 handlers: `Promote` (toggle active group), `GetState` (list all deployment states), `SetGroup` (assign node to blue/green group) |
+| `backend/main.go` | Registered 3 new routes: `POST /api/simulations/:id/deployment/promote`, `GET /:id/deployment/state`, `POST /:id/deployment/set-group` |
+| `backend/simulation/models.go` | Added `ActiveGroup string` and `BlueGreenGroup string` to `NodeMetricsSnapshot` with `omitempty` JSON tags |
+| `backend/simulation/metrics.go` | `SnapshotTick` now accepts `*DeploymentManager` param; populates `ActiveGroup`/`BlueGreenGroup` from deployment state per node |
+| `backend/simulation/deployment.go` | Added `SetGroup(nodeID, group string)` method to `DeploymentManager` |
+| `backend/simulation/engine.go` | Passes `e.deployment` to `SnapshotTick()` |
+| `frontend/src/types/canvas.ts` | Added `blueGreenGroup?: string` and `activeGroup?: string` to `DeploymentConfig` |
+| `frontend/src/store/simulationStore.ts` | Added `activeGroup?: string` and `blueGreenGroup?: string` to `NodeMetricsSnapshot` |
+| `frontend/src/store/deploymentStore.ts` | Rewrote with `DeployNodeState` (blueGreenGroup, activeGroup per node), `setNodeState`, `setNodeStates`, `nodeStates` map |
+| `frontend/src/hooks/useSimulation.ts` | `applyTickToCanvas` now syncs `activeGroup`/`blueGreenGroup` from tick into `deploymentStore.nodeStates` |
+| `frontend/src/components/panels/DeploymentPanel.tsx` | Rewrote: splits nodes into `bgNodes` (blue_green strategy) and `canaryNodes` (canary strategy); `<optgroup>` selector; Blue/Green section shows group assignment buttons, active group indicator, promote/toggle actions; Canary section retains original slider/promote/rollback |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | Added blue/green group `TextInput` when `strategy === "blue_green"`; hides "Activate Canary" toggle for blue_green |
+| `frontend/src/components/canvas/BaseNode.tsx` | Reads `bgActiveGroup` from `deployStore.nodeStates[nodeId]`; renders "● Blue" / "● Green" badge in node header; applies blue or green border glow when strategy is blue_green |
+
+### New API Endpoints
+
+| Endpoint | Method | Request Body | Purpose |
+|---|---|---|---|
+| `/api/simulations/:id/deployment/promote` | POST | `{ nodeId }` | Toggle active group (blue ↔ green), returns `{ activeGroup }` |
+| `/api/simulations/:id/deployment/state` | GET | — | Returns `{ states: NodeDeploymentState[] }` (all nodes' deployment state) |
+| `/api/simulations/:id/deployment/set-group` | POST | `{ nodeId, group }` | Assign node to `"blue"` or `"green"` group |
+
+### Key Decisions
+
+- **In-memory state + tick sync**: Blue/green state lives in `DeploymentManager` (in-memory). `SnapshotTick` reads from it each tick and embeds `activeGroup`/`blueGreenGroup` into `NodeMetricsSnapshot`. The frontend's `useSimulation.ts` syncs these into `deploymentStore.nodeStates` on each tick.
+- **Dual-mode DeploymentPanel**: The panel now shows both blue_green and canary nodes in `<optgroup>` sections. Blue/green gets group assignment buttons and promote/toggle; canary keeps the original traffic slider + promote/rollback.
+- **Visual indicator on canvas**: Blue/green nodes show a colored badge ("● Blue" / "● Green") in the node header and a colored border glow matching the active group.
+- **Promote = toggle**: `POST /deployment/promote` always toggles the active group. Both "Promote" and "Toggle (Rollback)" buttons call the same endpoint.
+- **Group assignment**: The `SetGroup` endpoint assigns a node to a blue or green group. This determines which group the node belongs to for traffic routing via `IsActiveForBlueGreen`.
+
+### Tick Data Extension
+
+`NodeMetricsSnapshot` (sent on every tick via WebSocket) now includes:
+
+```json
+{
+  "activeGroup": "blue",
+  "blueGreenGroup": "green"
+}
+```
+
+The frontend `deploymentStore` is updated on each tick, which drives both the DeploymentPanel display and BaseNode visual indicators.
+
+## Phase 9.4 — Digital Twin Import UI
+
+### File Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/components/panels/ImportModal.tsx` | Drag-and-drop modal for importing IaC files; accepts `.tf`, `.yaml`, `.yml`, `.json`; auto-detects format from file extension; calls `POST /api/import` with `FormData`; on success navigates to the new project page |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/DashboardPage.tsx` | Added "Import" button next to "New Project" toggle button; renders `<ImportModal>` when active |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | Added "Import" button in the right toolbar section; renders `<ImportModal>` when active |
+
+### Import Flow
+
+1. User clicks "Import" on the Dashboard or canvas toolbar
+2. ImportModal opens with a drag-and-drop zone + file picker (accepts `.tf`, `.tf.json`, `.yaml`, `.yml`, `.json`)
+3. File extension is auto-detected to determine format (`.tf` → Terraform, `.yaml`/`.yml` → Kubernetes, `.json` → CloudFormation)
+4. User can override the detected format via a manual `<select>` dropdown
+5. User clicks "Import & Create Project"
+6. Modal shows a phased loading state: **Uploading → Parsing → Creating**
+7. `POST /api/import` is called with `multipart/form-data` (60s timeout)
+8. On success: toast notification with resource count, modal closes, `navigate(/project/:id)`
+9. On error: inline error box with message + toast notification; user can retry
+
+### Key Decisions
+
+- **Props-based modal**: Unlike ExportModal (which uses a Zustand store), ImportModal uses simple `isOpen`/`onClose` props — it's a self-contained component that doesn't need global state.
+- **Extension auto-detection**: `.tf` and `.tf.json` → terraform; `.yaml`/`.yml` → kubernetes; `.json` → cloudformation. Unknown extensions leave the format blank so the user must select manually.
+- **Phased loading feedback**: Three distinct phases (`uploading`, `parsing`, `creating`) shown as text under a spinner — gives the user visibility into a potentially slow multi-step process.
+- **60-second timeout**: Import API can be slow for large files, so the Axios timeout is set to 60s (vs the default 0/no timeout on other endpoints).
+- **File removal**: Users can remove a selected file via a "Remove" link to start over without closing/reopening the modal.
+- **Reset on close**: File, format, error, and phase state are all reset when the modal closes (backdrop click, ✕ button, or Cancel).
+
+## Next Steps
+
+(All phases complete — platform is feature-complete for the current scope.)
+
+## Verification: PASSED — 2026-05-17
+
+All Phase 9.3 items cross-checked. 3 build steps clean.
+
+| Check | Result |
+|-------|--------|
+| `backend/iac/parser.go` — `ParseTerraform()` with regex HCL parsing, 18 mapped TF types, attribute extraction, cross-resource ref edge inference | ✅ |
+| `backend/iac/parser.go` — `ParseKubernetes()` with yaml.v3, Deployments/StatefulSets/Services/Ingress/ConfigMap handling, label-based edge inference | ✅ |
+| `backend/iac/parser.go` — `ParseCloudFormation()` with JSON unmarshal, 18 mapped CF types, recursive `Ref`/`Fn::GetAtt` edge inference | ✅ |
+| `backend/iac/parser.go` — `ToCanvasData()` converts InfraGraph to CanvasData format | ✅ |
+| `backend/iac/parser.go` — Reverse mapping: TF types → NodeType, CF types → NodeType, K8s kinds + image heuristics → NodeType | ✅ |
+| `backend/handlers/import.go` — ImportHandler with multipart file upload, format dispatch, project creation, canvas_data update | ✅ |
+| `backend/handlers/import.go` — Edge cases: missing file (400), empty format (400), unsupported format (400), parse failure (400), no resources (400) | ✅ |
+| `backend/main.go` — `POST /api/import` with JWTAuth middleware | ✅ |
+| `backend/go.mod` — `gopkg.in/yaml.v3` added | ✅ |
+| `backend/handlers/export.go` — Fixed `c.Locals("user_id")` → `c.Locals("user").(*config.JWTClaims)` (pre-existing bug) | ✅ FIXED |
+| No stubs, TODOs, or placeholders | ✅ |
+| `go build ./...` | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+| `npm run build` | ✅ PASSED (735 modules, 766 KB JS) |
+
+## Re-Verification: PASSED — 2026-05-17
+
+Phase 9.3 re-verified. All files present, no stubs/TODOs, 3 build steps clean. Minor dead code removed (`_ = m`, `_ = sourceID`, unused `attrRegex`).
+
+## Phase 9.4 Verification: PASSED — 2026-05-18
+
+| Check | Result |
+|-------|--------|
+| `frontend/src/components/panels/ImportModal.tsx` — Drag-and-drop zone, file picker, format auto-detection, manual format selector | ✅ |
+| `frontend/src/components/panels/ImportModal.tsx` — `POST /api/import` with `FormData`, 60s timeout, phased loading (uploading/parsing/creating) | ✅ |
+| `frontend/src/components/panels/ImportModal.tsx` — Success toast with resource count, `navigate(/project/:id)` | ✅ |
+| `frontend/src/components/panels/ImportModal.tsx` — Error handling: inline error box, toast, retry; file removal; reset on close | ✅ |
+| `frontend/src/pages/DashboardPage.tsx` — "Import" button next to "New Project", `showImportModal` state, renders `<ImportModal>` | ✅ |
+| `frontend/src/components/toolbar/TopToolbar.tsx` — "Import" button in right toolbar section, renders `<ImportModal>` | ✅ |
+| No stubs, TODOs, or placeholders | ✅ |
+| `npm run build` | ✅ PASSED (736 modules, 779 KB JS) |
+
+## Re-Verification: PASSED — 2026-05-18
+
+Cross-checked Phase 9.4 against the spec:
+- `ImportModal.tsx` exists at `frontend/src/components/panels/ImportModal.tsx` — drag-and-drop zone, format auto-detection, manual selector, "Import & Create Project" button, phased loading, success navigation, error handling, file removal, backdrop close all present | ✅
+- Dashboard "Import" button (line 92-97) renders modal with correct props (line 166-169) | ✅
+- TopToolbar "Import" button (line 235-241) renders modal (line 386-389) | ✅
+- `POST /api/import` endpoint exists at `backend/main.go:117` with JWTAuth | ✅
+- `go build ./...` — 0 errors | ✅
+- `go vet ./...` — 0 errors | ✅
+- `npm run build` — 736 modules, 779 KB JS | ✅
+- HANDOFF.md section Phase 9.4 fully documents file flow, key decisions, verification | ✅
