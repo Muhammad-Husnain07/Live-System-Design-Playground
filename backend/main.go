@@ -119,6 +119,10 @@ func main() {
 	importGroup := api.Group("/import", middleware.JWTAuth(cfg.JWTSecret))
 	importGroup.Post("/", importHandler.Import)
 
+	finops := handlers.NewFinOpsHandler(config.DB, config.RedisClient)
+	finopsGroup := api.Group("/finops", middleware.JWTAuth(cfg.JWTSecret))
+	finopsGroup.Post("/estimate", finops.Estimate)
+
 	app.Get("/ws/simulation", func(c *fiber.Ctx) error {
 		ctx := c.Context()
 		ticket := string(ctx.QueryArgs().Peek("ticket"))
