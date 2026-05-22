@@ -3430,9 +3430,195 @@ The frontend `deploymentStore` is updated on each tick, which drives both the De
 - **File removal**: Users can remove a selected file via a "Remove" link to start over without closing/reopening the modal.
 - **Reset on close**: File, format, error, and phase state are all reset when the modal closes (backdrop click, ✕ button, or Cancel).
 
+## Phase 10.1 — FinOps Cost Estimation Engine
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `backend/services/finops/calculator.go` | Core cost estimation engine: `CostReport`, `CostLineItem`, `CostCategory`, `CostEstimate`, `Recommendation` structs; pricing rules map for 25 node types; scaling projections at 1k/10k/100k/1M users; recommendation generator |
+| `backend/handlers/finops.go` | `POST /api/finops/estimate` endpoint — accepts `{ projectId, monthlyUsers }`, reads canvas data from DB, returns `CostReport` |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/main.go` | Added `POST /api/finops/estimate` route with JWTAuth middleware |
+
+### Pricing Rules (Monthly, Approximate AWS)
+
+| Node Type | Base Cost | Per Instance | Usage-Based |
+|-----------|-----------|-------------|-------------|
+| LoadBalancer | $16.43 | — | — |
+| APIGateway | $3.50 | — | $3.50/1M requests |
+| WebServer | — | $30.37 (t3.medium) | — |
+| AppServer | — | $30.37 (t3.medium) | — |
+| Microservice | — | $30.37 (t3.medium) | — |
+| WorkerService | — | $30.37 (t3.medium) | — |
+| BatchProcessor | — | $30.37 (compute instance) | — |
+| ServerlessFunction | — | — | $0.20/1M invocations |
+| PostgreSQLDB | $50.00 (db.t3.small) | — | — |
+| MySQLDB | $50.00 (db.t3.small) | — | — |
+| MongoDB | $60.00 (M10) | — | — |
+| Redis | $15.00 (cache.t3.micro) | — | — |
+| Elasticsearch | $45.00 (t3.small.es) | — | — |
+| CDN | — | — | $0.085/GB transfer |
+| DNS | $0.50 | — | $0.40/1M queries |
+| Firewall | $25.00 | — | — |
+| VPC | Free | — | — |
+| Subnet | Free | — | — |
+| MessageQueue | $0.40 | — | $0.40/1M requests |
+| EventBus | $1.00 | — | $1.00/1M events |
+| PubSub | $10.00 | — | — |
+| ContainerCluster | $73.00 (EKS) | — | — |
+| ExternalClient/API/Mobile/Browser | Free | — | — |
+
+### Scaling Methodology
+
+The engine calculates costs at 4 user tiers by applying a multiplier to instance counts:
+
+| Tier | Monthly Users | Multiplier | Description |
+|------|--------------|-----------|-------------|
+| 1k users (prototype) | 1,000 | 1× | Base instance counts as configured on canvas |
+| 10k users (launch) | 10,000 | 3× | Add redundancy and moderate scaling |
+| 100k users (growth) | 100,000 | 10× | Significant horizontal scaling, add caching |
+| 1M users (scale) | 1,000,000 | 30× | Full production scale, multi-region readiness |
+
+Serverless services (API Gateway, Lambda, SQS, EventBridge) scale proportionally to `monthlyUsers / 1,000,000`. CDN costs are based on estimated GB transfer (`monthlyUsers × 0.15 GB`). DNS costs use estimated queries (`monthlyUsers × 10`).
+
+### Recommendations Generator
+
+The engine produces contextual recommendations based on the canvas architecture:
+
+| Recommendation | Trigger | Est. Savings |
+|---------------|---------|-------------|
+| Reserved Instances (1-year) | ≥3 compute instances + LB | ~30% on compute |
+| Reserved Instances (3-year) | Projected scale ≥100k users | ~40% on compute |
+| Auto Scaling | Any compute nodes | ~15% over-provisioning reduction |
+| Spot Instances | ≥5 compute instances | ~60% on eligible nodes |
+| Add Redis Cache | Database present, no cache | ~20% DB cost reduction |
+| Read Replicas | Any database | Performance improvement |
+| Right-Sizing Review | Default fallback | 20-40% optimization potential |
+
+### Key Decisions
+
+- **Canvas-driven estimation**: Costs are calculated from the actual canvas graph (node types + instance counts), not from static assumptions. Changes to the architecture are immediately reflected in estimates.
+- **Multiplier-based scaling**: Rather than complex traffic models, we apply simple instance multipliers per user tier. This matches how most cloud costs scale (linearly with instances) and keeps the model understandable.
+- **Usage-based cost modeling**: Serverless, CDN, and DNS costs use per-unit pricing driven by `monthlyUsers`. This provides realistic cost curves for services that don't scale by instance count.
+- **Six cost categories**: Compute, Networking, Data & Storage, Messaging & Events, Orchestration, External — costs are grouped visually so users can identify the biggest drivers.
+- **Zero-cost node types**: ExternalClient, ThirdPartyAPI, MobileClient, WebBrowser, VPC, and Subnet are excluded from billing. CDN/DNS have $0 base but usage-based costs.
+- **Contextual recommendations**: Recommendations are generated based on what's actually in the architecture (e.g., "Add Redis caching" only appears when a DB exists but no cache node). This avoids generic advice.
+
+### API Endpoint
+
+```
+POST /api/finops/estimate
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{
+  "projectId": "uuid",
+  "monthlyUsers": 10000
+}
+
+Response 200:
+{
+  "projectId": "uuid",
+  "monthlyUsers": 10000,
+  "currentEstimate": {
+    "userTier": "1k users (prototype)",
+    "monthlyUsers": 1000,
+    "multiplier": 1,
+    "totalMonthlyCost": 248.45,
+    "breakdown": [
+      {
+        "category": "Compute",
+        "items": [...],
+        "subtotal": 121.48
+      },
+      ...
+    ]
+  },
+  "scalingProjections": [
+    { "userTier": "1k users (prototype)", "totalMonthlyCost": 248.45, ... },
+    { "userTier": "10k users (launch)", "totalMonthlyCost": 612.30, ... },
+    { "userTier": "100k users (growth)", "totalMonthlyCost": 2180.50, ... },
+    { "userTier": "1M users (scale)", "totalMonthlyCost": 6450.75, ... }
+  ],
+  "recommendations": [
+    { "title": "Reserved Instances (1-year)", "potentialSavings": 91.11, "annualSavings": 1093.32, "effort": "low" },
+    ...
+  ],
+  "generatedAt": "2026-05-22T12:00:00Z"
+}
+```
+
+## Phase 10.2 — FinOps Cost Estimation Dashboard
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/components/panels/FinOpsPanel.tsx` | Cost estimation panel — monthly user presets, calculate button, total cost card, category breakdown with expandable items, Recharts scaling projection line chart, contextual recommendations list |
+| `frontend/src/store/finopsStore.ts` | Zustand store — `showPanel` toggle, `estimate` (CostReport), `nodeCosts` (per-node cost for canvas badges) |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/components/toolbar/TopToolbar.tsx` | Added `$` toggle button (green theme) + `showFinOpsPanel`/`onToggleFinOpsPanel` props |
+| `frontend/src/components/canvas/BaseNode.tsx` | Added inline cost badge (`"$XX/mo"` overlay, bottom-right, green-950 bg, green-400 text) when `nodeCosts` has a matching nodeId |
+| `frontend/src/pages/ProjectPage.tsx` | Wired `showFinOpsPanel` state from store, passed props to TopToolbar, added `<FinOpsPanel />` in panel rendering chain (after SecurityPanel, before DeploymentPanel) |
+
+### Panel UX
+
+**Layout**: 320px right panel (`w-80`), dark surface theme with green accent (money theme).
+
+**Sections**:
+1. **Header** — `$` icon (bold green) + "Cost Estimation" title. When results exist, shows total monthly cost badge in header.
+2. **Monthly Users Presets** — 4 pill buttons: `[1K] [10K] [100K] [1M]`. Selected state has green background with border. Default: 1K.
+3. **Calculate Button** — Green-themed full-width button. Shows spinner while loading.
+4. **Total Cost Card** — Large centered display card with green background, shows `formatCurrency()` value (e.g., `$248.45`). Subtitle shows user count.
+5. **Breakdown by Category** — Accordion list of `CostCategory` rows. Each row shows category name, item count, and subtotal. Clicking expands to show individual `CostLineItem` rows (service, quantity × unit price, monthly cost).
+6. **Scaling Projection Chart** — `ResponsiveContainer` + `LineChart` from Recharts. X-axis: tier names (1k, 10k, 100k, 1M). Y-axis: monthly cost. Green line (`#22c55e`). Dark-styled tooltip.
+7. **Recommendations** — Numbered list of recommendation cards. Each card shows title, effort badge (`low`/`medium`/`high` with green/yellow/red colors), description, and monthly/annual savings.
+
+### Canvas Overlays
+
+When a cost estimate is loaded, each canvas node that matches a cost line item (matched by node label) displays a green cost badge:
+
+```
+position: absolute, bottom-right of node
+bg: green-950/80, border: green-500/40, text: green-400
+text: "$XX/mo" (rounded to nearest dollar)
+backdrop-blur-sm for readability
+```
+
+Cost data flows: `FinOpsPanel` → `POST /api/finops/estimate` → response includes `currentEstimate.breakdown[].items[].service` (node label) + `monthlyCost` → matched against canvas nodes by `data.label` → stored in `finopsStore.nodeCosts` → read by `BaseNode.tsx`.
+
+### Key Decisions
+
+- **Panel placed after SecurityPanel**: FinOps is a standalone estimation tool (no simulation needed), prioritized below security but above deployment in the toggle chain.
+- **Label-based node matching**: Cost line items reference nodes by label. This is pragmatic for v1 but assumes unique labels. Future improvement: include `nodeId` in the cost API response.
+- **Recharts for charting**: Already a project dependency (`recharts@^3.8.1`), used with `ResponsiveContainer` for responsive sizing.
+- **Zustand store for cross-component state**: `nodeCosts` in `finopsStore` lets `BaseNode.tsx` render cost badges without prop drilling through the canvas.
+
+### Cost badge display
+
+```
+                    ┌──────────────────┐
+                    │  🌐 Web Server   │
+                    │  Compute         │
+                    │  CPU ██ MEM ██   │
+                    │  1,250 RPS       │
+                    └──────────┬───────┘
+                               │ $30/mo
+                    (green badge bottom-right)
+```
+
 ## Next Steps
 
-(All phases complete — platform is feature-complete for the current scope.)
+Phase 10.3: FinOps Cost Optimization — automated savings plan builder and budget alerts.
 
 ## Verification: PASSED — 2026-05-17
 
@@ -3483,3 +3669,42 @@ Cross-checked Phase 9.4 against the spec:
 - `go vet ./...` — 0 errors | ✅
 - `npm run build` — 736 modules, 779 KB JS | ✅
 - HANDOFF.md section Phase 9.4 fully documents file flow, key decisions, verification | ✅
+
+## Phase 10.1 Verification: FIXED — 2026-05-22
+
+**Fix applied:** Renamed `ScalingProjection` → `CostEstimate` struct to match the specification. All references updated in `calculator.go` and `HANDOFF.md`.
+
+| Check | Result |
+|-------|--------|
+| `backend/services/finops/calculator.go` — `CostReport`, `CostLineItem`, `CostCategory`, `CostEstimate`, `Recommendation` structs | ✅ |
+| `backend/services/finops/calculator.go` — Pricing rules map for all 25 node types with base/instance/usage costs | ✅ |
+| `backend/services/finops/calculator.go` — `Calculate()` reads canvas JSON, maps nodes to pricing, computes costs | ✅ |
+| `backend/services/finops/calculator.go` — 4 user tiers (1k/10k/100k/1M) with multiplier-based scaling | ✅ |
+| `backend/services/finops/calculator.go` — Usage-based costs for serverless (per 1M), CDN (per GB), DNS (per 1M queries) | ✅ |
+| `backend/services/finops/calculator.go` — `generateRecommendations()` with 8 contextual recommendations | ✅ |
+| `backend/handlers/finops.go` — `POST /api/finops/estimate` with project auth, canvas read, calculator dispatch | ✅ |
+| `backend/main.go` — `POST /api/finops/estimate` route with JWTAuth middleware | ✅ |
+| No stubs, TODOs, or placeholders | ✅ |
+| `go build ./...` | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+| `tsc --noEmit` (frontend type check) | ✅ PASSED (0 errors) |
+| HANDOFF.md — Phase 10.1 section documents pricing, scaling methodology, recommendations, API, key decisions | ✅ |
+
+## Phase 10.2 Verification: PASSED — 2026-05-22
+
+| Check | Result |
+|-------|--------|
+| `frontend/src/components/panels/FinOpsPanel.tsx` — Monthly user presets [1K, 10K, 100K, 1M] with selected state, calculate button with spinner | ✅ |
+| `frontend/src/components/panels/FinOpsPanel.tsx` — Total cost card (green, large formatCurrency display, user count subtitle) | ✅ |
+| `frontend/src/components/panels/FinOpsPanel.tsx` — Breakdown accordion by category (expandable items with service, quantity × unitPrice, monthlyCost) | ✅ |
+| `frontend/src/components/panels/FinOpsPanel.tsx` — Scaling projection LineChart via Recharts (ResponsiveContainer, green line, dark tooltip) | ✅ |
+| `frontend/src/components/panels/FinOpsPanel.tsx` — Recommendations list (numbered, effort badge, description, savings) | ✅ |
+| `frontend/src/components/panels/FinOpsPanel.tsx` — Error display, empty state, loading state | ✅ |
+| `frontend/src/store/finopsStore.ts` — `showPanel`, `estimate` (CostReport), `nodeCosts` (per-node cost) | ✅ |
+| `frontend/src/components/toolbar/TopToolbar.tsx` — `$` toggle button + `showFinOpsPanel`/`onToggleFinOpsPanel` props | ✅ |
+| `frontend/src/components/canvas/BaseNode.tsx` — Cost badge overlay (`"$XX/mo"`, bottom-right, green theme) when nodeCosts matches | ✅ |
+| `frontend/src/pages/ProjectPage.tsx` — `showFinOpsPanel` state wired, TopToolbar props passed, `<FinOpsPanel />` in render chain | ✅ |
+| No stubs, TODOs, or placeholders | ✅ |
+| `tsc --noEmit` (frontend type check) | ✅ PASSED (0 errors) |
+| `go build ./...` | ✅ PASSED (0 errors) |
+| HANDOFF.md — Phase 10.2 section documents panel UX, canvas overlays, key decisions, cost badge display | ✅ |
