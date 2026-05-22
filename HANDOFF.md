@@ -3618,7 +3618,7 @@ Cost data flows: `FinOpsPanel` → `POST /api/finops/estimate` → response incl
 
 ## Next Steps
 
-Phase 10.3: FinOps Cost Optimization — automated savings plan builder and budget alerts.
+Phase 12: Real-time collaboration enhancements — presence indicators, conflict resolution, undo/redo sync.
 
 ## Verification: PASSED — 2026-05-17
 
@@ -3708,3 +3708,90 @@ Cross-checked Phase 9.4 against the spec:
 | `tsc --noEmit` (frontend type check) | ✅ PASSED (0 errors) |
 | `go build ./...` | ✅ PASSED (0 errors) |
 | HANDOFF.md — Phase 10.2 section documents panel UX, canvas overlays, key decisions, cost badge display | ✅ |
+
+## Phase 11.1 — Observability Dashboard
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ObservabilityPage.tsx` | Replaced placeholder with full-screen observability dashboard — 4 KPI cards, traffic line chart, error rate bar chart, node health grid, live event log, WebSocket tick listener, html2canvas screenshot export |
+| `frontend/src/App.tsx` | Route `/project/:id/observe` already registered; no change needed |
+
+### Dashboard Layout
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ ← Observability  [project]           Live 00:32  📷     │
+├──────────┬──────────┬──────────┬────────────────────────┤
+│ Total RPS│ Error Rt │ p99 Lat  │ Active Req             │
+│  12,450  │   0.3%   │  120ms   │     3,201              │
+├──────────┴──────────┴──────────┴────────────────────────┤
+│ Traffic Over Time (last 60 ticks)   │ Error Rate by Node │
+│  ┌──────────────────────────────┐   │  ┌──┐              │
+│  │ LineChart (RPS + Errors %)   │   │  │██│ Web          │
+│  │ blue RPS / red dashed errors │   │  │██│ API          │
+│  └──────────────────────────────┘   │  └──┘              │
+├─────────────────────────────────────┴───────────────────┤
+│ Node Health Grid (status pill, CPU/MEM gauges, RPS)      │
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐        │
+│ │ Web 1   │ │ DB 1    │ │ Cache   │ │ LB      │        │
+│ │ OK      │ │ OK      │ │ OK      │ │ OK      │        │
+│ │ CPU ▓▓  │ │ CPU ▓   │ │ CPU ▓   │ │ CPU ▓▓  │        │
+│ └─────────┘ └─────────┘ └─────────┘ └─────────┘        │
+├───────────────────────────────────┬────────────────────┤
+│ (main content)                     │ Event Log          │
+│                                    │ ▶ Sim running      │
+│                                    │ ☠ Chaos: Latency   │
+│                                    │ 🛡 Violation: ...  │
+│                                    │ 🚀 Deploy → green  │
+└────────────────────────────────────┴────────────────────┘
+```
+
+### Data Sources
+
+| Section | Data Source | Store / API |
+|---------|------------|-------------|
+| 4 KPI Cards | `latestTick` — totalRPS, globalErrorRate, p99Latency (max across nodes), activeRequests | `useSimulationStore` |
+| Traffic Over Time | `ticks[]` (last 60) mapped to `{ tick, rps, errors }` | `useSimulationStore` |
+| Error Rate by Node | `latestTick.nodeMetrics` filtered by `errorRate > 0`, sorted descending | `useSimulationStore` |
+| Node Health Grid | `latestTick.nodeMetrics` — status pill (OK/DEG/DOWN), CPU/MEM gauge bars, RPS count | `useSimulationStore` |
+| Event Log | Local `events[]` state (capped at 100 entries). Watchers on simulation, chaos (`activeEvents`), deployment (`nodeStates`), security (`violations`) stores | Mixed: all 4 stores |
+| Live WebSocket | Custom WS connection in `useEffect` — connects to `/ws/simulation` when `runId` exists, pushes tick messages to store | `api.post("/auth/ws-ticket")` → WS |
+| Screenshot | `html2canvas` captures dashboard DOM at 2x scale → `canvas.toDataURL` → `<a download>` triggers PNG file save | `html2canvas` (existing dep) |
+
+### KPI Cards
+
+| Card | Value Source | Active Color | Warning Color |
+|------|-------------|-------------|--------------|
+| Total RPS | `latestTick.totalRPS` formatted with K/M suffixes | blue-400 | — |
+| Error Rate | `latestTick.globalErrorRate` as percentage | green (≤5%) | red (>5%) |
+| p99 Latency | `Math.max(...latestTick.nodeMetrics.map(m => m.p99LatencyMs))` formatted as ms/s | purple (≤500ms) | orange (>500ms) |
+| Active Requests | `latestTick.activeRequests` formatted with K/M suffixes | cyan-400 | — |
+
+### Key Decisions
+
+- **WebSocket re-connection**: The dashboard opens its own WS connection to receive live ticks, independent of the ProjectPage lifecycle. It monitors `runId` from the simulation store and auto-connects when available.
+- **Local event log accumulation**: Uses `events[]` state (capped at 100) with `useEffect` watchers on store state changes. Provides a running chronological log without a backend event API.
+- **p99 computed from all nodes**: The dashboard takes the maximum p99 latency across all node metrics, giving a "worst-case" view.
+- **Color-coded KPI background**: Each KPI card has a subtle matching background (e.g., blue-500/10 for RPS) and border, with text color that changes for warning states (error rate >5%, p99 >500ms).
+- **Node health grid**: Responsive grid (2/3/4 columns) with status pill (OK green, DEG orange, DOWN red), CPU/MEM gauge bars with color thresholds (<60% blue, 60-80% orange, >80% red), and RPS count.
+- **Empty states**: All charts and grids show fallback text ("Waiting for tick data…", "No errors", "No node metrics") when no simulation is running.
+- **Screenshot**: Uses existing `html2canvas@^1.4.1` dependency. Captures at 2x scale with dark background for sharp exports.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| 4 KPI cards with correct data bindings (Total RPS, Error Rate, p99 Latency, Active Requests) | ✅ |
+| Traffic Over Time LineChart (Recharts, last 60 ticks, RPS + error rate lines) | ✅ |
+| Error Rate by Node horizontal BarChart (Recharts, filtered by errorRate > 0, sorted) | ✅ |
+| Node Health Grid with status pill, CPU gauge, MEM gauge, RPS per node | ✅ |
+| Event Log with simulation, chaos, deployment, security event entries (capped at 100) | ✅ |
+| WebSocket tick listener — connects when runId available, pushes ticks to store | ✅ |
+| Screenshot button — html2canvas captures dashboard, triggers PNG download | ✅ |
+| Back navigation to project page (`/project/:id`) | ✅ |
+| Empty states for all data-dependent sections | ✅ |
+| `tsc --noEmit` | ✅ PASSED (0 errors) |
+| `go build ./...` | ✅ PASSED (0 errors) |
+| HANDOFF.md — Phase 11.1 section documents layout, data sources, key decisions | ✅ |
