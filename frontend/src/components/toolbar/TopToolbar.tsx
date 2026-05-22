@@ -19,6 +19,8 @@ interface TopToolbarProps {
   onToggleDeployPanel: () => void;
   showSecurityPanel: boolean;
   onToggleSecurityPanel: () => void;
+  showFinOpsPanel: boolean;
+  onToggleFinOpsPanel: () => void;
   collabConnected: boolean;
   remoteUsers: { clientId: number; name: string; color: string }[];
 }
@@ -323,6 +325,19 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           title="Security Audit Panel"
         >
           🛡️
+        </button>
+
+        {/* FinOps toggle */}
+        <button
+          onClick={onToggleFinOpsPanel}
+          className={`px-2 py-1 text-[10px] rounded transition-colors ${
+            showFinOpsPanel
+              ? "bg-green-500/20 text-green-400"
+              : "bg-surface-800 hover:bg-surface-700 text-surface-300"
+          }`}
+          title="Cost Estimation"
+        >
+          $
         </button>
 
         {/* Remote users */}

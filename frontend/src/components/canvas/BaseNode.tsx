@@ -6,6 +6,7 @@ import { useChaosStore } from "../../store/chaosStore";
 import { useSecurityStore } from "../../store/securityStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useDeployStore } from "../../store/deploymentStore";
+import { useFinOpsStore } from "../../store/finopsStore";
 import { NODE_COMPAT } from "../../store/exportStore";
 import type { CanvasNode } from "../../types/canvas";
 
@@ -49,6 +50,8 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
   const isSecurityHighlighted = highlightedNodeIds.includes(nodeId);
   const exportMode = useCanvasStore((s) => s.exportMode);
   const compatStatus = NODE_COMPAT[nodeType] ?? "skipped";
+  const nodeCosts = useFinOpsStore((s) => s.nodeCosts);
+  const nodeCost = nodeCosts.find((c) => c.nodeId === id);
   const handleClass = "!opacity-0 group-hover:!opacity-100 !transition-opacity !w-3 !h-3 !border-2 !bg-surface-800 !border-surface-500";
 
   return (
@@ -85,6 +88,12 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
           title={compatStatus === "supported" ? "IaC Supported" : "IaC Skipped (no mapping)"}
         >
           {compatStatus === "supported" ? "✓" : "⊘"}
+        </div>
+      )}
+
+      {nodeCost && (
+        <div className="absolute -bottom-1 -right-1 z-20 bg-green-950/80 text-green-400 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-green-500/40 shadow-lg backdrop-blur-sm">
+          ${nodeCost.monthlyCost.toFixed(0)}/mo
         </div>
       )}
 

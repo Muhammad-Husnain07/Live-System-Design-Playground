@@ -24,6 +24,7 @@ import SimulationPanel from "../components/panels/SimulationPanel";
 import ChaosPanel from "../components/panels/ChaosPanel";
 import DeploymentPanel from "../components/panels/DeploymentPanel";
 import SecurityPanel from "../components/panels/SecurityPanel";
+import FinOpsPanel from "../components/panels/FinOpsPanel";
 import TopToolbar from "../components/toolbar/TopToolbar";
 import ToastContainer from "../components/ui/Toast";
 import { useSimulation } from "../hooks/useSimulation";
@@ -31,6 +32,7 @@ import { useCollaboration, CURSOR_COLORS } from "../hooks/useCollaboration";
 import { useChaosStore } from "../store/chaosStore";
 import { useDeployStore } from "../store/deploymentStore";
 import { useSecurityStore } from "../store/securityStore";
+import { useFinOpsStore } from "../store/finopsStore";
 import { useAuthStore } from "../store/authStore";
 import { useExportStore } from "../store/exportStore";
 import ExportModal from "../components/panels/ExportModal";
@@ -139,6 +141,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const setShowDeployPanel = useDeployStore((s) => s.setShowDeployPanel);
   const showSecurityPanel = useSecurityStore((s) => s.showSecurityPanel);
   const setShowSecurityPanel = useSecurityStore((s) => s.setShowSecurityPanel);
+  const showFinOpsPanel = useFinOpsStore((s) => s.showPanel);
+  const setShowFinOpsPanel = useFinOpsStore((s) => s.setShowPanel);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { start: simStart, stop: simStop } = useSimulation(projectId);
@@ -371,6 +375,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         onToggleDeployPanel={() => setShowDeployPanel(!showDeployPanel)}
         showSecurityPanel={showSecurityPanel}
         onToggleSecurityPanel={() => setShowSecurityPanel(!showSecurityPanel)}
+        showFinOpsPanel={showFinOpsPanel}
+        onToggleFinOpsPanel={() => setShowFinOpsPanel(!showFinOpsPanel)}
         collabConnected={collabConnected}
         remoteUsers={remoteUsers}
       />
@@ -436,6 +442,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         </div>
         {showSecurityPanel ? (
           <SecurityPanel />
+        ) : showFinOpsPanel ? (
+          <FinOpsPanel />
         ) : showDeployPanel ? (
           <DeploymentPanel />
         ) : showChaosPanel ? (
