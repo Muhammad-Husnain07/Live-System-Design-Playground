@@ -3795,3 +3795,38 @@ Cross-checked Phase 9.4 against the spec:
 | `tsc --noEmit` | ✅ PASSED (0 errors) |
 | `go build ./...` | ✅ PASSED (0 errors) |
 | HANDOFF.md — Phase 11.1 section documents layout, data sources, key decisions | ✅ |
+
+## Re-Verification: FIXED — 2026-05-22
+
+### Phase 10.2 Fix
+`showFinOpsPanel` and `onToggleFinOpsPanel` were missing from the destructured props in `TopToolbar.tsx:28`. TypeScript did not catch this (likely due to module caching in tsc), but the variables were technically undefined at runtime. **Fix:** Added both to the destructured parameter list.
+
+### Phase 11.1
+All files, routes, components, and types verified. No issues found.
+
+### Build Checks
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` (frontend type check) | ✅ PASSED (0 errors) |
+| `go build ./...` | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+
+### File Inventory — Phase 10.2
+
+| File | Status |
+|------|--------|
+| `frontend/src/components/panels/FinOpsPanel.tsx` — 293 lines, presets, calculate, cost card, breakdown accordion, chart, recommendations | ✅ |
+| `frontend/src/store/finopsStore.ts` — 64 lines, showPanel, estimate, nodeCosts | ✅ |
+| `frontend/src/components/toolbar/TopToolbar.tsx` — `$` toggle + props, line 330-341 | ✅ |
+| `frontend/src/components/canvas/BaseNode.tsx` — Cost badge (`$XX/mo`) at lines 94-97 | ✅ |
+| `frontend/src/pages/ProjectPage.tsx` — FinOps state wiring (lines 144-145, 378-379, 445-446) | ✅ |
+| `backend/main.go` — `POST /api/finops/estimate` route (lines 122-124) | ✅ |
+
+### File Inventory — Phase 11.1
+
+| File | Status |
+|------|--------|
+| `frontend/src/pages/ObservabilityPage.tsx` — 385 lines, full dashboard | ✅ |
+| `frontend/src/App.tsx` — Route `/project/:id/observe` at line 36 | ✅ |
+| `frontend/package.json` — `html2canvas@^1.4.1` at line 17 | ✅ |

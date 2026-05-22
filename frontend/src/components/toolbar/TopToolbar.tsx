@@ -25,7 +25,7 @@ interface TopToolbarProps {
   remoteUsers: { clientId: number; name: string; color: string }[];
 }
 
-export default function TopToolbar({ projectId, saving, onStart, onStop, showSimPanel, onToggleSimPanel, showChaosPanel, onToggleChaosPanel, showDeployPanel, onToggleDeployPanel, showSecurityPanel, onToggleSecurityPanel, collabConnected, remoteUsers }: TopToolbarProps) {
+export default function TopToolbar({ projectId, saving, onStart, onStop, showSimPanel, onToggleSimPanel, showChaosPanel, onToggleChaosPanel, showDeployPanel, onToggleDeployPanel, showSecurityPanel, onToggleSecurityPanel, showFinOpsPanel, onToggleFinOpsPanel, collabConnected, remoteUsers }: TopToolbarProps) {
   const navigate = useNavigate();
   const { currentProject, updateProject } = useProjectStore();
   const { user, logout } = useAuthStore();
