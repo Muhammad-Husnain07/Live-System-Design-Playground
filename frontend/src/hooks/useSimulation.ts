@@ -185,6 +185,8 @@ export function useSimulation(projectId: string) {
       startingRef.current = true;
       try {
         const cfg = { ...useSimulationStore.getState().config, ...overrides };
+        const { nodes, edges } = useCanvasStore.getState();
+        await api.put(`/projects/${projectId}/canvas`, { canvas_data: { nodes, edges } });
         const resp = await api.post("/simulations/start", {
           projectId,
           targetRPS: cfg.targetRPS,
