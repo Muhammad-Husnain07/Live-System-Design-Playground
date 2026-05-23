@@ -1,4 +1,4 @@
-CREATE TABLE challenges (
+CREATE TABLE IF NOT EXISTS challenges (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
@@ -10,4 +10,4 @@ CREATE TABLE challenges (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_challenges_difficulty ON challenges(difficulty);
+CREATE INDEX IF NOT EXISTS idx_challenges_difficulty ON challenges(difficulty);
