@@ -3830,3 +3830,191 @@ All files, routes, components, and types verified. No issues found.
 | `frontend/src/pages/ObservabilityPage.tsx` — 385 lines, full dashboard | ✅ |
 | `frontend/src/App.tsx` — Route `/project/:id/observe` at line 36 | ✅ |
 | `frontend/package.json` — `html2canvas@^1.4.1` at line 17 | ✅ |
+
+## Phase 12.1 — Gamified Challenges & DR Drill Engine — 2026-05-23
+
+### Goal
+Backend services and HTTP handlers for a gamified system design challenge system with automated scoring and disaster recovery drill simulation.
+
+### Files Created
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `backend/models/challenge.go` | 64 | Challenge, ChallengeSubmission, ChallengeResponse, ScoreBreakdown, LeaderboardEntry, SubmitRequest, DrillStartRequest types |
+| `backend/services/challenges.go` | 447 | `SeedChallenges()` — seeds 4 challenges (URL shortener, Chat, E-commerce, Region DR); `ScoreSubmission()` — runs simulation, scores cost/reliability/performance; `SaveSubmission()` — persists score; `GetLeaderboard()` — top 20 scores; `CreateProjectFromCanvas()` — project from challenge canvas |
+| `backend/services/drill.go` | 327 | `RunDrill()` — injects chaos events (RegionDown, DDoS, NodeFailure) into running simulation, monitors error rate, returns Pass/Fail; `DrillScenarioConfig`, `DrillResult` types |
+| `backend/handlers/challenges.go` | 162 | HTTP handlers: `List`, `Get`, `Start` (creates project from seed canvas), `Submit` (scores + saves), `StartDrill` (runs DR drill), `Leaderboard` |
+
+### API Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/challenges` | JWT | List all challenges |
+| GET | `/api/challenges/:id` | JWT | Get single challenge details |
+| POST | `/api/challenges/:id/start` | JWT | Start challenge (creates project from seed canvas) |
+| POST | `/api/challenges/:id/submit` | JWT | Submit canvas for scoring — body `{"projectId":"..."}` |
+| POST | `/api/challenges/:id/drill` | JWT | Run DR drill — body `{"projectId":"...","scenario":"region_down\|ddos\|db_failure"}` |
+| GET | `/api/challenges/leaderboard` | JWT | Top 20 scores |
+
+### Scoring Algorithm
+
+- **Cost Score**: Based on total billable node instances:
+  - ≤3 instances → 100, ≤6 → 80, ≤10 → 60, ≤15 → 40, otherwise `max(0, 100−instances×3)`
+- **Reliability Score**: Based on global error rate during simulation:
+  - ≤1% → 100, ≤3% → 85, ≤5% → 60, ≤10% → 40, otherwise `max(0, 100−errorRate×200)`
+- **Performance Score**: Based on achieved RPS vs target RPS, with bottleneck penalties:
+  - `(achievedRPS/targetRPS) × 100 − bottlenecks×10`, capped at 100
+- **Total**: Equal-weighted average of the three scores, rounded to 2 decimals
+- **Pass**: All three scores meet the challenge's `passing_criteria` thresholds
+
+### DR Drill Scenarios
+
+| Scenario | Chaos Event | Target Nodes | Severity | Duration | Pass Criteria |
+|----------|-------------|--------------|----------|----------|--------------|
+| `region_down` | RegionDown | All | 0.8 | 600 ticks | <10% max error rate |
+| `ddos` | DDoS | All | 0.7 | 400 ticks | <10% max error rate |
+| `db_failure` | NodeFailure | Database nodes (PQ, MySQL, Mongo, Redis, ES) | 0.9 | 500 ticks | <10% max error rate |
+
+### Seed Challenges
+
+| Title | Difficulty | Time Limit | Requirements |
+|-------|-----------|------------|-------------|
+| URL Shortener | Medium | 30 min | 10k RPS, <100ms latency, LB+Web+DB |
+| Build a Chat System | Hard | 45 min | <50ms p99, WS+MQ+Redis+DB |
+| E-commerce Checkout | Hard | 40 min | Survive payment failure, 0% data loss, async MQ |
+| DR Drill: Region Outage | Expert | 15 min | Survive region down, <10% error rate |
+
+### Key Decisions
+
+- **Simulation-based scoring**: Rather than static topology checks, the engine actually runs a simulation with injected chaos, measuring real-time metrics (error rate, throughput, bottlenecks). This makes scoring accurate and sensitive to actual architecture quality.
+- **Per-challenge passing criteria**: Each challenge defines its own `minCostScore`, `minReliabilityScore`, `minPerformanceScore` thresholds, allowing tuning per difficulty.
+- **Build-in canvases**: Seed challenges ship with pre-built canvases (JSON) so users start with a reasonable baseline and improve it.
+- **DR drills reuse chaos engine**: The drill service injects chaos events into the same `SimEngine` used for regular simulations, keeping the chaos taxonomy consistent across features.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+| `tsc --noEmit` | ✅ PASSED (0 errors) |
+| 4 seed challenges registered in `SeedChallenges()` | ✅ |
+| Scoring: cost, reliability, performance, total, passed | ✅ |
+| DR drill: 3 scenarios, chaos injection, monitoring, pass/fail | ✅ |
+| 6 HTTP endpoints wired in `main.go` | ✅ |
+| Challenge seeding called on startup (non-fatal) | ✅ |
+
+### Verification: PASSED — 2026-05-23
+
+Re-verified Phase 12.1 with the following corrections:
+- Fixed line counts in the Files table (challenges.go: 288→447, drill.go: 326→327, challenges handler: 123→162) to match actual file sizes.
+
+All builds pass clean:
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+| `tsc --noEmit` | ✅ PASSED (0 errors) |
+| 4 source files exist with correct structs, functions, types | ✅ |
+| 6 HTTP endpoints wired in `main.go` | ✅ |
+| 4 seed challenges with correct titles, difficulties, time limits | ✅ |
+| Scoring algorithm: cost, reliability, performance, total, passed | ✅ |
+| DR drill: 3 scenarios (region_down, ddos, db_failure) with chaos injection | ✅ |
+
+## Phase 12.2 — Gamified Interview Mode & DR Drill UI — 2026-05-23
+
+### Goal
+Frontend pages and components for the gamified challenge system, DR drill testing, and leaderboard.
+
+### Files Created
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `frontend/src/store/challengeStore.ts` | 121 | Zustand store: `fetchChallenges()`, `startChallenge()` (POST /challenges/:id/start), `submitChallenge()` (POST /challenges/:id/submit), `clearActiveChallenge()`, `fetchLeaderboard()` (GET /challenges/leaderboard) |
+| `frontend/src/pages/ChallengesPage.tsx` | 115 | Challenge card grid at `/challenges`: fetches challenge list, each card shows title/difficulty/time-limit, "Start Challenge" creates project and redirects to `/project/:id` |
+| `frontend/src/components/panels/DrillPanel.tsx` | 128 | Right-side panel: scenario dropdown (Region Down / DDoS / DB Failure), "Start Drill" button, live evaluation with pass/fail banner showing max error rate and duration |
+| `frontend/src/pages/LeaderboardPage.tsx` | 73 | Leaderboard table at `/leaderboard`: Rank (medals for top 3), Username, Score, PASS/FAIL status, Date |
+
+### Files Modified
+
+| File | Lines | Change |
+|------|-------|--------|
+| `frontend/src/App.tsx` | 49 | Added imports + routes for `/challenges` and `/leaderboard` (under ProtectedRoute) |
+| `frontend/src/pages/ProjectPage.tsx` | 614 | Added `ChallengeTimerBar` component (countdown timer, progress bar, submit button), `ScoreReportModal` with 3 SVG progress rings (cost/reliability/performance), `ProgressRing` reusable SVG component, `DrillPanel` in right-side chain, `showDrillPanel` state, challenge store wiring |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | 422 | Added `showDrillPanel`/`onToggleDrillPanel` props and "⚡" drill toggle button in right section |
+
+### Challenge UX Flow
+
+1. User navigates to `/challenges` → sees grid of 4 challenge cards
+2. Clicks "Start Challenge" → `POST /challenges/:id/start` creates a project from the seed canvas → redirects to `/project/:id`
+3. **Challenge mode bar** appears below the toolbar:
+   - Shows challenge title
+   - Progress bar + countdown timer (turns red/pulsing when < 5 min remaining)
+   - "Submit" button showing "Evaluating..." with spinner during submission
+4. User edits the canvas architecture then clicks "Submit"
+5. `POST /challenges/:id/submit` → backend runs simulation + chaos + scoring
+6. **ScoreReportModal** appears (overlay):
+   - Pass/fail emoji + colored title
+   - Total score
+   - 3 SVG progress rings (Cost / Reliability / Performance) with labels and numeric scores
+   - "Back to Dashboard" button clears challenge state
+
+### DR Drill Flow
+
+1. ProjectPage → click "⚡" drill toggle in toolbar → DrillPanel opens on right
+2. Select scenario from dropdown (Region Down / DDoS / DB Failure)
+3. Click "Start Drill" → `POST /challenges/:id/drill` with `{projectId, scenario}`
+4. Panel shows "Running Drill..." spinner during evaluation
+5. After ~60s, pass/fail banner appears with:
+   - ✅ PASSED or ❌ FAILED
+   - Max Error Rate (formatted as %)
+   - Duration in ticks
+   - Injection tick number
+
+### Key Decisions
+
+- **Challenge context via store**: `challengeStore.activeChallenge` holds the challenge metadata + project ID. Set by `ChallengesPage.startChallenge()` before navigation; read by `ProjectPage` to show the challenge bar. No URL params or session storage needed.
+- **SVG progress rings**: Custom `ProgressRing` component using SVG `circle` with `stroke-dasharray`/`stroke-dashoffset` math. 56×56px, 5px stroke, configurable color per metric. No external library dependency.
+- **Drill endpoint reuses challenge route**: The backend `POST /challenges/:id/drill` doesn't actually use the `:id` param (it reads `projectId` from body). Frontend passes `placeholder` as the challenge ID. Simpler endpoint design would be `POST /drills` but this works with existing backend.
+- **Timer sync**: Challenge countdown calculates elapsed time from `startedAt` (set when challenge begins) minus current time, not from a server-synced clock. Accurate enough for a gamified challenge mode.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` (frontend type check) | ✅ PASSED (0 errors) |
+| `go build ./...` (backend unchanged) | ✅ PASSED (0 errors) |
+| ChallengesPage: 4 challenge cards with title/difficulty/time-limit/start button | ✅ |
+| ChallengesPage: Start creates project via `POST /challenges/:id/start`, navigates to `/project/:id` | ✅ |
+| ProjectPage: Challenge mode bar appears with countdown, progress bar, submit button | ✅ |
+| ProjectPage: Timer turns red/pulsing when < 5 min remaining | ✅ |
+| ProjectPage: Submit shows "Evaluating..." spinner, then ScoreReport modal with 3 progress rings | ✅ |
+| DrillPanel: 3 scenario dropdown, "Start Drill" button, running spinner, pass/fail banner | ✅ |
+| LeaderboardPage: Table with rank/username/score/status/date, empty state when no submissions | ✅ |
+| Routes: `/challenges` and `/leaderboard` added under ProtectedRoute in App.tsx | ✅ |
+| TopToolbar: "⚡" drill toggle button wired to showDrillPanel state | ✅ |
+| HANDOFF.md — Phase 12.2 section documents UX flow, file table, key decisions | ✅ |
+
+### Verification: PASSED — 2026-05-23
+
+Re-verified Phase 12.2 with the following corrections:
+- Fixed line counts in Files table (challengeStore.ts: 108→121, ChallengesPage.tsx: 133→115, DrillPanel.tsx: 139→128, LeaderboardPage.tsx: 85→73) to match actual file sizes.
+- Fixed line counts in Modified Files table (App.tsx: 48→49, ProjectPage.tsx: 580→614, TopToolbar.tsx: 420→422).
+
+All builds pass clean:
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` (frontend type check) | ✅ PASSED (0 errors) |
+| `go build ./...` (backend unchanged) | ✅ PASSED (0 errors) |
+| 4 new files exist with correct structure and types | ✅ |
+| 3 modified files have all required changes (routes, panel chain, toolbar button) | ✅ |
+| ChallengesPage: card grid, start button, error/loading/empty states | ✅ |
+| DrillPanel: 3 scenarios, start/loading/pass-fail states | ✅ |
+| LeaderboardPage: table with rank/score/status, loading/empty states | ✅ |
+| challengeStore: all 5 actions implemented with API calls | ✅ |
+| ProjectPage: ChallengeTimerBar (countdown, progress bar, submit + spinner) | ✅ |
+| ProjectPage: ScoreReportModal (3 SVG progress rings, pass/fail, close) | ✅ |
+| TopToolbar: "⚡" drill toggle prop + button wired to showDrillPanel | ✅ |
+| Routes: `/challenges` and `/leaderboard` under ProtectedRoute in App.tsx | ✅ |
