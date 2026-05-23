@@ -4018,3 +4018,178 @@ All builds pass clean:
 | ProjectPage: ScoreReportModal (3 SVG progress rings, pass/fail, close) | ✅ |
 | TopToolbar: "⚡" drill toggle prop + button wired to showDrillPanel | ✅ |
 | Routes: `/challenges` and `/leaderboard` under ProtectedRoute in App.tsx | ✅ |
+
+## Phase 13.1 — Error Handling & Polish — 2026-05-23
+
+### Goal
+Improve error resilience, loading experience, form validation, keyboard shortcuts, and empty states across the application.
+
+### Files Created
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `frontend/src/components/ui/ErrorBoundary.tsx` | 47 | React class-component error boundary with friendly UI, error message display, and "Try Again" reset button |
+| `frontend/src/components/ui/Skeleton.tsx` | 61 | Reusable skeleton components: `SkeletonLine`, `SkeletonCard` (animated placeholder card), `SkeletonTable`, `SkeletonPanel` (right-side panel placeholder) |
+| `frontend/src/components/ui/EmptyState.tsx` | 23 | Reusable empty state component: icon circle, title, description, optional action slot |
+
+### Files Modified
+
+| File | Lines | Change |
+|------|-------|--------|
+| `frontend/src/main.tsx` | 13 | Wrapped `<App />` with `<ErrorBoundary>` for crash-safe rendering |
+| `frontend/src/utils/api.ts` | 36 | Added 500+ error interceptor that shows error toast via `useToastStore.getState().addToast()` |
+| `frontend/src/App.tsx` | 50 | Added `<ToastContainer />` at root level (above Router) so toasts work on all pages |
+| `frontend/src/pages/DashboardPage.tsx` | 177 | Replaced spinner with 6× `SkeletonCard` grid during loading; replaced inline empty state with `<EmptyState>` component |
+| `frontend/src/pages/ProjectPage.tsx` | 680+ | Added keyboard shortcuts (Ctrl+S: save, Ctrl+Shift+R: run/stop, Escape: deselect); Canvas skeleton loading state (2 skeleton cards); Canvas empty state overlay ("Drag nodes from the left panel"); WS reconnect banner (orange when disconnected+isRunning, red on connection error); `connectionStatus` from simulation store |
+| `frontend/src/pages/LoginPage.tsx` | 107 | Added inline `validate()`: email format check, password required; per-field error messages below inputs with red border highlight; errors clear on input change |
+| `frontend/src/components/ui/NewProjectModal.tsx` | 108 | Added `validate()`: name required, min 2 chars, max 100 chars; inline name error display below input with red border |
+| `frontend/src/components/panels/FinOpsPanel.tsx` | 293 | Replaced inline empty state with `<EmptyState>` component |
+| `frontend/src/components/panels/ChaosPanel.tsx` | 278 | Replaced inline empty state with `<EmptyState>` component |
+
+### Keyboard Shortcuts Reference
+
+| Shortcut | Scope | Action |
+|----------|-------|--------|
+| `Delete` / `Backspace` | Canvas | Remove selected node(s) or edge(s) (ReactFlow built-in) |
+| `Ctrl+Z` | Global | Undo last canvas action |
+| `Ctrl+Shift+Z` | Global | Redo last undo |
+| `Ctrl+S` | Global | Force-save canvas (autosave-also runs every 30s) |
+| `Escape` | Global | Deselect all nodes/edges (closes NodeConfigPanel) |
+| `Ctrl+Shift+R` | Global | Toggle simulation run (start if stopped, stop if running) |
+
+### Toast Notification API
+
+```typescript
+import { useToastStore } from "../store/toastStore";
+
+// Types: "success" | "error" | "info" | "warning"
+useToastStore.getState().addToast({
+  type: "success",
+  title: "Project saved",
+  message: "Your changes were saved successfully.",
+  duration: 4000, // ms, defaults to 4000
+});
+```
+
+- **Position**: Fixed bottom-right (`z-[9999]`)
+- **Auto-dismiss**: After `duration` ms (default 4000)
+- **Manual dismiss**: "x" button on each toast
+- **Animation**: `animate-slide-up` (0.2s ease-out, opacity + translateY)
+- **Stacking**: `flex-col-reverse` so newest appears at bottom
+- **Colors**: green (success), red (error), blue (info), orange (warning)
+- **Global**: `ToastContainer` rendered in `App.tsx` (was only in ProjectPage previously)
+- **500 errors**: Automatically create error toasts via `api.ts` response interceptor
+
+### Key Decisions
+
+- **Class-component ErrorBoundary**: React error boundaries require class components (`getDerivedStateFromError`/`componentDidCatch`). Functional components cannot implement them. The boundary is minimal and wraps the entire app in `main.tsx`.
+- **Zustand store outside React**: `useToastStore.getState().addToast()` works anywhere (including `api.ts` interceptors) because zustand stores expose `getState()` on the store object directly, not just as a hook.
+- **Skeleton over spinner**: Skeleton placeholders (animated pulse) provide a better perceived loading experience than spinners because they hint at the eventual content layout. The `SkeletonCard` component matches the existing `ProjectCard` card dimensions.
+- **Canvas empty state overlay**: Uses `pointer-events-none` so it doesn't interfere with drag-and-drop. Positioned absolute within the ReactFlow wrapper. Shows only when `nodes.length === 0` and loading is complete.
+- **WS reconnect banner**: Orange banner with spinner appears when the simulation WebSocket disconnects while the simulation is still running (auto-reconnect is already active via exponential backoff). A red banner appears when the connection errored and simulation isn't running. Both placed between the toolbar and the 3-panel layout.
+- **Form validation pattern**: Manual `validate()` functions per form (no validation library). Returns `boolean`; sets per-field error state; errors clear on input change; red border on invalid fields. Consistent with the existing `RegisterPage.tsx` pattern.
+- **Keyboard shortcuts on `document`**: All shortcuts are registered on `document` via `useEffect` + `addEventListener`. This ensures they work regardless of focus. `event.preventDefault()` prevents browser defaults (e.g., Ctrl+S browser save dialog).
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` (frontend type check) | ✅ PASSED (0 errors) |
+| `go build ./...` (backend unchanged) | ✅ PASSED (0 errors) |
+| ErrorBoundary wraps app in main.tsx, renders friendly UI on crash | ✅ |
+| ToastContainer rendered in App.tsx (global, all pages) | ✅ |
+| 500 errors from api.ts trigger auto-dismiss error toast | ✅ |
+| Dashboard: 6 skeleton cards during loading, EmptyState when empty | ✅ |
+| ProjectPage: Canvas skeleton cards during project load | ✅ |
+| ProjectPage: Canvas empty state overlay ("Drag nodes from the left panel") | ✅ |
+| ProjectPage: WS reconnect banner (orange: reconnecting; red: failed) | ✅ |
+| Keyboard: Ctrl+S triggers save, Escape deselects, Ctrl+Shift+R toggles sim | ✅ |
+| LoginPage: inline email/password validation with red borders | ✅ |
+| NewProjectModal: inline name validation (min 2, max 100 chars) | ✅ |
+| FinOpsPanel: reuseable EmptyState instead of inline div | ✅ |
+| ChaosPanel: reuseable EmptyState instead of inline div | ✅ |
+| EmptyState/Skeleton/ErrorBoundary are reusable components | ✅ |
+| HANDOFF.md — Phase 13.1 section documents shortcuts, toast API, key decisions | ✅ |
+
+## Phase 14 — Testing Infrastructure — 2026-05-23
+
+### Goal
+Establish comprehensive test coverage for both frontend and backend. Add vitest + React Testing Library for UI components and zustand stores. Add Go `testing` package tests for services, scoring, and utilities.
+
+### Dependencies Installed
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `vitest` | ^4.1.7 | Test runner (Vite-native) |
+| `jsdom` | ^29.1.1 | DOM environment for React component tests |
+| `@testing-library/react` | ^16.3.2 | React component rendering and queries |
+| `@testing-library/jest-dom` | ^6.9.1 | DOM matchers (`toBeInTheDocument`, etc.) |
+| `@testing-library/user-event` | ^14.6.1 | User event simulation (click, type) |
+
+### Files Created
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `frontend/src/test/setup.ts` | 1 | Vitest setup: imports `@testing-library/jest-dom/vitest` for DOM matchers |
+| `frontend/src/test/EmptyState.test.tsx` | 30 | Tests: renders title, icon, description, action |
+| `frontend/src/test/Skeleton.test.tsx` | 48 | Tests: SkeletonLine default/custom props, SkeletonCard lines count, SkeletonTable rows/cols, SkeletonPanel renders |
+| `frontend/src/test/Toast.test.tsx` | 41 | Tests: empty state renders null, renders active toast, dismiss on click |
+| `frontend/src/test/ErrorBoundary.test.tsx` | 62 | Tests: renders children when no error, renders error UI on throw, resets on "Try Again" click |
+| `frontend/src/test/toastStore.test.ts` | 48 | Tests: addToast with auto-generated ID, multiple toasts, removeToast by ID, auto-dismiss after duration |
+| `frontend/src/test/finopsStore.test.ts` | 30 | Tests: setShowPanel toggle, setEstimate, setNodeCosts |
+| `backend/services/finops/calculator_test.go` | 299 | 23 tests covering: mathRound, getInstances, isServerless, categoryForType, calculateNodeCost (WebServer/CDN/Redis/Serverless/PostgreSQL/unknown), Calculate (empty/only-clients/valid/all-types), generateRecommendations (empty/with-compute/DB-without-cache), JSON round-trips (CostEstimate, Recommendation, CostLineItem, CostReport), pricing rules coverage, user tiers, node cost scaling |
+| `backend/services/challenges_test.go` | 180 | 9 tests covering: calculateCostScore (7 instance tiers), calculateReliabilityScore (6 error rates + nil tick), calculatePerformanceScore (4 RPS ratios + nil tick + bottleneck penalty), randRange, scenario existence, scenario config validation, ScoreReport JSON, ChallengeResponse JSON |
+| `backend/services/drill_test.go` | 130 | 7 tests covering: pickDrillNodes (all/database/no-match), parseCanvasToSimulationNodes (valid/defaults/invalid JSON), DrillResult JSON |
+
+### Files Modified
+
+| File | Lines | Change |
+|------|-------|--------|
+| `frontend/vite.config.ts` | 15 | Added `test` config: globals, jsdom environment, setup file, threads pool |
+| `frontend/package.json` | 52 | Added `"test": "vitest run"` and `"test:watch": "vitest"` scripts |
+
+### Test Summary
+
+| Suite | Tests | Status |
+|-------|-------|--------|
+| `frontend/src/test/EmptyState.test.tsx` | 5 | ✅ ALL PASS |
+| `frontend/src/test/Skeleton.test.tsx` | 6 | ✅ ALL PASS |
+| `frontend/src/test/Toast.test.tsx` | 3 | ✅ ALL PASS |
+| `frontend/src/test/ErrorBoundary.test.tsx` | 3 | ✅ ALL PASS |
+| `frontend/src/test/toastStore.test.ts` | 4 | ✅ ALL PASS |
+| `frontend/src/test/finopsStore.test.ts` | 3 | ✅ ALL PASS |
+| **Frontend total** | **24** | **✅ ALL PASS** |
+| `backend/services/finops/calculator_test.go` | 23 | ✅ ALL PASS |
+| `backend/services/challenges_test.go` | 9 | ✅ ALL PASS |
+| `backend/services/drill_test.go` | 7 | ✅ ALL PASS |
+| **Backend total** | **39** | **✅ ALL PASS** |
+| **Grand total** | **63** | **✅ ALL PASS** |
+
+### Key Decisions
+
+- **Vitest over Jest**: Vitest is Vite-native, shares the same transform pipeline, faster startup, and is the standard for Vite-based projects. Config lives in `vite.config.ts`.
+- **Threads pool over forks**: Windows fork pool had worker timeout issues (`Timeout waiting for worker to respond`). Switching to `threads` pool resolved all worker startup errors.
+- **Go test files in same package**: Test files are in `package services` and `package finops` to access unexported functions like `calculateCostScore`, `calculateNodeCost`, `mathRound`, `pickDrillNodes`, `randRange`. No build tags or separate test packages needed.
+- **No DB dependency in tests**: All tests are pure unit tests with no database or external dependency. The few DB-dependent functions (`SaveSubmission`, `ListChallenges`, `GetLeaderboard`, `SeedChallenges`) are not tested in this phase.
+- **JSON round-trip tests**: Many test cases marshal and unmarshal structs to verify the JSON serialization contract. This catches field tag mismatches early.
+- **Frontend stores tested directly**: Zustand stores are tested by calling `useStore.getState().action()` directly rather than through React components. This avoids test complexity from provider wrapping.
+- **api.ts not tested**: The Axios instance with token interceptor and error handling is best tested via integration/E2E tests (requires running backend). Skipped in this unit test phase.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` (frontend type check) | ✅ PASSED (0 errors) |
+| `go build ./...` (backend build) | ✅ PASSED (0 errors) |
+| `npm test` (frontend vitest) | ✅ 24/24 PASS |
+| `go test ./services/...` (backend Go tests) | ✅ 39/39 PASS (0 cached) |
+| EmptyState: renders/icon/description/action all display correctly | ✅ |
+| Skeleton: all 4 variants render without crashing | ✅ |
+| Toast: add/remove/auto-dismiss lifecycle | ✅ |
+| ErrorBoundary: catches throws, displays error, resets on click | ✅ |
+| toastStore: add multiple, remove by ID, auto-dismiss timer | ✅ |
+| finopsStore: panel toggle, estimate, node costs | ✅ |
+| FinOps calculator: 23 tests covering all node types, pricing, recommendations, JSON | ✅ |
+| Challenges: cost/reliability/performance scoring at all thresholds | ✅ |
+| Drill: node filtering by type, canvas parsing, JSON serialization | ✅ |
+| HANDOFF.md — Phase 14 section documents test structure, results, key decisions | ✅ |

@@ -7,15 +7,27 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
 
+  const validate = (): boolean => {
+    const errors: { email?: string; password?: string } = {};
+    if (!email.includes("@")) errors.email = "Enter a valid email address";
+    if (email.length > 100) errors.email = "Email is too long";
+    if (!password) errors.password = "Password is required";
+    if (password.length > 128) errors.password = "Password is too long";
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErr("");
     clearError();
+    if (!validate()) return;
     try {
       await login(email, password);
     } catch (caught: any) {
@@ -43,10 +55,13 @@ export default function LoginPage() {
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+              onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }}
+              className={`w-full px-3 py-2 bg-surface-800 border rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-1 text-sm ${
+                fieldErrors.email ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-surface-700 focus:border-blue-500 focus:ring-blue-500"
+              }`}
               placeholder="you@example.com"
             />
+            {fieldErrors.email && <p className="text-[10px] text-red-400 mt-1">{fieldErrors.email}</p>}
           </div>
 
           <div>
@@ -58,10 +73,13 @@ export default function LoginPage() {
               type="password"
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+              onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: undefined })); }}
+              className={`w-full px-3 py-2 bg-surface-800 border rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-1 text-sm ${
+                fieldErrors.password ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-surface-700 focus:border-blue-500 focus:ring-blue-500"
+              }`}
               placeholder="••••••••"
             />
+            {fieldErrors.password && <p className="text-[10px] text-red-400 mt-1">{fieldErrors.password}</p>}
           </div>
 
           {(err || error) && (

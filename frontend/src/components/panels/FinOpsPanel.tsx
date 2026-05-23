@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useFinOpsStore, type CostReport, type CostCategory } from "../../store/finopsStore";
 import { useToastStore } from "../../store/toastStore";
+import EmptyState from "../ui/EmptyState";
 import api from "../../utils/api";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -236,11 +237,11 @@ export default function FinOpsPanel() {
           )}
 
           {!hasResults && !error && (
-            <div className="py-6 text-center">
-              <p className="text-[10px] text-surface-600">
-                Configure your architecture on the canvas, then estimate monthly costs.
-              </p>
-            </div>
+            <EmptyState
+              icon="$"
+              title="No estimate yet"
+              description="Configure your architecture on the canvas, then estimate monthly costs."
+            />
           )}
 
           {hasResults && (

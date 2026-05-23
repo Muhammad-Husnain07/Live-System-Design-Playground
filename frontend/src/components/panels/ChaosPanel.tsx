@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useChaosStore, CHAOS_TYPES, type ChaosEventData } from "../../store/chaosStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
+import EmptyState from "../ui/EmptyState";
 import { useSimulationStore } from "../../store/simulationStore";
 import api from "../../utils/api";
 
@@ -265,9 +266,12 @@ export default function ChaosPanel() {
 
         {/* ── Empty state ── */}
         {activeEvents.length === 0 && (
-          <div className="px-3 py-8 text-center">
-            <p className="text-[10px] text-surface-600">No active chaos events</p>
-            <p className="text-[9px] text-surface-700 mt-1">Click a card above to inject a fault</p>
+          <div className="px-3 py-2">
+            <EmptyState
+              icon="!"
+              title="No active chaos events"
+              description="Select a chaos type above and inject a fault into a node."
+            />
           </div>
         )}
       </div>

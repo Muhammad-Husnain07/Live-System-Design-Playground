@@ -12,11 +12,20 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
   const [isPublic, setIsPublic] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
+  const validate = (): boolean => {
+    if (!name.trim()) { setNameError("Project name is required"); return false; }
+    if (name.trim().length < 2) { setNameError("Name must be at least 2 characters"); return false; }
+    if (name.trim().length > 100) { setNameError("Name must be less than 100 characters"); return false; }
+    setNameError(null);
+    return true;
+  };
+
   const handleSubmit = async () => {
-    if (!name.trim()) return;
+    if (!validate()) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -48,11 +57,14 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
             <label className="block text-xs text-surface-400 mb-1.5">Project name</label>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setNameError(null); }}
               placeholder="My System Design"
-              className="w-full bg-surface-800 border border-surface-700 rounded-lg px-3 py-2 text-sm text-surface-100 placeholder-surface-500 focus:outline-none focus:border-green-500 transition-colors"
+              className={`w-full bg-surface-800 border rounded-lg px-3 py-2 text-sm text-surface-100 placeholder-surface-500 focus:outline-none transition-colors ${
+                nameError ? "border-red-500 focus:border-red-500" : "border-surface-700 focus:border-green-500"
+              }`}
               autoFocus
             />
+            {nameError && <p className="text-[10px] text-red-400 mt-1">{nameError}</p>}
           </div>
 
           <div>

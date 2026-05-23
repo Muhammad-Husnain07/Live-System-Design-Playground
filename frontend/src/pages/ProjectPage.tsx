@@ -35,6 +35,7 @@ import { useDeployStore } from "../store/deploymentStore";
 import { useSecurityStore } from "../store/securityStore";
 import { useFinOpsStore } from "../store/finopsStore";
 import { useChallengeStore } from "../store/challengeStore";
+import { useSimulationStore } from "../store/simulationStore";
 import { useAuthStore } from "../store/authStore";
 import { useExportStore } from "../store/exportStore";
 import ExportModal from "../components/panels/ExportModal";
@@ -264,6 +265,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const scoreReport = useChallengeStore((s) => s.scoreReport);
   const submitChallenge = useChallengeStore((s) => s.submitChallenge);
   const clearActiveChallenge = useChallengeStore((s) => s.clearActiveChallenge);
+  const wsStatus = useSimulationStore((s) => s.connectionStatus);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { start: simStart, stop: simStop } = useSimulation(projectId);
@@ -447,12 +449,30 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "z") {
+      const isCtrl = event.ctrlKey || event.metaKey;
+      if (isCtrl && event.key === "z") {
         if (event.shiftKey) { redo(); event.preventDefault(); }
         else { undo(); event.preventDefault(); }
+        return;
+      }
+      if (isCtrl && event.key === "s") {
+        event.preventDefault();
+        doAutoSave();
+        return;
+      }
+      if (isCtrl && event.shiftKey && (event.key === "r" || event.key === "R")) {
+        event.preventDefault();
+        if (useSimulationStore.getState().isRunning) simStop();
+        else simStart();
+        return;
+      }
+      if (event.key === "Escape") {
+        selectNode(null);
+        selectEdge(null);
+        return;
       }
     },
-    [undo, redo],
+    [undo, redo, doAutoSave, simStart, simStop, selectNode, selectEdge],
   );
 
   useEffect(() => {
@@ -463,7 +483,18 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   if (isLoading && !currentProject) {
     return (
       <div className="h-screen bg-surface-950 flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-2 border-surface-400 border-t-green-500 rounded-full" />
+        <div className="space-y-4 w-80">
+          <div className="bg-surface-900 border border-surface-800 rounded-lg p-4 space-y-3">
+            <div className="bg-surface-800 rounded animate-pulse" style={{ width: "70%", height: 16 }} />
+            <div className="bg-surface-800 rounded animate-pulse" style={{ width: "90%", height: 10 }} />
+            <div className="bg-surface-800 rounded animate-pulse" style={{ width: "60%", height: 10 }} />
+          </div>
+          <div className="bg-surface-900 border border-surface-800 rounded-lg p-4 space-y-3">
+            <div className="bg-surface-800 rounded animate-pulse" style={{ width: "50%", height: 16 }} />
+            <div className="bg-surface-800 rounded animate-pulse" style={{ width: "80%", height: 10 }} />
+            <div className="bg-surface-800 rounded animate-pulse" style={{ width: "70%", height: 10 }} />
+          </div>
+        </div>
       </div>
     );
   }
@@ -511,6 +542,19 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
           onSubmit={() => submitChallenge(activeChallenge.id, activeChallenge.projectId)}
           submitting={submitting}
         />
+      )}
+
+      {/* WS reconnect banner */}
+      {wsStatus === "disconnected" && useSimulationStore.getState().isRunning && (
+        <div className="h-8 shrink-0 flex items-center justify-center bg-orange-500/10 border-b border-orange-500/30 gap-2">
+          <span className="animate-spin h-3 w-3 border border-orange-400 border-t-transparent rounded-full" />
+          <span className="text-[10px] text-orange-400 font-medium">Connection lost. Reconnecting...</span>
+        </div>
+      )}
+      {wsStatus === "error" && !useSimulationStore.getState().isRunning && (
+        <div className="h-8 shrink-0 flex items-center justify-center bg-red-500/10 border-b border-red-500/30">
+          <span className="text-[10px] text-red-400 font-medium">WebSocket connection failed</span>
+        </div>
       )}
 
       {/* ScoreReport modal */}
@@ -579,6 +623,17 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
               </span>
             </div>
           ))}
+          {nodes.length === 0 && !isLoading && (
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-surface-800 flex items-center justify-center">
+                  <span className="text-surface-500 text-xl">+</span>
+                </div>
+                <p className="text-sm text-surface-500 mb-1">Empty canvas</p>
+                <p className="text-[11px] text-surface-600">Drag nodes from the left panel to start designing</p>
+              </div>
+            </div>
+          )}
         </div>
         {showSecurityPanel ? (
           <SecurityPanel />
