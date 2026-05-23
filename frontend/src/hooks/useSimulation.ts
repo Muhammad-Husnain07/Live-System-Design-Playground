@@ -19,6 +19,8 @@ export function useSimulation(projectId: string) {
   const manualCloseRef = useRef(false);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
+  const tickQueueRef = useRef<TickData[]>([]);
+  const rafRef = useRef<number | null>(null);
 
   const runId = useSimulationStore((s) => s.runId);
   const isRunning = useSimulationStore((s) => s.isRunning);
@@ -128,7 +130,15 @@ export function useSimulation(projectId: string) {
           if (msg.type === "tick") {
             const tick = msg.tick as TickData;
             useSimulationStore.getState().onTick(tick);
-            applyTickToCanvas(tick);
+            tickQueueRef.current.push(tick);
+            if (rafRef.current === null) {
+              rafRef.current = requestAnimationFrame(() => {
+                const latest = tickQueueRef.current[tickQueueRef.current.length - 1];
+                tickQueueRef.current = [];
+                rafRef.current = null;
+                if (latest) applyTickToCanvas(latest);
+              });
+            }
           }
         } catch { /* skip malformed */ }
       };
@@ -223,6 +233,7 @@ export function useSimulation(projectId: string) {
 
   useEffect(() => {
     return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       closeWs();
       if (elapsedTimer.current) clearInterval(elapsedTimer.current);
     };

@@ -1,5 +1,6 @@
 import { memo, useState } from "react";
 import { BaseEdge, getBezierPath, type EdgeProps } from "reactflow";
+import { useShallow } from "zustand/react/shallow";
 import { useChaosStore } from "../../store/chaosStore";
 import { useSecurityStore } from "../../store/securityStore";
 import { useCanvasStore } from "../../store/canvasStore";
@@ -28,20 +29,21 @@ function CustomEdge({
   const isSecure = data?.isSecure ?? true;
   const requiresTLS = routing?.requiresTLS ?? false;
 
-  const activeNodeIds = useChaosStore((s) => s.activeNodeIds);
-  const hasChaos = activeNodeIds.includes(source) || activeNodeIds.includes(target);
-
-  const highlightedEdgeIds = useSecurityStore((s) => s.highlightedEdgeIds);
-  const isSecurityHighlighted = highlightedEdgeIds.includes(id);
-
-  const nodes = useCanvasStore((s) => s.nodes);
-  const sourceNode = nodes.find((n) => n.id === source);
-  const srcDeploy = sourceNode?.data?.config?.deployment;
-  const hasCanary = srcDeploy?.strategy === "canary" && srcDeploy?.isCanaryActive;
-  const srcMetrics = sourceNode?.data?.metrics;
-  const edgeCanaryPct = srcMetrics && srcMetrics.currentRPS > 0
-    ? Math.round((srcMetrics.canaryRPS / srcMetrics.currentRPS) * 100)
-    : 0;
+  const hasChaos = useChaosStore((s) => s.activeNodeIds.includes(source) || s.activeNodeIds.includes(target));
+  const isSecurityHighlighted = useSecurityStore((s) => s.highlightedEdgeIds.includes(id));
+  const { hasCanary, edgeCanaryPct } = useCanvasStore(
+    useShallow((s) => {
+      const srcNode = s.nodes.find((n) => n.id === source);
+      if (!srcNode) return { hasCanary: false, edgeCanaryPct: 0 };
+      const dep = srcNode.data?.config?.deployment;
+      const hc = dep?.strategy === "canary" && dep?.isCanaryActive;
+      const metrics = srcNode.data?.metrics;
+      const pct = metrics?.currentRPS > 0
+        ? Math.round((metrics.canaryRPS / metrics.currentRPS) * 100)
+        : 0;
+      return { hasCanary: hc, edgeCanaryPct: pct };
+    }),
+  );
 
   let strokeColor = "#a1a1aa";
   let strokeDasharray: string | undefined;

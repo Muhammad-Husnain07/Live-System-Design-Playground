@@ -226,6 +226,10 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const navigate = useNavigate();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
+  const canvasExtent = useMemo<[[number, number], [number, number]]>(
+    () => [[-10000, -10000], [10000, 10000]],
+    [],
+  );
 
   const { currentProject, isLoading, error, getProject, saveCanvas } = useProjectStore();
 
@@ -304,6 +308,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     setSaving(false);
   }, [projectId, saveCanvas, markSaved]);
 
+  const changeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const scheduleAutoSave = useCallback(() => {
     if (useCanvasStore.getState().collabConnected) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -313,24 +319,29 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     }, 30000);
   }, [doAutoSave]);
 
+  const flushCanvasChanges = useCallback(() => {
+    if (changeTimerRef.current) { clearTimeout(changeTimerRef.current); changeTimerRef.current = null; }
+    markDirty();
+    scheduleAutoSave();
+    debouncedSync();
+  }, [markDirty, scheduleAutoSave, debouncedSync]);
+
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {
       setNodes(applyNodeChanges(changes, nodesRef.current));
-      markDirty();
-      scheduleAutoSave();
-      debouncedSync();
+      if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
+      changeTimerRef.current = setTimeout(flushCanvasChanges, 50);
     },
-    [setNodes, markDirty, scheduleAutoSave, debouncedSync],
+    [setNodes, flushCanvasChanges],
   );
 
   const onEdgesChange: OnEdgesChange = useCallback(
     (changes) => {
       setEdges(applyEdgeChanges(changes, edgesRef.current));
-      markDirty();
-      scheduleAutoSave();
-      debouncedSync();
+      if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
+      changeTimerRef.current = setTimeout(flushCanvasChanges, 50);
     },
-    [setEdges, markDirty, scheduleAutoSave, debouncedSync],
+    [setEdges, flushCanvasChanges],
   );
 
   const onConnect = useCallback(
@@ -584,6 +595,9 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
             onNodeDragStop={onNodeDragStop}
             isValidConnection={isValidConnection}
             fitView
+            elevateNodesOnSelect
+            nodeExtent={canvasExtent}
+            translateExtent={canvasExtent}
             deleteKeyCode={["Backspace", "Delete"]}
             onNodesDelete={(deleted) => {
               deleted.forEach((n) => removeNode(n.id));

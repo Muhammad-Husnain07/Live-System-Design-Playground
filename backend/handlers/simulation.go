@@ -288,8 +288,18 @@ func (h *SimulationHandler) Start(c *fiber.Ctx) error {
 	engine.RunID = runID
 	engine.SetChaosManager(h.Chaos)
 
+	throttleThreshold := 50
+	lastTick := time.Now()
+
 	engine.OnTick(func(tick simulation.Tick, tickNum int) {
-		h.Hub.BroadcastToProject(req.ProjectID, &tick)
+		if len(nodes) > throttleThreshold {
+			if time.Since(lastTick) >= 200*time.Millisecond {
+				h.Hub.BroadcastToProject(req.ProjectID, &tick)
+				lastTick = time.Now()
+			}
+		} else {
+			h.Hub.BroadcastToProject(req.ProjectID, &tick)
+		}
 
 		h.storeTick(runID, tickNum, &tick)
 	})

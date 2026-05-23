@@ -46,12 +46,10 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
   const bgBorderColor = deployStrategy === "blue_green" && bgActiveGroup === "green" ? "#22C55E" : deployStrategy === "blue_green" && bgActiveGroup === "blue" ? "#3B82F6" : null;
   const bgBoxShadow = bgBorderColor ? `0 0 14px ${bgBorderColor}40` : undefined;
   const hasChaos = useChaosStore((s) => s.activeNodeIds.includes(nodeId));
-  const highlightedNodeIds = useSecurityStore((s) => s.highlightedNodeIds);
-  const isSecurityHighlighted = highlightedNodeIds.includes(nodeId);
+  const isSecurityHighlighted = useSecurityStore((s) => s.highlightedNodeIds.includes(nodeId));
   const exportMode = useCanvasStore((s) => s.exportMode);
   const compatStatus = NODE_COMPAT[nodeType] ?? "skipped";
-  const nodeCosts = useFinOpsStore((s) => s.nodeCosts);
-  const nodeCost = nodeCosts.find((c) => c.nodeId === id);
+  const nodeCost = useFinOpsStore((s) => s.nodeCosts.find((c) => c.nodeId === id));
   const handleClass = "!opacity-0 group-hover:!opacity-100 !transition-opacity !w-3 !h-3 !border-2 !bg-surface-800 !border-surface-500";
 
   return (

@@ -4234,3 +4234,29 @@ Re-verified all Phase 13.1 and Phase 14 deliverables:
 | `npm test` (frontend vitest) | ✅ 24/24 PASS |
 | `go test -count=1 ./services/...` (backend) | ✅ 39/39 PASS |
 | All 24 files from both phases exist | ✅ |
+
+**Phase 13.2 (Performance Optimization for 100+ Node Architectures) — 6 files modified:**
+
+### ReactFlow Canvas Performance (`frontend/src/pages/ProjectPage.tsx`)
+- **`nodeExtent`** / **`translateExtent`** — restricted viewport to `[[-10000,-10000],[10000,10000]]` preventing infinite scroll and reducing unnecessary layout recalculations ✅
+- **`elevateNodesOnSelect`** — enabled this ReactFlow prop to bring selected nodes above others without z-index juggling ✅
+- **Debounced `onNodesChange` / `onEdgesChange`** — rapid-fire drag/resize events now debounced at 50ms via `changeTimerRef` before calling `markDirty()`, `scheduleAutoSave()`, and `debouncedSync()` ✅
+
+### Simulation Tick Batching (`frontend/src/hooks/useSimulation.ts`)
+- **RAF-based tick queue** — incoming WebSocket ticks are buffered in `tickQueueRef`; only the **latest** tick per `requestAnimationFrame` frame (≈60fps) is applied to the canvas via `applyTickToCanvas`. The store's `onTick()` still receives every tick for observability history. ✅
+- Cleanup: `cancelAnimationFrame` on unmount ✅
+
+### Backend WS Message Throttling (`backend/handlers/simulation.go`)
+- **Node-count threshold (50)** — when canvas has >50 nodes, tick broadcasts to WebSocket clients are limited to one per **200ms of wall-clock time** (via `lastTick` timer). `storeTick()` continues to persist every tick to DB for history. Below 50 nodes, every tick broadcasts immediately (no change in behavior). ✅
+
+### Zustand Selector Optimization (`frontend/src/components/canvas/BaseNode.tsx`, `CustomEdge.tsx`)
+- **BaseNode** — consolidated `highlightedNodeIds.includes(nodeId)` and `nodeCosts.find(c => c.nodeId === id)` into single inline selectors returning primitives, eliminating full-array subscriptions per node. ✅
+- **CustomEdge** — consolidated `activeNodeIds.includes(source) || activeNodeIds.includes(target)` and `highlightedEdgeIds.includes(id)` into inline selectors. Replaced full `nodes` array subscription with a **`useShallow`-wrapped selector** that extracts only source node's deployment/metrics data, preventing all-edge re-renders on any node change. ✅
+
+### Build & Test Results
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ PASSED (0 errors) |
+| `go build ./...` | ✅ PASSED (0 errors) |
+| `npm test` (frontend vitest) | ✅ 24/24 PASS |
+| `go test -count=1 ./services/...` (backend) | ✅ 39/39 PASS |
