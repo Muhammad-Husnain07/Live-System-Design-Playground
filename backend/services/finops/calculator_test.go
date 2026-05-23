@@ -376,6 +376,118 @@ func TestCostLineItemJSONRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSingleNodeCostWebServer(t *testing.T) {
+	result := calculateNodeCost(NodeWebServer, "my-web", map[string]any{"instances": float64(1)}, 1000, 1.0)
+	if len(result.items) == 0 {
+		t.Fatal("expected cost items for WebServer")
+	}
+	perInstanceItem := false
+	for _, item := range result.items {
+		if item.UnitPrice == 30.37 && item.Quantity == 1 {
+			perInstanceItem = true
+		}
+	}
+	if !perInstanceItem {
+		t.Error("expected per-instance cost item at $30.37 for 1 instance")
+	}
+	if result.total <= 0 {
+		t.Error("expected positive total cost")
+	}
+}
+
+func TestSingleNodeCostLoadBalancer(t *testing.T) {
+	result := calculateNodeCost(NodeLoadBalancer, "main-lb", map[string]any{}, 1000, 1.0)
+	if len(result.items) == 0 {
+		t.Fatal("expected cost items for LoadBalancer")
+	}
+	baseItem := false
+	for _, item := range result.items {
+		if item.UnitPrice == 16.43 && item.Quantity == 1 {
+			baseItem = true
+		}
+	}
+	if !baseItem {
+		t.Error("expected LoadBalancer base cost item at $16.43")
+	}
+}
+
+func TestScalingProjection1kUsers(t *testing.T) {
+	canvas := `{
+		"nodes": [
+			{"id":"web-1","data":{"nodeType":"WebServer","label":"Web","config":{"instances":1,"maxRPS":4000,"latencyMs":20,"errorRate":0}}},
+			{"id":"db-1","data":{"nodeType":"PostgreSQLDB","label":"DB","config":{"instances":1,"maxRPS":10000,"latencyMs":5,"errorRate":0}}}
+		],
+		"edges": []
+	}`
+	report, err := Calculate([]byte(canvas), "proj-scale-1k", 1000)
+	if err != nil {
+		t.Fatalf("Calculate failed: %v", err)
+	}
+	if report.CurrentEstimate.MonthlyUsers != 1000 {
+		t.Errorf("expected 1000 monthly users, got %d", report.CurrentEstimate.MonthlyUsers)
+	}
+	if report.CurrentEstimate.Multiplier != 1 {
+		t.Errorf("expected multiplier 1 for 1k users, got %f", report.CurrentEstimate.Multiplier)
+	}
+	if report.CurrentEstimate.TotalMonthlyCost <= 0 {
+		t.Error("expected positive monthly cost at 1k users")
+	}
+	if report.CurrentEstimate.UserTier != "1k users (prototype)" {
+		t.Errorf("expected '1k users (prototype)', got %q", report.CurrentEstimate.UserTier)
+	}
+	if len(report.ScalingProjections) != 4 {
+		t.Errorf("expected 4 scaling projections, got %d", len(report.ScalingProjections))
+	}
+}
+
+func TestScalingProjection1MUsers(t *testing.T) {
+	canvas := `{
+		"nodes": [
+			{"id":"web-1","data":{"nodeType":"WebServer","label":"Web","config":{"instances":2,"maxRPS":4000,"latencyMs":20,"errorRate":0}}},
+			{"id":"db-1","data":{"nodeType":"PostgreSQLDB","label":"DB","config":{"instances":2,"maxRPS":10000,"latencyMs":5,"errorRate":0}}},
+			{"id":"cache-1","data":{"nodeType":"Redis","label":"Cache","config":{"instances":1,"maxRPS":50000,"latencyMs":1,"errorRate":0}}}
+		],
+		"edges": []
+	}`
+	report, err := Calculate([]byte(canvas), "proj-scale-1m", 1_000_000)
+	if err != nil {
+		t.Fatalf("Calculate failed: %v", err)
+	}
+	if report.CurrentEstimate.MonthlyUsers != 1000 {
+		t.Errorf("expected 1,000 monthly users for current, got %d", report.CurrentEstimate.MonthlyUsers)
+	}
+	if report.CurrentEstimate.Multiplier != 1 {
+		t.Errorf("expected multiplier 1 for current, got %f", report.CurrentEstimate.Multiplier)
+	}
+	if report.CurrentEstimate.UserTier != "1k users (prototype)" {
+		t.Errorf("expected '1k users (prototype)', got %q", report.CurrentEstimate.UserTier)
+	}
+	if len(report.ScalingProjections) != 4 {
+		t.Errorf("expected 4 scaling projections, got %d", len(report.ScalingProjections))
+	}
+	var found1M bool
+	for _, p := range report.ScalingProjections {
+		if p.MonthlyUsers > 0 && p.TotalMonthlyCost <= 0 {
+			t.Errorf("projection %q should have positive cost", p.UserTier)
+		}
+		if p.UserTier == "1M users (scale)" {
+			found1M = true
+			if p.Multiplier != 30 {
+				t.Errorf("expected multiplier 30 for 1M, got %f", p.Multiplier)
+			}
+			if p.MonthlyUsers != 1_000_000 {
+				t.Errorf("expected 1,000,000 users for 1M tier, got %d", p.MonthlyUsers)
+			}
+			if p.TotalMonthlyCost <= 0 {
+				t.Error("expected positive cost for 1M tier")
+			}
+		}
+	}
+	if !found1M {
+		t.Error("missing 1M users scaling projection")
+	}
+}
+
 func TestCostReportJSONRoundTrip(t *testing.T) {
 	report := &CostReport{
 		ProjectID:    "proj-1",

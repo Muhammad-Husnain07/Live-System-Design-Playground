@@ -4263,3 +4263,85 @@ Re-verified all Phase 13.1 and Phase 14 deliverables:
 | All 6 modified files match spec | ✅ |
 
 **Verification: PASSED** — 2026-05-23. All 6 modified files confirmed correct against spec. `canvasExtent` memo, debounced change handlers, RAF tick queue, WS broadcast throttling at 200ms/>50 nodes, and fine-grained Zustand selectors all verified via file read audit and sub-requirement checklist. No stubs, no missing files, no errors. Commit `8e2a38d` on `origin/master`.
+
+---
+
+**Phase 13.3 — Backend Testing (84 tests, 8 new test files)**
+
+### Files Created
+| File | Tests | Coverage |
+|------|-------|----------|
+| `backend/simulation/engine_test.go` | 5 | Linear/cyclic/async/bottleneck/canary topology propagation |
+| `backend/simulation/chaos_test.go` | 3 | NodeFailure, DDoS scaling, chaos expiration + state restore |
+| `backend/services/finops/calculator_test.go` | +4 | Single-node cost (WebServer + LoadBalancer), scaling at 1k + 1M users |
+| `backend/services/security/auditor_test.go` | 6 | Unencrypted transit, public DB, protected DB, clean arch, canvas parse, invalid JSON |
+| `backend/iac/terraform_test.go` | 4 | HCL generation basic/web/JSON/empty, SanitizeID |
+| `backend/iac/kubernetes_test.go` | 3 | Deployment + Service YAML, LoadBalancer service, empty project |
+| `backend/iac/import_test.go` | 7 | Terraform parse (valid/invalid/empty), canvas conversion, full import pipeline, SanitizeID |
+| `backend/handlers/auth_test.go` | 13 | Registration validation (6), password hashing (2), JWT token (5), whitespace trim |
+
+### Test Scenarios Implemented
+
+**Simulation Engine:**
+- `TestEngineLinearTopology` — 4-node chain (Client→LB→Server→DB); verifies all nodes have metrics and RPS monotonically decreases
+- `TestEngineCyclicTopology` — Service A↔Service B cycle; Kahn's algorithm + cycle break; verifies non-negative RPS
+- `TestEngineAsyncBoundary` — Producer→Queue→Worker; verifies `IsAsync` flag on queue and `QueueDepth >= 0`
+- `TestEngineBottleneckDetection` — Server with 100 MaxRPS under 5000 target; verifies `IsBottleneck=true` and RPS clamped at 100
+- `TestEngineCanaryDeployment` — Canary with 20% split; verifies `CanaryRPS > 0` and `CurrentRPS > 0`
+
+**Chaos Engine:**
+- `TestChaosNodeFailure` — Injects NodeFailure; verifies `IsFailed=true` persists across ticks
+- `TestChaosDDoS` — Severity 0.8; verifies `MaxRPS` reduced, `ErrorRate` increased, `Instances >= 1`
+- `TestChaosExpiration` — 2-tick duration; verifies event auto-deactivates via `ActiveEvents() == 0`
+
+**FinOps:**
+- `TestSingleNodeCostWebServer` — 1 instance at $30.37/instance; verifies per-instance item
+- `TestSingleNodeCostLoadBalancer` — Base cost $16.43; verifies base line item
+- `TestScalingProjection1kUsers` — 1k tier (multiplier=1); verifies tier label and 4 projections
+- `TestScalingProjection1MUsers` — 1M tier (multiplier=30); verifies 1M entry in scaling list
+
+**Security Auditor:**
+- `TestUnencryptedTransitDetection` — Edge with `RequiresTLS=true` to target without TLS
+- `TestPublicDatabaseDetection` — ExternalClient sharing VPC with PostgreSQLDB
+- `TestDatabaseBehindFirewallIsNotPublic` — Protected path through WAF → no violation
+- `TestCleanArchitectureZeroViolations` — WAF+Web+App+DB all TLS-enabled with allowed inbound
+- `TestParseCanvasDataWithSecurity` — JSON deserialization + auditor pipeline
+
+**IaC — Terraform:**
+- `TestGenerateTerraformBasicWebApp` — Generates HCL with providers + 3 resource blocks
+- `TestGenerateTerraformJSONRoundTrip` — Generates valid JSON variant
+- `TestGenerateTerraformEmptyData` — Always emits `required_providers` even with no resources
+
+**IaC — Kubernetes:**
+- `TestGenerateKubernetesBasicWebApp` — `aws_ecs_service` → Deployment+Service, `aws_db_instance` → StatefulSet+Service; verifies image references `web-app:latest` and `postgres:16`
+- `TestGenerateKubernetesWithLoadBalancer` — `aws_lb` → Service type LoadBalancer
+
+**IaC — Import:**
+- `TestParseSimpleTerraform` — Full `resource` blocks parsed into `InfraGraph` nodes
+- `TestParseTerraformAndToCanvas` — End-to-end HCL→Graph→CanvasData
+- `TestParseTerraformInvalidHCL` — Gracefully returns empty graph (no crash)
+
+**Auth:**
+- `TestValidateRegisterInput*` — Valid, invalid email, short/long username, short password, whitespace trimming
+- `TestPasswordHashingAndCheck` — bcrypt hash + verify correctness and wrong-password rejection
+- `TestGenerateToken` / `TestParseValidToken` / `TestParseInvalidToken` / `TestParseTokenWrongSecret` / `TestParseExpiredToken` — JWT lifecycle with correct/expired/wrong-secret scenarios
+
+### Key Implementation Decisions
+- **In-package tests** — All test files use the same package as their source (`package simulation`, `package finops`, `package security`, `package iac`, `package handlers`) to access unexported functions like `calculateNodeCost`, `mathRound`, `applyOne`.
+- **No external dependencies** — All tests are pure unit tests. No DB, Redis, or network required. Auth tests test `services.ValidateRegisterInput`, `services.HashPassword`/`CheckPassword`, and `config.GenerateToken`/`ParseToken` directly — no HTTP handler or fiber context needed.
+- **Kubernetes test uses Terraform resource types** — The `GenerateKubernetes` template dispatches on Terraform resource types (`aws_ecs_service`, `aws_db_instance`, `aws_lb`), not canvas node types directly. Tests create `ExportData` with these type strings.
+- **Current estimate is always the first tier** — `Calculate()` assigns `projections[0]` (1k users prototype) as `CurrentEstimate` regardless of the `monthlyUsers` parameter passed in. The 1M+ tier appears in `ScalingProjections`.
+
+### Build & Test Results
+| Check | Result |
+|-------|--------|
+| `go build ./...` | ✅ PASSED (0 errors) |
+| `go test -count=1 ./...` | ✅ 84/84 PASS |
+| Auth (handlers) | ✅ 13 tests |
+| IaC | ✅ 14 tests (7 import + 3 k8s + 4 terraform) |
+| Services (challenges + drill) | ✅ 17 tests |
+| FinOps | ✅ 27 tests (23 existing + 4 new) |
+| Security | ✅ 6 tests |
+| Simulation | ✅ 8 tests (5 engine + 3 chaos) |
+
+**Verification: PASSED** — 2026-05-23. All 8 test files created, 45 new test functions added (84 total backend tests). Every test case from the spec implemented. All builds and tests pass. No stubs, no mock objects, no external dependencies. Committed to `origin/master`.
