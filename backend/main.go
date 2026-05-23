@@ -27,6 +27,10 @@ func main() {
 		log.Fatalf("Migration failed: %v", err)
 	}
 
+	if err := handlers.SeedChallengeData(config.DB); err != nil {
+		log.Printf("Challenge seed warning: %v", err)
+	}
+
 	if err := config.InitRedis(cfg.RedisURL); err != nil {
 		log.Printf("Redis initialization failed (non-fatal): %v", err)
 	}
@@ -122,6 +126,15 @@ func main() {
 	finops := handlers.NewFinOpsHandler(config.DB, config.RedisClient)
 	finopsGroup := api.Group("/finops", middleware.JWTAuth(cfg.JWTSecret))
 	finopsGroup.Post("/estimate", finops.Estimate)
+
+	challenges := handlers.NewChallengeHandler(config.DB, config.RedisClient)
+	challengeGroup := api.Group("/challenges", middleware.JWTAuth(cfg.JWTSecret))
+	challengeGroup.Get("/", challenges.List)
+	challengeGroup.Get("/:id", challenges.Get)
+	challengeGroup.Post("/:id/start", challenges.Start)
+	challengeGroup.Post("/:id/submit", challenges.Submit)
+	challengeGroup.Post("/:id/drill", challenges.StartDrill)
+	challengeGroup.Get("/leaderboard", challenges.Leaderboard)
 
 	app.Get("/ws/simulation", func(c *fiber.Ctx) error {
 		ctx := c.Context()
