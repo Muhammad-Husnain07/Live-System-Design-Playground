@@ -1,5 +1,7 @@
 FROM golang:1.26-alpine AS builder
 
+RUN apk add --no-cache gcc musl-dev
+
 RUN go install github.com/air-verse/air@latest
 
 WORKDIR /app
