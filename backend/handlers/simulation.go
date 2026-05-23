@@ -11,6 +11,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"github.com/valyala/fasthttp"
 	"systemdesign/config"
 	"systemdesign/models"
 	"systemdesign/services"
@@ -196,6 +197,7 @@ func parseCanvasToSimNodes(proj *models.ProjectDetailResponse) ([]simulation.Nod
 var wsUpgrader = websocket.FastHTTPUpgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin:     func(_ *fasthttp.RequestCtx) bool { return true },
 }
 
 func (h *SimulationHandler) WSHandler(c *fiber.Ctx) error {
