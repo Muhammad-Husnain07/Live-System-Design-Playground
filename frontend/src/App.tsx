@@ -7,6 +7,8 @@ import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProjectPage from "./pages/ProjectPage";
 import ObservabilityPage from "./pages/ObservabilityPage";
+import ChallengesPage from "./pages/ChallengesPage";
+import LeaderboardPage from "./pages/LeaderboardPage";
 import ProfilePage from "./pages/ProfilePage";
 
 function App() {
@@ -34,6 +36,8 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/project/:id" element={<ProjectPage />} />
           <Route path="/project/:id/observe" element={<ObservabilityPage />} />
+          <Route path="/challenges" element={<ChallengesPage />} />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/settings" element={<ProfilePage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

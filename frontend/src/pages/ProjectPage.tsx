@@ -25,6 +25,7 @@ import ChaosPanel from "../components/panels/ChaosPanel";
 import DeploymentPanel from "../components/panels/DeploymentPanel";
 import SecurityPanel from "../components/panels/SecurityPanel";
 import FinOpsPanel from "../components/panels/FinOpsPanel";
+import DrillPanel from "../components/panels/DrillPanel";
 import TopToolbar from "../components/toolbar/TopToolbar";
 import ToastContainer from "../components/ui/Toast";
 import { useSimulation } from "../hooks/useSimulation";
@@ -33,6 +34,7 @@ import { useChaosStore } from "../store/chaosStore";
 import { useDeployStore } from "../store/deploymentStore";
 import { useSecurityStore } from "../store/securityStore";
 import { useFinOpsStore } from "../store/finopsStore";
+import { useChallengeStore } from "../store/challengeStore";
 import { useAuthStore } from "../store/authStore";
 import { useExportStore } from "../store/exportStore";
 import ExportModal from "../components/panels/ExportModal";
@@ -106,6 +108,119 @@ function enrichNode(node: Node): Node {
   return node;
 }
 
+function ProgressRing({ value, size = 56, strokeWidth = 5, color }: { value: number; size?: number; strokeWidth?: number; color: string }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (value / 100) * circumference;
+  return (
+    <svg width={size} height={size} className="transform -rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={strokeWidth} />
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChallengeTimerBar({ challenge, onSubmit, submitting }: { challenge: NonNullable<ReturnType<typeof useChallengeStore.getState>["activeChallenge"]>; onSubmit: () => void; submitting: boolean }) {
+  const [remaining, setRemaining] = useState(() => {
+    const elapsed = Date.now() - challenge.startedAt;
+    return Math.max(0, challenge.timeLimitMs - elapsed);
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - challenge.startedAt;
+      const rem = Math.max(0, challenge.timeLimitMs - elapsed);
+      setRemaining(rem);
+      if (rem <= 0) clearInterval(interval);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [challenge.startedAt, challenge.timeLimitMs]);
+
+  const totalSec = Math.ceil(challenge.timeLimitMs / 1000);
+  const remSec = Math.ceil(remaining / 1000);
+  const progress = totalSec > 0 ? (remSec / totalSec) * 100 : 0;
+  const isUrgent = remSec < 300;
+  const minutes = Math.floor(remSec / 60);
+  const seconds = remSec % 60;
+  const timeStr = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+
+  return (
+    <div className={`h-10 shrink-0 flex items-center justify-between px-4 border-b ${isUrgent ? "bg-red-500/10 border-red-500/30" : "bg-surface-900 border-surface-800"}`}>
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] text-surface-500 font-medium uppercase tracking-wider">
+          ⚔️ {challenge.title}
+        </span>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <div className="w-20 h-1.5 bg-surface-800 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-1000 ${isUrgent ? "bg-red-500" : "bg-blue-500"}`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className={`text-xs font-mono tabular-nums font-medium ${isUrgent ? "text-red-400 animate-pulse" : "text-surface-200"}`}>
+            {timeStr}
+          </span>
+        </div>
+        <button
+          onClick={onSubmit}
+          disabled={submitting}
+          className={`px-3 py-1 text-[11px] font-medium rounded transition-colors disabled:opacity-50 ${submitting ? "bg-surface-700 text-surface-400" : "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"}`}
+        >
+          {submitting ? (
+            <span className="flex items-center gap-1.5">
+              <span className="animate-spin h-3 w-3 border border-blue-400 border-t-transparent rounded-full" />
+              Evaluating...
+            </span>
+          ) : (
+            "Submit"
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ScoreReportModal({ report, onClose }: { report: { cost: number; reliability: number; performance: number; total: number; passed: boolean }; onClose: () => void }) {
+  const items = [
+    { label: "Cost", value: report.cost, color: "#10b981" },
+    { label: "Reliability", value: report.reliability, color: "#3b82f6" },
+    { label: "Performance", value: report.performance, color: "#f59e0b" },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-surface-900 border border-surface-700 rounded-xl p-6 w-80 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="text-center mb-4">
+          <span className="text-3xl">{report.passed ? "🎉" : "😞"}</span>
+          <h3 className={`text-lg font-bold mt-2 ${report.passed ? "text-green-400" : "text-red-400"}`}>
+            {report.passed ? "Challenge Passed!" : "Challenge Failed"}
+          </h3>
+          <p className="text-[11px] text-surface-500 mt-0.5">Total Score: <span className="text-surface-200 font-mono font-semibold">{report.total.toFixed(1)}</span></p>
+        </div>
+
+        <div className="flex justify-center gap-4 mb-4">
+          {items.map((item) => (
+            <div key={item.label} className="flex flex-col items-center gap-1">
+              <ProgressRing value={item.value} color={item.color} size={56} strokeWidth={5} />
+              <span className="text-[9px] uppercase tracking-wider text-surface-500 font-medium">{item.label}</span>
+              <span className="text-xs font-mono font-semibold" style={{ color: item.color }}>{item.value.toFixed(1)}</span>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full py-2 text-[11px] font-medium bg-surface-800 hover:bg-surface-700 text-surface-200 rounded transition-colors"
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ProjectCanvas({ id: projectId }: { id: string }) {
   const navigate = useNavigate();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -143,6 +258,12 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const setShowSecurityPanel = useSecurityStore((s) => s.setShowSecurityPanel);
   const showFinOpsPanel = useFinOpsStore((s) => s.showPanel);
   const setShowFinOpsPanel = useFinOpsStore((s) => s.setShowPanel);
+  const [showDrillPanel, setShowDrillPanel] = useState(false);
+  const activeChallenge = useChallengeStore((s) => s.activeChallenge);
+  const submitting = useChallengeStore((s) => s.submitting);
+  const scoreReport = useChallengeStore((s) => s.scoreReport);
+  const submitChallenge = useChallengeStore((s) => s.submitChallenge);
+  const clearActiveChallenge = useChallengeStore((s) => s.clearActiveChallenge);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { start: simStart, stop: simStop } = useSimulation(projectId);
@@ -377,9 +498,28 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         onToggleSecurityPanel={() => setShowSecurityPanel(!showSecurityPanel)}
         showFinOpsPanel={showFinOpsPanel}
         onToggleFinOpsPanel={() => setShowFinOpsPanel(!showFinOpsPanel)}
+        showDrillPanel={showDrillPanel}
+        onToggleDrillPanel={() => setShowDrillPanel(!showDrillPanel)}
         collabConnected={collabConnected}
         remoteUsers={remoteUsers}
       />
+
+      {/* Challenge mode bar */}
+      {activeChallenge && (
+        <ChallengeTimerBar
+          challenge={activeChallenge}
+          onSubmit={() => submitChallenge(activeChallenge.id, activeChallenge.projectId)}
+          submitting={submitting}
+        />
+      )}
+
+      {/* ScoreReport modal */}
+      {scoreReport && (
+        <ScoreReportModal
+          report={scoreReport}
+          onClose={clearActiveChallenge}
+        />
+      )}
 
       {/* 3-panel body */}
       <div className="flex-1 flex overflow-hidden">
@@ -448,6 +588,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
           <DeploymentPanel />
         ) : showChaosPanel ? (
           <ChaosPanel />
+        ) : showDrillPanel ? (
+          <DrillPanel />
         ) : showSimPanel ? (
           <SimulationPanel onStart={simStart} onStop={simStop} />
         ) : (

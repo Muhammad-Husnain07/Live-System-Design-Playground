@@ -21,11 +21,13 @@ interface TopToolbarProps {
   onToggleSecurityPanel: () => void;
   showFinOpsPanel: boolean;
   onToggleFinOpsPanel: () => void;
+  showDrillPanel: boolean;
+  onToggleDrillPanel: () => void;
   collabConnected: boolean;
   remoteUsers: { clientId: number; name: string; color: string }[];
 }
 
-export default function TopToolbar({ projectId, saving, onStart, onStop, showSimPanel, onToggleSimPanel, showChaosPanel, onToggleChaosPanel, showDeployPanel, onToggleDeployPanel, showSecurityPanel, onToggleSecurityPanel, showFinOpsPanel, onToggleFinOpsPanel, collabConnected, remoteUsers }: TopToolbarProps) {
+export default function TopToolbar({ projectId, saving, onStart, onStop, showSimPanel, onToggleSimPanel, showChaosPanel, onToggleChaosPanel, showDeployPanel, onToggleDeployPanel, showSecurityPanel, onToggleSecurityPanel, showFinOpsPanel, onToggleFinOpsPanel, showDrillPanel, onToggleDrillPanel, collabConnected, remoteUsers }: TopToolbarProps) {
   const navigate = useNavigate();
   const { currentProject, updateProject } = useProjectStore();
   const { user, logout } = useAuthStore();
@@ -325,6 +327,19 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           title="Security Audit Panel"
         >
           🛡️
+        </button>
+
+        {/* Drill toggle */}
+        <button
+          onClick={onToggleDrillPanel}
+          className={`px-2 py-1 text-[10px] rounded transition-colors ${
+            showDrillPanel
+              ? "bg-orange-500/20 text-orange-400"
+              : "bg-surface-800 hover:bg-surface-700 text-surface-300"
+          }`}
+          title="DR Drill Panel"
+        >
+          ⚡
         </button>
 
         {/* FinOps toggle */}
