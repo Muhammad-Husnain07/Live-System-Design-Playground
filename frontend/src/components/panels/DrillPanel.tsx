@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import api from "../utils/api";
+import api from "../../utils/api";
 
 const SCENARIOS = [
   { value: "region_down", label: "Region Down", desc: "Simulates a complete cloud region failure" },

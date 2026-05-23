@@ -54,7 +54,7 @@ interface ChallengeStore {
   fetchLeaderboard: () => Promise<void>;
 }
 
-export const useChallengeStore = create<ChallengeStore>((set, get) => ({
+export const useChallengeStore = create<ChallengeStore>((set) => ({
   challenges: [],
   challengesLoading: false,
   challengesError: null,

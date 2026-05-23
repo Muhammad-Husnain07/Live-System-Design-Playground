@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useFinOpsStore, type CostReport, type CostCategory } from "../../store/finopsStore";
 import { useToastStore } from "../../store/toastStore";
@@ -84,7 +84,7 @@ function ChartCard({ projections }: { projections: CostReport["scalingProjection
           <Tooltip
             contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 11 }}
             labelStyle={{ color: "#e4e4e7" }}
-            formatter={(value: number) => [formatCurrency(value), "Monthly Cost"]}
+            formatter={(value) => [formatCurrency(Number(value)), "Monthly Cost"]}
           />
           <Line type="monotone" dataKey="monthlyCost" stroke="#22c55e" strokeWidth={2} dot={{ fill: "#22c55e", r: 3 }} />
         </LineChart>

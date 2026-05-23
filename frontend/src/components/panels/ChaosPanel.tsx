@@ -199,7 +199,7 @@ function ActiveEventRow({ event, onRemove }: { event: ChaosEventData; onRemove: 
 
 /* ── Main ChaosPanel ── */
 export default function ChaosPanel() {
-  const { activeEvents, setActiveEvents } = useChaosStore();
+  const { activeEvents, setActiveEvents, removeActiveEvent } = useChaosStore();
   const runId = useSimulationStore((s) => s.runId);
   const isRunning = useSimulationStore((s) => s.isRunning);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -258,7 +258,7 @@ export default function ChaosPanel() {
             </p>
             <div className="space-y-1.5">
               {activeEvents.map((ev) => (
-                <ActiveEventRow key={ev.id} event={ev} onRemove={() => {}} />
+                <ActiveEventRow key={ev.id} event={ev} onRemove={(id) => removeActiveEvent(id)} />
               ))}
             </div>
           </div>

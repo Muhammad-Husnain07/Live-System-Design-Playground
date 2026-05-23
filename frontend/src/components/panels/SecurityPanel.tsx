@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useSecurityStore, type SecurityViolation } from "../../store/securityStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
@@ -63,7 +63,9 @@ export default function SecurityPanel() {
   const [projectId, setProjectId] = useState<string | null>(null);
 
   const projectIdFromUrl = typeof window !== "undefined" ? window.location.pathname.match(/\/project\/([^/]+)/)?.[1] ?? null : null;
-  if (!projectId && projectIdFromUrl) setProjectId(projectIdFromUrl);
+  useEffect(() => {
+    if (!projectId && projectIdFromUrl) setProjectId(projectIdFromUrl);
+  }, [projectId, projectIdFromUrl]);
 
   const handleAudit = useCallback(async () => {
     const pid = projectIdFromUrl;

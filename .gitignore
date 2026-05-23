@@ -17,6 +17,9 @@ backend/backend.exe
 .idea/
 *.swp
 *.swo
+.opencode
+graphify-out
+AGENTS.md
 
 # OS
 .DS_Store

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useSimulationStore, type TickData } from "../store/simulationStore";
-import { useCanvasStore } from "../store/canvasStore";
+import { useSimulationStore } from "../store/simulationStore";
 import { useChaosStore } from "../store/chaosStore";
 import { useDeployStore } from "../store/deploymentStore";
 import { useSecurityStore } from "../store/securityStore";
@@ -54,9 +53,6 @@ export default function ObservabilityPage() {
   const isRunning = useSimulationStore((s) => s.isRunning);
   const runId = useSimulationStore((s) => s.runId);
   const elapsed = useSimulationStore((s) => s.elapsed);
-  const connectionStatus = useSimulationStore((s) => s.connectionStatus);
-
-  const nodes = useCanvasStore((s) => s.nodes);
 
   const chaosEvents = useChaosStore((s) => s.activeEvents);
   const deployStates = useDeployStore((s) => s.nodeStates);
@@ -276,7 +272,7 @@ export default function ObservabilityPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                     <XAxis type="number" tick={{ fontSize: 9, fill: "#71717a" }} axisLine={false} tickLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
                     <YAxis dataKey="name" type="category" tick={{ fontSize: 9, fill: "#71717a" }} axisLine={false} tickLine={false} width={80} />
-                    <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 11 }} labelStyle={{ color: "#e4e4e7" }} formatter={(value: number) => [`${value}%`, "Error Rate"]} />
+                    <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 11 }} labelStyle={{ color: "#e4e4e7" }} formatter={(value) => [`${Number(value)}%`, "Error Rate"]} />
                     <Bar dataKey="errorRate" fill="#ef4444" radius={[0, 3, 3, 0]} />
                   </BarChart>
                 </ResponsiveContainer>

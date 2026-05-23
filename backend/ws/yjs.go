@@ -24,7 +24,7 @@ const (
 	yjsWriteWait   = 10 * time.Second
 	yjsPongWait    = 60 * time.Second
 	yjsPingPeriod  = (yjsPongWait * 9) / 10
-	yjsSendBufSize = 512
+	yjsSendBufSize = 4096
 )
 
 type YjsClient struct {
@@ -150,6 +150,8 @@ func yjsReadPump(client *YjsClient, room *YjsRoom, rdb *redis.Client) {
 		if err != nil {
 			break
 		}
+
+		client.conn.SetReadDeadline(time.Now().Add(yjsPongWait))
 
 		msgType, n := binary.Uvarint(message)
 		if n <= 0 {

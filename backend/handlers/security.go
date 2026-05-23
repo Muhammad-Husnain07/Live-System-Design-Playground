@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/redis/go-redis/v9"
+	"systemdesign/config"
 	"systemdesign/services/security"
 )
 
@@ -30,20 +31,20 @@ func (h *SecurityHandler) Audit(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "projectId is required"})
 	}
 
-	userID := c.Locals("user_id")
-	if userID == "" {
+	claims, ok := c.Locals("user").(*config.JWTClaims)
+	if !ok {
 		return c.Status(401).JSON(fiber.Map{"error": "unauthorized"})
 	}
 
 	var role string
 	err := h.DB.QueryRow(
 		`SELECT 'owner' FROM projects WHERE id = $1 AND user_id = $2`,
-		req.ProjectID, userID,
+		req.ProjectID, claims.UserID,
 	).Scan(&role)
 	if err != nil {
 		err = h.DB.QueryRow(
 			`SELECT role FROM project_collaborators WHERE project_id = $1 AND user_id = $2`,
-			req.ProjectID, userID,
+			req.ProjectID, claims.UserID,
 		).Scan(&role)
 		if err != nil {
 			return c.Status(403).JSON(fiber.Map{"error": "project not found or access denied"})

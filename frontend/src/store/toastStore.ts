@@ -9,9 +9,11 @@ export interface Toast {
   createdAt: number;
 }
 
+type ToastInput = Omit<Toast, "id" | "createdAt"> & { duration?: number };
+
 interface ToastState {
   toasts: Toast[];
-  addToast: (toast: Omit<Toast, "id" | "createdAt">) => void;
+  addToast: (toast: ToastInput) => void;
   removeToast: (id: string) => void;
 }
 

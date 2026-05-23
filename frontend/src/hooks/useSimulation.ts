@@ -113,7 +113,7 @@ export function useSimulation(projectId: string) {
       useSimulationStore.getState().setConnectionStatus("connecting");
       const { data } = await api.post("/auth/ws-ticket");
       const ticket = data.ticket;
-      const wsUrl = `${WS_BASE}/ws/simulation?ticket=${ticket}&projectId=${projectId}`;
+      const wsUrl = `${WS_BASE}/ws/simulation?ticket=${encodeURIComponent(ticket)}&projectId=${encodeURIComponent(projectId)}`;
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
