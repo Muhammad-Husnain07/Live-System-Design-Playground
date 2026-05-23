@@ -4137,7 +4137,7 @@ Establish comprehensive test coverage for both frontend and backend. Add vitest 
 | `frontend/src/test/ErrorBoundary.test.tsx` | 62 | Tests: renders children when no error, renders error UI on throw, resets on "Try Again" click |
 | `frontend/src/test/toastStore.test.ts` | 48 | Tests: addToast with auto-generated ID, multiple toasts, removeToast by ID, auto-dismiss after duration |
 | `frontend/src/test/finopsStore.test.ts` | 30 | Tests: setShowPanel toggle, setEstimate, setNodeCosts |
-| `backend/services/finops/calculator_test.go` | 299 | 23 tests covering: mathRound, getInstances, isServerless, categoryForType, calculateNodeCost (WebServer/CDN/Redis/Serverless/PostgreSQL/unknown), Calculate (empty/only-clients/valid/all-types), generateRecommendations (empty/with-compute/DB-without-cache), JSON round-trips (CostEstimate, Recommendation, CostLineItem, CostReport), pricing rules coverage, user tiers, node cost scaling |
+| `backend/services/finops/calculator_test.go` | 376 | 23 tests covering: mathRound, getInstances, isServerless, categoryForType, calculateNodeCost (WebServer/CDN/Redis/Serverless/PostgreSQL/unknown), Calculate (empty/only-clients/valid/all-types), generateRecommendations (empty/with-compute/DB-without-cache/multi-region), JSON round-trips (CostEstimate, Recommendation, CostLineItem, CostReport), pricing rules coverage, user tiers, node cost scaling |
 | `backend/services/challenges_test.go` | 180 | 9 tests covering: calculateCostScore (7 instance tiers), calculateReliabilityScore (6 error rates + nil tick), calculatePerformanceScore (4 RPS ratios + nil tick + bottleneck penalty), randRange, scenario existence, scenario config validation, ScoreReport JSON, ChallengeResponse JSON |
 | `backend/services/drill_test.go` | 130 | 7 tests covering: pickDrillNodes (all/database/no-match), parseCanvasToSimulationNodes (valid/defaults/invalid JSON), DrillResult JSON |
 
@@ -4193,3 +4193,44 @@ Establish comprehensive test coverage for both frontend and backend. Add vitest 
 | Challenges: cost/reliability/performance scoring at all thresholds | ✅ |
 | Drill: node filtering by type, canvas parsing, JSON serialization | ✅ |
 | HANDOFF.md — Phase 14 section documents test structure, results, key decisions | ✅ |
+
+### Verification: PASSED — 2026-05-23
+
+Re-verified all Phase 13.1 and Phase 14 deliverables:
+
+**Phase 13.1 (Error Handling & Polish) — all 12 files confirmed:**
+- `frontend/src/components/ui/ErrorBoundary.tsx` — class component, `getDerivedStateFromError`, `handleReset`, "Try Again" button, error message display ✅
+- `frontend/src/components/ui/Skeleton.tsx` — `SkeletonLine`, `SkeletonCard`, `SkeletonTable`, `SkeletonPanel` exports ✅
+- `frontend/src/components/ui/EmptyState.tsx` — icon/title/description/action props ✅
+- `frontend/src/main.tsx` — wrapped with `<ErrorBoundary>` ✅
+- `frontend/src/utils/api.ts` — 500+ error interceptor calling `useToastStore.getState().addToast()` ✅
+- `frontend/src/App.tsx` — `<ToastContainer />` rendered at root (line 46) ✅
+- `frontend/src/pages/DashboardPage.tsx` — 6× `SkeletonCard` grid on loading (line 117), `<EmptyState>` on empty (line 122) ✅
+- `frontend/src/pages/ProjectPage.tsx` — keyboard shortcuts Ctrl+Z/Ctrl+S/Ctrl+Shift+R/Escape (lines 452-469), WS reconnect banner (line 547), canvas empty overlay (line 626), `connectionStatus` from simulation store (line 268) ✅
+- `frontend/src/pages/LoginPage.tsx` — `validate()` function (line 16), `fieldErrors` state, per-field error messages, red border ✅
+- `frontend/src/components/ui/NewProjectModal.tsx` — `validate()` function (line 19), `nameError` state, inline error below name input with red border ✅
+- `frontend/src/components/panels/FinOpsPanel.tsx` — imports and uses `<EmptyState>` (lines 5, 240) ✅
+- `frontend/src/components/panels/ChaosPanel.tsx` — imports and uses `<EmptyState>` (lines 5, 270) ✅
+
+**Phase 14 (Testing Infrastructure) — all 12 files confirmed:**
+- `frontend/src/test/setup.ts` — imports `@testing-library/jest-dom/vitest` ✅
+- `frontend/src/test/EmptyState.test.tsx` — 5 tests (title, icon, no-icon, description, action) ✅
+- `frontend/src/test/Skeleton.test.tsx` — 6 tests (default/custom line, card lines count, table rows/cols, panel) ✅
+- `frontend/src/test/Toast.test.tsx` — 3 tests (null when empty, renders active toast, dismiss on click) ✅
+- `frontend/src/test/ErrorBoundary.test.tsx` — 3 tests (renders children, error UI on throw, reset on Try Again) ✅
+- `frontend/src/test/toastStore.test.ts` — 4 tests (add with ID, multiple toasts, remove by ID, auto-dismiss) ✅
+- `frontend/src/test/finopsStore.test.ts` — 3 tests (setShowPanel, setEstimate, setNodeCosts) ✅
+- `backend/services/finops/calculator_test.go` — 23 tests (all node types, pricing rules, recommendations, JSON round-trips, scaling, multi-region) ✅
+- `backend/services/challenges_test.go` — 9 tests (cost/reliability/performance scoring thresholds, randRange, scenarios, JSON) ✅
+- `backend/services/drill_test.go` — 7 tests (pickDrillNodes, canvas parsing, DrillResult JSON) ✅
+- `frontend/vite.config.ts` — test config with globals, jsdom, threads pool ✅
+- `frontend/package.json` — `"test": "vitest run"` and `"test:watch": "vitest"` scripts ✅
+
+**Build & Test Results:**
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ PASSED (0 errors) |
+| `go build ./...` | ✅ PASSED (0 errors) |
+| `npm test` (frontend vitest) | ✅ 24/24 PASS |
+| `go test -count=1 ./services/...` (backend) | ✅ 39/39 PASS |
+| All 24 files from both phases exist | ✅ |

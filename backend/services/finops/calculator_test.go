@@ -227,6 +227,25 @@ func TestGenerateRecommendationsDBWithoutCache(t *testing.T) {
 	}
 }
 
+func TestGenerateRecommendationsMultiRegion(t *testing.T) {
+	nodes := []nodeInfo{
+		{nodeType: NodeWebServer, label: "web", config: map[string]any{"instances": float64(2)}},
+	}
+	projections := []CostEstimate{
+		{UserTier: "1M users (scale)", MonthlyUsers: 1_000_000, Multiplier: 30},
+	}
+	recs := generateRecommendations(nodes, projections)
+	found3Year := false
+	for _, r := range recs {
+		if r.Title == "Reserved Instances (3-year)" {
+			found3Year = true
+		}
+	}
+	if !found3Year {
+		t.Error("expected 3-year Reserved Instances recommendation for 1M user tier")
+	}
+}
+
 func TestCostEstimateJSON(t *testing.T) {
 	est := CostEstimate{
 		UserTier:         "test",
