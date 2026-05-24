@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToastStore } from "../../store/toastStore";
 import api from "../../utils/api";
+import { X, FileText, Upload, AlertTriangle } from "lucide-react";
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -142,7 +143,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
             onClick={handleClose}
             className="text-surface-500 hover:text-surface-300 transition-colors text-sm px-1"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
 
@@ -176,7 +177,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
 
             {file ? (
               <div className="space-y-1">
-                <span className="text-2xl">📄</span>
+                <FileText className="h-8 w-8 text-blue-400" />
                 <p className="text-sm font-medium text-surface-200">{file.name}</p>
                 <p className="text-[10px] text-surface-500">{(file.size / 1024).toFixed(1)} KB</p>
                 <button
@@ -188,7 +189,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
               </div>
             ) : (
               <div className="space-y-2">
-                <span className="text-3xl">🏗️</span>
+                <Upload className="h-8 w-8 text-surface-400" />
                 <p className="text-sm text-surface-300">
                   Drop your IaC file here
                 </p>
@@ -225,7 +226,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
           {error && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2.5">
               <div className="flex items-start gap-2">
-                <span className="text-sm mt-px">⚠️</span>
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-[10px] font-medium text-red-400">Import failed</p>
                   <p className="text-[9px] text-red-400/70 mt-0.5">{error}</p>

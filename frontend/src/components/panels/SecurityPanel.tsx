@@ -1,14 +1,15 @@
 import { useState, useCallback, useEffect } from "react";
+import { Unlock, Database, Globe, DoorOpen, Shield, Lock, type LucideIcon } from "lucide-react";
 import { useSecurityStore, type SecurityViolation } from "../../store/securityStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
 import api from "../../utils/api";
 
-const VIOLATION_ICONS: Record<string, string> = {
-  unencrypted_transit: "🔓",
-  public_database: "🗄️",
-  cross_vpc_unfirewalled: "🌐",
-  overly_permissive_inbound: "🚪",
+const VIOLATION_ICONS: Record<string, LucideIcon> = {
+  unencrypted_transit: Unlock,
+  public_database: Database,
+  cross_vpc_unfirewalled: Globe,
+  overly_permissive_inbound: DoorOpen,
 };
 
 function ViolationRow({
@@ -28,6 +29,8 @@ function ViolationRow({
   const isActive =
     highlightedNodeIds.includes(violation.sourceNodeId) || highlightedNodeIds.includes(violation.targetNodeId);
 
+  const ViolationIcon = VIOLATION_ICONS[violation.type] ?? Lock;
+
   return (
     <button
       onClick={() => {
@@ -39,7 +42,7 @@ function ViolationRow({
       }`}
     >
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-sm">{VIOLATION_ICONS[violation.type] ?? "🔒"}</span>
+        <ViolationIcon className="h-4 w-4" />
         <span className="text-[10px] font-medium text-surface-200 truncate flex-1">
           {violation.type.replace(/_/g, " ")}
         </span>
@@ -98,7 +101,7 @@ export default function SecurityPanel() {
   return (
     <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col overflow-hidden">
       <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
-        <span className="text-sm">🛡️</span>
+        <Shield className="h-4 w-4" />
         <span className="text-xs font-semibold text-surface-100">Security Audit</span>
         {violations.length > 0 && (
           <span className="ml-auto text-[9px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full font-mono">
@@ -119,7 +122,7 @@ export default function SecurityPanel() {
               Scanning...
             </>
           ) : (
-            "🛡️ Run Security Audit"
+            <><Shield className="h-4 w-4" /> Run Security Audit</>
           )}
         </button>
       </div>

@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { Zap, Play, Check, X } from "lucide-react";
 import api from "../../utils/api";
 
 const SCENARIOS = [
@@ -45,7 +46,7 @@ export default function DrillPanel() {
   return (
     <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col overflow-hidden">
       <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
-        <span className="text-sm text-red-400 font-bold">⚡</span>
+        <Zap className="h-4 w-4 text-red-400" />
         <span className="text-xs font-semibold text-surface-100">DR Drill</span>
       </div>
 
@@ -83,7 +84,7 @@ export default function DrillPanel() {
                 Running Drill...
               </span>
             ) : (
-              "▶ Start Drill"
+              <><Play className="h-3 w-3" /> Start Drill</>
             )}
           </button>
 
@@ -96,7 +97,7 @@ export default function DrillPanel() {
           {result && (
             <div className={`p-3 rounded-lg border text-xs ${result.passed ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"}`}>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">{result.passed ? "✅" : "❌"}</span>
+                {result.passed ? <Check className="h-5 w-5 text-green-400" /> : <X className="h-5 w-5 text-red-400" />}
                 <span className={`font-semibold ${result.passed ? "text-green-400" : "text-red-400"}`}>
                   {result.passed ? "PASSED" : "FAILED"}
                 </span>

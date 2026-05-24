@@ -1,3 +1,4 @@
+import { Square, Play, X, AlertTriangle, RefreshCw } from "lucide-react";
 import { useSimulationStore, type SimConfig } from "../../store/simulationStore";
 
 interface SimulationPanelProps {
@@ -34,7 +35,7 @@ export default function SimulationPanel({ onStart, onStop }: SimulationPanelProp
               onClick={onStop}
               className="w-full py-2 text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
             >
-              ■ Stop Simulation
+              <Square className="h-3 w-3" /> Stop Simulation
             </button>
           </div>
         ) : (
@@ -132,7 +133,7 @@ function ConfigForm({
         onClick={onStart}
         className="w-full py-2 text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded transition-colors"
       >
-        ▶ Start Simulation
+        <Play className="h-3 w-3" /> Start Simulation
       </button>
     </div>
   );
@@ -176,10 +177,10 @@ function LiveStats({
               }`}
             >
               <div className="flex items-center gap-1.5 min-w-0">
-                {m.isFailed && <span className="text-red-400 shrink-0">&#10007;</span>}
-                {m.isBottleneck && !m.isFailed && <span className="text-orange-400 shrink-0">&#9888;</span>}
+                {m.isFailed && <X className="h-3 w-3 text-red-400 shrink-0" />}
+                {m.isBottleneck && !m.isFailed && <AlertTriangle className="h-3 w-3 text-orange-400 shrink-0" />}
                 {m.isAsync && !m.isBottleneck && !m.isFailed && (
-                  <span className="text-cyan-400 shrink-0">&#8635;</span>
+                  <RefreshCw className="h-3 w-3 text-cyan-400 shrink-0" />
                 )}
                 <span className="text-surface-300 truncate">{m.label}</span>
               </div>

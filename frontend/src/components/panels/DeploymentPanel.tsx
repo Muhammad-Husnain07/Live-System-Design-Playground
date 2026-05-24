@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Rocket, ArrowUp, ArrowDown, RotateCcw, AlertTriangle } from "lucide-react";
 import { useSimulationStore } from "../../store/simulationStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useDeployStore } from "../../store/deploymentStore";
@@ -193,7 +194,7 @@ export default function DeploymentPanel() {
     return (
       <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col">
         <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
-          <span className="text-sm">🚀</span>
+          <Rocket className="h-4 w-4" />
           <span className="text-xs font-semibold text-surface-100">Deployment</span>
         </div>
         <div className="flex-1 flex items-center justify-center px-3">
@@ -208,7 +209,7 @@ export default function DeploymentPanel() {
   return (
     <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col overflow-hidden">
       <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
-        <span className="text-sm">🚀</span>
+        <Rocket className="h-4 w-4" />
         <span className="text-xs font-semibold text-surface-100">Deployment</span>
         {isBlueGreen && activeGroup && (
           <span
@@ -341,14 +342,14 @@ export default function DeploymentPanel() {
                 disabled={shifting}
                 className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                {shifting ? "Updating..." : `↑ Promote to ${activeGroup === "blue" ? "Green" : "Blue"}`}
+                {shifting ? "Updating..." : <><ArrowUp className="h-3 w-3" /> Promote to {activeGroup === "blue" ? "Green" : "Blue"}</>}
               </button>
               <button
                 onClick={handleRollback}
                 disabled={shifting}
                 className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-surface-800 text-surface-400 hover:bg-surface-700 disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                ↺ Toggle (Rollback)
+                <RotateCcw className="h-3 w-3" /> Toggle (Rollback)
               </button>
             </div>
           </>
@@ -444,7 +445,7 @@ export default function DeploymentPanel() {
 
             {isFailing && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
-                <span className="text-sm">⚠️</span>
+                <AlertTriangle className="h-4 w-4" />
                 <div>
                   <p className="text-[10px] font-medium text-red-400">Canary degrading</p>
                   <p className="text-[9px] text-red-400/70">High error rate — auto-failover imminent</p>
@@ -458,14 +459,14 @@ export default function DeploymentPanel() {
                 disabled={shifting || !deployCfg.isCanaryActive}
                 className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                {shifting ? "Updating..." : "↑ Promote Canary"}
+                {shifting ? "Updating..." : <><ArrowUp className="h-3 w-3" /> Promote Canary</>}
               </button>
               <button
                 onClick={handleRollback}
                 disabled={shifting}
                 className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                ↓ Rollback
+                <ArrowDown className="h-3 w-3" /> Rollback
               </button>
             </div>
           </>

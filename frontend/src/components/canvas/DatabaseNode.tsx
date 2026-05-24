@@ -1,14 +1,25 @@
 import { memo } from "react";
 import { type NodeProps } from "reactflow";
+import { Database, Zap } from "lucide-react";
 import BaseNode from "./BaseNode";
 import type { BaseNodeData } from "./BaseNode";
 
 function DatabaseNode(props: NodeProps<BaseNodeData>) {
   return (
     <BaseNode {...props}>
-      <div className="h-4 relative overflow-hidden rounded-sm">
-        <div className="absolute inset-x-0 top-0 h-3 rounded-t-full border border-surface-600/60 mx-1" />
-        <div className="absolute inset-x-1 top-2 bottom-0 bg-gradient-to-b from-surface-700/40 to-transparent rounded-b" />
+      <div className="mt-1 space-y-1">
+        <svg width="100%" height="24" viewBox="0 0 180 24" className="overflow-visible">
+          <ellipse cx="90" cy="4" rx="80" ry="4" fill="none" stroke="#52525b" strokeWidth="1.5" />
+          <path d="M10 4 L10 20" stroke="#52525b" strokeWidth="1.5" />
+          <path d="M170 4 L170 20" stroke="#52525b" strokeWidth="1.5" />
+          <ellipse cx="90" cy="20" rx="80" ry="4" fill="none" stroke="#52525b" strokeWidth="1.5" />
+          <ellipse cx="90" cy="12" rx="80" ry="4" fill="none" stroke="#3f3f46" strokeWidth="1" strokeDasharray="4 3" />
+          <ellipse cx="90" cy="4" rx="80" ry="4" fill="none" stroke="#3B82F6" strokeWidth="0.5" opacity="0.3" />
+        </svg>
+        <div className="flex items-center gap-2 text-[9px] text-surface-500">
+          <span className="flex items-center gap-1"><Database className="h-3 w-3" /> {props.data?.config?.instances ?? 1} replicas</span>
+          <span className="flex items-center gap-1"><Zap className="h-3 w-3" /> {props.data?.config?.maxRPS ?? 0} max RPS</span>
+        </div>
       </div>
     </BaseNode>
   );

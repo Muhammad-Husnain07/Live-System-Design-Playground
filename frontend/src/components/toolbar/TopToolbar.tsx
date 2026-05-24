@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { Undo2, Redo2, Square, Play, Users, ChevronDown, Camera, FileText, Building2, Skull, Rocket, Shield, Zap, BarChart3, DollarSign } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useProjectStore } from "../../store/projectStore";
@@ -173,7 +174,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           title="Undo (Ctrl+Z)"
           className="px-2 py-1 text-xs bg-surface-800 hover:bg-surface-700 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
         >
-          ↩
+          <Undo2 className="h-4 w-4" />
         </button>
         <button
           onClick={redo}
@@ -181,7 +182,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           title="Redo (Ctrl+Shift+Z)"
           className="px-2 py-1 text-xs bg-surface-800 hover:bg-surface-700 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
         >
-          ↪
+          <Redo2 className="h-4 w-4" />
         </button>
 
         <div className="w-px h-4 bg-surface-700 mx-1" />
@@ -195,7 +196,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
               : "bg-green-500/20 text-green-400 hover:bg-green-500/30"
           }`}
         >
-          {isSimRunning ? "■ Stop" : "▶ Run"}
+          {isSimRunning ? <><Square className="h-4 w-4" /> Stop</> : <><Play className="h-4 w-4" /> Run</>}
         </button>
 
         {/* Speed selector */}
@@ -224,7 +225,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           className="px-2 py-1 text-[10px] bg-surface-800 hover:bg-surface-700 rounded transition-colors text-surface-300"
           title="Manage collaborators"
         >
-          👥
+          <Users className="h-4 w-4" />
         </button>
 
         {/* Share */}
@@ -250,7 +251,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
             onClick={() => setShowExport((v) => !v)}
             className="px-2 py-1 text-[10px] bg-surface-800 hover:bg-surface-700 rounded transition-colors text-surface-300"
           >
-            Export ▾
+            Export <ChevronDown className="h-4 w-4" />
           </button>
           {showExport && (
             <div className="absolute right-0 top-full mt-1 w-36 bg-surface-900 border border-surface-700 rounded-lg shadow-xl z-50 py-1">
@@ -258,20 +259,20 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
                 onClick={() => { setShowExport(false); }}
                 className="w-full text-left px-3 py-1.5 text-[11px] text-surface-300 hover:bg-surface-800 hover:text-surface-100 transition-colors"
               >
-                📷 Export as PNG
+                <Camera className="h-4 w-4 mr-2" /> Export as PNG
               </button>
               <button
                 onClick={() => { setShowExport(false); }}
                 className="w-full text-left px-3 py-1.5 text-[11px] text-surface-300 hover:bg-surface-800 hover:text-surface-100 transition-colors"
               >
-                📄 Export as JSON
+                <FileText className="h-4 w-4 mr-2" /> Export as JSON
               </button>
               <div className="border-t border-surface-700 my-1" />
               <button
                 onClick={() => { setShowExport(false); openExport(); }}
                 className="w-full text-left px-3 py-1.5 text-[11px] text-green-400 hover:bg-green-900/20 transition-colors"
               >
-                🏗️ IaC Export
+                <Building2 className="h-4 w-4 mr-2" /> IaC Export
               </button>
             </div>
           )}
@@ -300,7 +301,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           }`}
           title="Chaos Engineering Panel"
         >
-          ☠️
+          <Skull className="h-4 w-4" />
         </button>
 
         {/* Deployment toggle */}
@@ -313,7 +314,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           }`}
           title="Deployment Panel"
         >
-          🚀
+          <Rocket className="h-4 w-4" />
         </button>
 
         {/* Security toggle */}
@@ -326,7 +327,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           }`}
           title="Security Audit Panel"
         >
-          🛡️
+          <Shield className="h-4 w-4" />
         </button>
 
         {/* Drill toggle */}
@@ -339,7 +340,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           }`}
           title="DR Drill Panel"
         >
-          ⚡
+          <Zap className="h-4 w-4" />
         </button>
 
         {/* FinOps toggle */}
@@ -352,7 +353,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           }`}
           title="Cost Estimation"
         >
-          $
+          <DollarSign className="h-4 w-4" />
         </button>
 
         {/* Remote users */}
@@ -378,7 +379,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           onClick={() => navigate(`/project/${projectId}/observe`)}
           className="px-2 py-1 text-[10px] bg-surface-800 hover:bg-surface-700 rounded transition-colors text-surface-300"
         >
-          📊
+          <BarChart3 className="h-4 w-4" />
         </button>
 
         {/* User dropdown */}

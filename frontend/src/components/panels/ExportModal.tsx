@@ -4,6 +4,7 @@ import api from "../../utils/api";
 import { useExportStore, EXPORT_FORMATS, NODE_COMPAT } from "../../store/exportStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
+import { X, Download } from "lucide-react";
 
 loader.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs" } });
 
@@ -128,7 +129,7 @@ export default function ExportModal() {
                 onClick={downloadContent}
                 className="w-full px-3 py-2 rounded text-[11px] font-medium bg-surface-800 hover:bg-surface-700 text-surface-200 transition-colors"
               >
-                Download
+                <Download className="h-4 w-4 mr-1.5 inline-block" /> Download
               </button>
             </div>
           )}
@@ -163,7 +164,7 @@ export default function ExportModal() {
                 onClick={closeExport}
                 className="text-surface-500 hover:text-surface-300 text-sm leading-none px-1"
               >
-                ✕
+                <X className="h-4 w-4" />
               </button>
             </div>
           </div>

@@ -4,6 +4,8 @@ import { NODE_REGISTRY } from "../../utils/nodeRegistry";
 import { NodeCategory, type NodeType } from "../../types/canvas";
 import type { NodeConfig, EdgeRoutingConfig } from "../../types/canvas";
 import { getReactFlowType } from "../canvas/nodeTypes";
+import { Globe, Puzzle, Inbox, RefreshCw, ArrowRight } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 const categories = [
   { key: NodeCategory.Infrastructure, label: "Infrastructure" },
@@ -68,7 +70,7 @@ interface TemplateDef {
   id: string;
   name: string;
   description: string;
-  icon: string;
+  icon: LucideIcon;
   nodeCount: number;
   edgeCount: number;
   build: (origin: { x: number; y: number }) => { nodes: Node[]; edges: Edge[] };
@@ -79,7 +81,7 @@ const templates: TemplateDef[] = [
     id: "simple-web-app",
     name: "Simple Web App",
     description: "Client → LB → AppServer → PostgreSQL",
-    icon: "🌐",
+    icon: Globe,
     nodeCount: 4,
     edgeCount: 3,
     build: (o) => ({
@@ -100,7 +102,7 @@ const templates: TemplateDef[] = [
     id: "microservices",
     name: "Microservices",
     description: "APIGateway → 3 Microservices → Redis + PostgreSQL",
-    icon: "🧩",
+    icon: Puzzle,
     nodeCount: 6,
     edgeCount: 6,
     build: (o) => ({
@@ -126,7 +128,7 @@ const templates: TemplateDef[] = [
     id: "event-driven",
     name: "Event-Driven",
     description: "Producer → MessageQueue → Worker → Database",
-    icon: "📨",
+    icon: Inbox,
     nodeCount: 4,
     edgeCount: 3,
     build: (o) => ({
@@ -147,7 +149,7 @@ const templates: TemplateDef[] = [
     id: "blue-green",
     name: "Blue/Green Deployment",
     description: "LB → [AppServer-v1, AppServer-v2] → DB with 80/20 routing",
-    icon: "🔄",
+    icon: RefreshCw,
     nodeCount: 4,
     edgeCount: 3,
     build: (o) => ({
@@ -202,7 +204,7 @@ export default function NodePanel({ onApplyTemplate }: { onApplyTemplate: (nodes
               className="flex items-center gap-2.5 pl-2 pr-2.5 py-1.5 rounded-md cursor-grab active:cursor-grabbing hover:bg-surface-800 transition-colors text-surface-300 hover:text-surface-100 group"
             >
               <div className="w-0.5 h-5 rounded-r-full shrink-0" style={{ backgroundColor: meta.color }} />
-              <span className="text-base w-5 text-center shrink-0">{meta.icon}</span>
+              <meta.icon className="h-5 w-5 shrink-0" />
               <span className="text-xs truncate flex-1">{meta.label}</span>
             </div>
           ))}
@@ -263,10 +265,17 @@ export default function NodePanel({ onApplyTemplate }: { onApplyTemplate: (nodes
               className="bg-surface-900 border border-surface-800 rounded-lg p-3 hover:border-surface-700 transition-colors"
             >
               <div className="flex items-start gap-2.5">
-                <span className="text-lg shrink-0 mt-0.5">{tpl.icon}</span>
+                <tpl.icon className="h-5 w-5 shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-medium text-surface-200">{tpl.name}</div>
-                  <div className="text-[10px] text-surface-500 mt-0.5">{tpl.description}</div>
+                  <div className="text-[10px] text-surface-500 mt-0.5">
+                    {tpl.description.split(" → ").map((part, i, arr) => (
+                      <span key={i}>
+                        {part}
+                        {i < arr.length - 1 && <ArrowRight className="h-3 w-3 inline mx-0.5" />}
+                      </span>
+                    ))}
+                  </div>
                   <div className="text-[9px] text-surface-600 mt-1">
                     {tpl.nodeCount} nodes · {tpl.edgeCount} edges
                   </div>

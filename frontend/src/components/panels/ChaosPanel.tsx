@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Skull } from "lucide-react";
 import { useChaosStore, CHAOS_TYPES, type ChaosEventData } from "../../store/chaosStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
@@ -123,7 +124,7 @@ function ChaosCard({ definition }: { definition: (typeof CHAOS_TYPES)[number] })
         className="w-full text-left bg-surface-900 hover:bg-surface-800 border border-surface-800 hover:border-red-500/40 rounded-lg p-2.5 transition-colors group"
       >
         <div className="flex items-center gap-2">
-          <span className="text-base">{definition.icon}</span>
+          <definition.icon className="h-4 w-4" />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium text-surface-200 truncate">{definition.label}</p>
             <p className="text-[9px] text-surface-500 leading-tight mt-0.5 line-clamp-2">{definition.description}</p>
@@ -169,7 +170,7 @@ function ActiveEventRow({ event, onRemove }: { event: ChaosEventData; onRemove: 
     <div className="bg-surface-900 border border-surface-800 rounded-lg p-2 space-y-1">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-sm">{def?.icon ?? "?"}</span>
+          {def ? <def.icon className="h-4 w-4" /> : <span className="text-sm">?</span>}
           <span className="text-[10px] font-medium text-surface-200 truncate">{def?.label ?? event.eventType}</span>
         </div>
         {totalSec > 0 && (
@@ -230,7 +231,7 @@ export default function ChaosPanel() {
     <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col overflow-hidden">
       {/* ── Header ── */}
       <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
-        <span className="text-sm">☠️</span>
+        <Skull className="h-4 w-4" />
         <span className="text-xs font-semibold text-surface-100">Chaos Engineering</span>
         {activeEvents.length > 0 && (
           <span className="ml-auto text-[9px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full font-mono">
