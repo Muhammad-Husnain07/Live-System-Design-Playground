@@ -44,6 +44,7 @@ interface CanvasStore {
   setSimulationSpeed: (speed: number) => void;
   setCollabConnected: (connected: boolean) => void;
   setExportMode: (mode: boolean) => void;
+  clearSimulationMetrics: () => void;
 }
 
 export const useCanvasStore = create<CanvasStore>((set, get) => ({
@@ -224,4 +225,14 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   setCollabConnected: (connected) => set({ collabConnected: connected }),
 
   setExportMode: (mode) => set({ exportMode: mode }),
+
+  clearSimulationMetrics: () => {
+    set({
+      nodes: get().nodes.map((n) => {
+        const { metrics, ...restData } = n.data;
+        return { ...n, data: restData };
+      }),
+      isSimulationRunning: false,
+    });
+  },
 }));

@@ -223,7 +223,7 @@ export function useSimulation(projectId: string) {
     closeWs();
     if (elapsedTimer.current) { clearInterval(elapsedTimer.current); elapsedTimer.current = null; }
     useSimulationStore.getState().reset();
-    useCanvasStore.getState().setSimulationRunning(false);
+    useCanvasStore.getState().clearSimulationMetrics();
     useChaosStore.getState().reset();
     useDeployStore.getState().reset();
     useSecurityStore.getState().reset();
