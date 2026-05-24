@@ -1,3 +1,8 @@
+import {
+  Scale, DoorOpen, Globe, Settings, Puzzle, Database, Leaf, Circle, Search,
+  Satellite, Shield, Box, Square, Inbox, Bus, Megaphone, Container, Zap,
+  ClipboardList, Wrench, Link, Smartphone, Monitor,
+} from "lucide-react";
 import { NodeCategory } from "../types/canvas";
 import type { NodeType, NodeMetadata } from "../types/canvas";
 
@@ -18,11 +23,10 @@ const compute = (overrides: Override) => ({ ...base, region: "us-east-1", errorR
 const external = (overrides: Override) => ({ ...base, region: "us-east-1", errorRate: 0.001, ...overrides });
 
 export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
-  // Infrastructure
   LoadBalancer: {
     label: "Load Balancer",
     description: "Distributes incoming traffic across multiple targets",
-    icon: "⚖️",
+    icon: Scale,
     color: "#3B82F6",
     category: NodeCategory.Infrastructure,
     defaultConfig: infra({ instances: 2, maxRPS: 10000, latencyMs: 5, security: { isPublicFacing: true, requiresTLS: true, allowedInbound: [], vpcId: "" } }),
@@ -30,7 +34,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   APIGateway: {
     label: "API Gateway",
     description: "Unified entry point for API requests with auth and rate limiting",
-    icon: "🚪",
+    icon: DoorOpen,
     color: "#3B82F6",
     category: NodeCategory.Infrastructure,
     defaultConfig: infra({ instances: 2, maxRPS: 5000, latencyMs: 10, security: { isPublicFacing: true, requiresTLS: true, allowedInbound: [], vpcId: "" } }),
@@ -38,7 +42,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   WebServer: {
     label: "Web Server",
     description: "Serves HTTP content and static assets",
-    icon: "🌐",
+    icon: Globe,
     color: "#3B82F6",
     category: NodeCategory.Infrastructure,
     defaultConfig: infra({ instances: 3, maxRPS: 2000, latencyMs: 20 }),
@@ -46,7 +50,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   AppServer: {
     label: "Application Server",
     description: "Executes business logic and server-side processing",
-    icon: "⚙️",
+    icon: Settings,
     color: "#3B82F6",
     category: NodeCategory.Infrastructure,
     defaultConfig: infra({ instances: 3, maxRPS: 2000, latencyMs: 30 }),
@@ -54,17 +58,16 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   Microservice: {
     label: "Microservice",
     description: "Independently deployable service with bounded context",
-    icon: "🧩",
+    icon: Puzzle,
     color: "#3B82F6",
     category: NodeCategory.Infrastructure,
     defaultConfig: infra({ instances: 3, maxRPS: 1500, latencyMs: 25 }),
   },
 
-  // Data
   PostgreSQLDB: {
     label: "PostgreSQL",
     description: "Relational database with ACID transactions and advanced indexing",
-    icon: "🐘",
+    icon: Database,
     color: "#F97316",
     category: NodeCategory.Data,
     defaultConfig: data({ instances: 1, maxRPS: 1000, latencyMs: 50 }),
@@ -72,7 +75,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   MySQLDB: {
     label: "MySQL",
     description: "Popular open-source relational database",
-    icon: "🐬",
+    icon: Database,
     color: "#F97316",
     category: NodeCategory.Data,
     defaultConfig: data({ instances: 1, maxRPS: 1000, latencyMs: 50 }),
@@ -80,7 +83,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   MongoDB: {
     label: "MongoDB",
     description: "NoSQL document database with flexible schemas",
-    icon: "🍃",
+    icon: Leaf,
     color: "#F97316",
     category: NodeCategory.Data,
     defaultConfig: data({ instances: 1, maxRPS: 2000, latencyMs: 30 }),
@@ -88,7 +91,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   Redis: {
     label: "Redis",
     description: "In-memory data store for caching and real-time workloads",
-    icon: "🔴",
+    icon: Circle,
     color: "#F97316",
     category: NodeCategory.Data,
     defaultConfig: data({ instances: 2, maxRPS: 10000, latencyMs: 5 }),
@@ -96,17 +99,16 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   Elasticsearch: {
     label: "Elasticsearch",
     description: "Distributed search and analytics engine",
-    icon: "🔍",
+    icon: Search,
     color: "#F97316",
     category: NodeCategory.Data,
     defaultConfig: data({ instances: 3, maxRPS: 3000, latencyMs: 30 }),
   },
 
-  // Network
   CDN: {
     label: "CDN",
     description: "Content delivery network for low-latency asset distribution",
-    icon: "🌎",
+    icon: Globe,
     color: "#A855F7",
     category: NodeCategory.Network,
     defaultConfig: network({ instances: 1, maxRPS: 50000, latencyMs: 2 }),
@@ -114,7 +116,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   DNS: {
     label: "DNS",
     description: "Domain name resolution service",
-    icon: "📡",
+    icon: Satellite,
     color: "#A855F7",
     category: NodeCategory.Network,
     defaultConfig: network({ instances: 1, maxRPS: 50000, latencyMs: 2 }),
@@ -122,7 +124,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   Firewall: {
     label: "Firewall",
     description: "Network security gateway filtering inbound and outbound traffic",
-    icon: "🛡️",
+    icon: Shield,
     color: "#A855F7",
     category: NodeCategory.Network,
     defaultConfig: network({ instances: 2, maxRPS: 20000, latencyMs: 5 }),
@@ -130,7 +132,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   VPC: {
     label: "VPC",
     description: "Virtual private cloud network boundary",
-    icon: "📦",
+    icon: Box,
     color: "#A855F7",
     category: NodeCategory.Network,
     defaultConfig: network({ instances: 0, maxRPS: 0, latencyMs: 1 }),
@@ -138,17 +140,16 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   Subnet: {
     label: "Subnet",
     description: "Logical subdivision of a VPC network",
-    icon: "🔲",
+    icon: Square,
     color: "#A855F7",
     category: NodeCategory.Network,
     defaultConfig: network({ instances: 0, maxRPS: 0, latencyMs: 1 }),
   },
 
-  // Messaging
   MessageQueue: {
     label: "Message Queue",
     description: "Buffers and delivers messages between services asynchronously",
-    icon: "📨",
+    icon: Inbox,
     color: "#06B6D4",
     category: NodeCategory.Messaging,
     defaultConfig: messaging({ instances: 3, maxRPS: 10000, latencyMs: 15 }),
@@ -156,7 +157,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   EventBus: {
     label: "Event Bus",
     description: "Publish/subscribe event routing backbone",
-    icon: "🚌",
+    icon: Bus,
     color: "#06B6D4",
     category: NodeCategory.Messaging,
     defaultConfig: messaging({ instances: 3, maxRPS: 15000, latencyMs: 10 }),
@@ -164,17 +165,16 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   PubSub: {
     label: "Pub/Sub",
     description: "Topic-based message distribution system",
-    icon: "📢",
+    icon: Megaphone,
     color: "#06B6D4",
     category: NodeCategory.Messaging,
     defaultConfig: messaging({ instances: 3, maxRPS: 20000, latencyMs: 8 }),
   },
 
-  // Compute
   ContainerCluster: {
     label: "Container Cluster",
     description: "Orchestrated container environment (e.g. Kubernetes)",
-    icon: "☸️",
+    icon: Container,
     color: "#22C55E",
     category: NodeCategory.Compute,
     defaultConfig: compute({ instances: 5, maxRPS: 5000, latencyMs: 15 }),
@@ -182,7 +182,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   ServerlessFunction: {
     label: "Serverless Function",
     description: "Event-driven function-as-a-service compute unit",
-    icon: "⚡",
+    icon: Zap,
     color: "#22C55E",
     category: NodeCategory.Compute,
     defaultConfig: compute({ instances: 10, maxRPS: 1000, latencyMs: 100 }),
@@ -190,7 +190,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   BatchProcessor: {
     label: "Batch Processor",
     description: "Processes large volumes of data in scheduled jobs",
-    icon: "📋",
+    icon: ClipboardList,
     color: "#22C55E",
     category: NodeCategory.Compute,
     defaultConfig: compute({ instances: 2, maxRPS: 500, latencyMs: 5000 }),
@@ -198,17 +198,16 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   WorkerService: {
     label: "Worker Service",
     description: "Background task consumer processing queue messages",
-    icon: "🔧",
+    icon: Wrench,
     color: "#22C55E",
     category: NodeCategory.Compute,
     defaultConfig: compute({ instances: 4, maxRPS: 3000, latencyMs: 50 }),
   },
 
-  // External
   ExternalClient: {
     label: "External Client",
     description: "Generic external system initiating requests",
-    icon: "🌍",
+    icon: Globe,
     color: "#6B7280",
     category: NodeCategory.External,
     defaultConfig: external({ instances: 0, maxRPS: 1000, latencyMs: 100 }),
@@ -216,7 +215,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   ThirdPartyAPI: {
     label: "Third-Party API",
     description: "External service consumed by the architecture",
-    icon: "🔗",
+    icon: Link,
     color: "#6B7280",
     category: NodeCategory.External,
     defaultConfig: external({ instances: 0, maxRPS: 500, latencyMs: 200 }),
@@ -224,7 +223,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   MobileClient: {
     label: "Mobile Client",
     description: "Native mobile application making API requests",
-    icon: "📱",
+    icon: Smartphone,
     color: "#6B7280",
     category: NodeCategory.External,
     defaultConfig: external({ instances: 0, maxRPS: 2000, latencyMs: 150 }),
@@ -232,7 +231,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
   WebBrowser: {
     label: "Web Browser",
     description: "Browser-based client accessing the application",
-    icon: "🖥️",
+    icon: Monitor,
     color: "#6B7280",
     category: NodeCategory.External,
     defaultConfig: external({ instances: 0, maxRPS: 3000, latencyMs: 100 }),

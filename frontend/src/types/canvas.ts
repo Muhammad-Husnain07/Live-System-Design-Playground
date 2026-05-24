@@ -1,4 +1,5 @@
 import type { Node, Edge } from "reactflow";
+import type { LucideIcon } from "lucide-react";
 
 export const NodeCategory = {
   Infrastructure: "infrastructure",
@@ -97,7 +98,7 @@ export interface NodeMetadata {
   label: string;
   description: string;
   defaultConfig: Record<string, any>;
-  icon: string;
+  icon: LucideIcon;
   color: string;
   category: NodeCategory;
 }

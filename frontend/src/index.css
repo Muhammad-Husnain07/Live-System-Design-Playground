@@ -11,11 +11,97 @@ body {
   min-height: 100vh;
 }
 
+/* ===== ReactFlow canvas overrides ===== */
+.react-flow {
+  background: #09090b;
+}
+
+/* Kill ReactFlow's baked-in white node backgrounds */
+.react-flow__node-default,
+.react-flow__node-input,
+.react-flow__node-output,
+.react-flow__node-group {
+  background: none !important;
+  color: inherit !important;
+  border: none !important;
+  padding: 0 !important;
+  width: auto !important;
+  border-radius: 0 !important;
+  font-size: inherit !important;
+  text-align: inherit !important;
+}
+
+.react-flow__background {
+  opacity: 0.5;
+}
+
+.react-flow__edge-path {
+  cursor: pointer;
+  transition: stroke-width 0.15s ease;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 3.5;
+}
+
 .react-flow__edge-path-animated {
   stroke-dasharray: 8 4;
   animation: edge-dash 1s linear infinite;
 }
 
+.react-flow__node {
+  cursor: pointer;
+}
+
+.react-flow__node.selected {
+  cursor: grab;
+}
+
+.react-flow__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.react-flow__controls-button {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  transition: background 0.15s ease;
+}
+
+.react-flow__minimap {
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.react-flow__handle {
+  transition: opacity 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
+.react-flow__handle:hover {
+  border-color: #60A5FA !important;
+  transform: scale(1.15);
+}
+
+.react-flow__attribution {
+  display: none !important;
+}
+
+.react-flow__selection {
+  background: rgba(59, 130, 246, 0.08) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+/* ===== Animations ===== */
 @keyframes edge-dash {
   to {
     stroke-dashoffset: -12;

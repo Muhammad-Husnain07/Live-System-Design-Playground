@@ -1,10 +1,12 @@
 import { useToastStore, type Toast } from "../../store/toastStore";
+import { Check, X, Info, AlertTriangle } from "lucide-react";
+import type { ReactNode } from "react";
 
-const TYPE_STYLES: Record<Toast["type"], { bg: string; border: string; icon: string }> = {
-  success: { bg: "bg-green-950/80", border: "border-green-500/40", icon: "✓" },
-  error: { bg: "bg-red-950/80", border: "border-red-500/40", icon: "✗" },
-  info: { bg: "bg-blue-950/80", border: "border-blue-500/40", icon: "ℹ" },
-  warning: { bg: "bg-orange-950/80", border: "border-orange-500/40", icon: "!" },
+const TYPE_STYLES: Record<Toast["type"], { bg: string; border: string; icon: ReactNode }> = {
+  success: { bg: "bg-green-950/80", border: "border-green-500/40", icon: <Check className="h-4 w-4" /> },
+  error: { bg: "bg-red-950/80", border: "border-red-500/40", icon: <X className="h-4 w-4" /> },
+  info: { bg: "bg-blue-950/80", border: "border-blue-500/40", icon: <Info className="h-4 w-4" /> },
+  warning: { bg: "bg-orange-950/80", border: "border-orange-500/40", icon: <AlertTriangle className="h-4 w-4" /> },
 };
 
 function ToastItem({ toast }: { toast: Toast }) {

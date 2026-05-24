@@ -27,6 +27,7 @@ interface CanvasStore {
   loadTemplate: (templateNodes: Node[], templateEdges: Edge[]) => void;
   addNode: (node: Node) => void;
   removeNode: (id: string) => void;
+  resizeNode: (id: string, width: number, height: number) => void;
   updateNodeConfig: (id: string, config: Partial<NodeConfig>) => void;
   updateNodeData: (id: string, data: Record<string, any>) => void;
   updateNodeMetrics: (id: string, metrics: Partial<NodeMetrics>) => void;
@@ -94,6 +95,15 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       pastStates: [...pastStates, clone(nodes, edges)].slice(-MAX_UNDO),
       futureStates: [],
       selectedNodeId: selectedNodeId === id ? null : selectedNodeId,
+      isDirty: true,
+    });
+  },
+
+  resizeNode: (id, width, height) => {
+    set({
+      nodes: get().nodes.map((n) =>
+        n.id === id ? { ...n, style: { ...n.style, width, height } } : n,
+      ),
       isDirty: true,
     });
   },

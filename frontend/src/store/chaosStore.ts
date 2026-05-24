@@ -1,3 +1,4 @@
+import { Bomb, Timer, AlertTriangle, PlugZap, Zap, Earth, TrendingUp, Flame, type LucideIcon } from "lucide-react";
 import { create } from "zustand";
 
 export interface ChaosEventData {
@@ -15,19 +16,19 @@ export interface ChaosDefinition {
   type: string;
   label: string;
   description: string;
-  icon: string;
+  icon: LucideIcon;
   color: string;
 }
 
 export const CHAOS_TYPES: ChaosDefinition[] = [
-  { type: "NodeFailure", label: "Node Failure", description: "Target node goes down — traffic is dropped", icon: "💥", color: "#EF4444" },
-  { type: "LatencySpike", label: "Latency Spike", description: "Multiply latency up to 10× — requests slow down", icon: "🐢", color: "#F97316" },
-  { type: "ErrorRateSpike", label: "Error Rate Spike", description: "Spike error rate — responses start failing", icon: "⚠️", color: "#EAB308" },
-  { type: "NetworkPartition", label: "Network Partition", description: "Node isolated — all incoming traffic dropped", icon: "🔌", color: "#A855F7" },
-  { type: "DDoS", label: "DDoS Attack", description: "Overwhelm node — capacity crushed", icon: "⚡", color: "#EC4899" },
-  { type: "RegionDown", label: "Region Down", description: "Entire region fails — all nodes in region affected", icon: "🌍", color: "#DC2626" },
-  { type: "MemoryLeak", label: "Memory Leak", description: "Gradual degradation — memory creeps up over time", icon: "📈", color: "#06B6D4" },
-  { type: "CPUSaturation", label: "CPU Saturation", description: "CPU pinned at 100% — throughput collapses", icon: "🔥", color: "#F97316" },
+  { type: "NodeFailure", label: "Node Failure", description: "Target node goes down — traffic is dropped", icon: Bomb, color: "#EF4444" },
+  { type: "LatencySpike", label: "Latency Spike", description: "Multiply latency up to 10× — requests slow down", icon: Timer, color: "#F97316" },
+  { type: "ErrorRateSpike", label: "Error Rate Spike", description: "Spike error rate — responses start failing", icon: AlertTriangle, color: "#EAB308" },
+  { type: "NetworkPartition", label: "Network Partition", description: "Node isolated — all incoming traffic dropped", icon: PlugZap, color: "#A855F7" },
+  { type: "DDoS", label: "DDoS Attack", description: "Overwhelm node — capacity crushed", icon: Zap, color: "#EC4899" },
+  { type: "RegionDown", label: "Region Down", description: "Entire region fails — all nodes in region affected", icon: Earth, color: "#DC2626" },
+  { type: "MemoryLeak", label: "Memory Leak", description: "Gradual degradation — memory creeps up over time", icon: TrendingUp, color: "#06B6D4" },
+  { type: "CPUSaturation", label: "CPU Saturation", description: "CPU pinned at 100% — throughput collapses", icon: Flame, color: "#F97316" },
 ];
 
 interface ChaosState {
