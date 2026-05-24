@@ -237,7 +237,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
 
   const store = useCanvasStore();
   const {
-    nodes, edges,
+    nodes, edges, isDirty,
     setNodes, setEdges, addNode, removeNode, removeEdge,
     selectNode, selectEdge, markDirty, markSaved,
     pushUndoState, undo, redo, addEdge, loadTemplate,
@@ -272,6 +272,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const submitChallenge = useChallengeStore((s) => s.submitChallenge);
   const clearActiveChallenge = useChallengeStore((s) => s.clearActiveChallenge);
   const wsStatus = useSimulationStore((s) => s.connectionStatus);
+  const prevDirty = useRef(isDirty);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { start: simStart, stop: simStop } = useSimulation(projectId);
@@ -302,6 +303,13 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     }
   }, [currentProject, setNodes, setEdges, markSaved]);
 
+  useEffect(() => {
+    if (isDirty && !prevDirty.current) {
+      scheduleAutoSave();
+    }
+    prevDirty.current = isDirty;
+  }, [isDirty, scheduleAutoSave]);
+
   const doAutoSave = useCallback(async () => {
     if (!projectId) return;
     if (useCanvasStore.getState().collabConnected) return;
@@ -310,7 +318,12 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
       const payload = { nodes: nodesRef.current, edges: edgesRef.current };
       const updatedAt = await saveCanvas(projectId, payload);
       markSaved(updatedAt);
-    } catch { /* keep isDirty true on failure */ }
+    } catch {
+      autoSaveTimer.current = setTimeout(() => {
+        const { isDirty: dirty, collabConnected: collab } = useCanvasStore.getState();
+        if (dirty && !collab) doAutoSave();
+      }, 15000);
+    }
     setSaving(false);
   }, [projectId, saveCanvas, markSaved]);
 
@@ -334,7 +347,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {
-      setNodes(applyNodeChanges(changes, nodesRef.current));
+      const currentNodes = useCanvasStore.getState().nodes;
+      setNodes(applyNodeChanges(changes, currentNodes));
       if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
       changeTimerRef.current = setTimeout(flushCanvasChanges, 50);
     },
@@ -343,7 +357,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
 
   const onEdgesChange: OnEdgesChange = useCallback(
     (changes) => {
-      setEdges(applyEdgeChanges(changes, edgesRef.current));
+      const currentEdges = useCanvasStore.getState().edges;
+      setEdges(applyEdgeChanges(changes, currentEdges));
       if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
       changeTimerRef.current = setTimeout(flushCanvasChanges, 50);
     },
