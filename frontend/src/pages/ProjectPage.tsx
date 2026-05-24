@@ -284,14 +284,18 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   } = useCollaboration(projectId);
 
   useEffect(() => {
-    if (projectId) getProject(projectId);
-  }, [projectId, getProject]);
+    if (projectId) {
+      setNodes([]);
+      setEdges([]);
+      getProject(projectId);
+    }
+  }, [projectId, getProject, setNodes, setEdges]);
 
   useEffect(() => {
     if (currentProject?.canvas_data) {
       const cd = currentProject.canvas_data;
-      if (cd.nodes?.length) setNodes(cd.nodes.map(enrichNode));
-      if (cd.edges?.length) setEdges(cd.edges);
+      setNodes(cd.nodes?.length ? cd.nodes.map(enrichNode) : []);
+      setEdges(cd.edges?.length ? cd.edges : []);
       markSaved(currentProject.updated_at);
     }
   }, [currentProject, setNodes, setEdges, markSaved]);
