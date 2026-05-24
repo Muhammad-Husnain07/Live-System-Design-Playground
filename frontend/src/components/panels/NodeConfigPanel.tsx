@@ -3,11 +3,11 @@ import { ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCanvasStore } from "../../store/canvasStore";
 import { NODE_REGISTRY } from "../../utils/nodeRegistry";
-import type { NodeType, NodeConfig, NodeMetrics, EdgeRoutingConfig } from "../../types/canvas";
+import type { NodeType, NodeConfig, NodeMetrics, EdgeRoutingConfig, AutoScalingConfig } from "../../types/canvas";
 
 const REGIONS = ["us-east-1", "us-west-2", "eu-west-1", "eu-central-1", "ap-southeast-1", "ap-northeast-1", "sa-east-1"];
 
-const PROTOCOLS = ["HTTP", "gRPC", "TCP", "WebSocket", "AMQP"] as const;
+const PROTOCOLS = ["HTTP", "gRPC", "TCP", "WebSocket", "AMQP", "Replication"] as const;
 
 const STRATEGIES = ["rolling", "blue_green", "canary"] as const;
 
@@ -209,6 +209,18 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
             </span>
           </div>
         )}
+        {cfg.replicationRole && cfg.replicationRole !== "none" && (
+          <div className="flex items-center gap-2">
+            <span className={`text-[9px] px-2 py-0.5 rounded-full font-semibold ${cfg.replicationRole === "primary" ? "bg-green-900/40 text-green-400" : "bg-blue-900/40 text-blue-400"}`}>
+              {cfg.replicationRole === "primary" ? "Primary" : "Replica"}
+            </span>
+            {metrics?.isSplitBrain && (
+              <span className="text-[9px] px-2 py-0.5 rounded-full font-semibold bg-red-900/40 text-red-400">
+                Split-Brain
+              </span>
+            )}
+          </div>
+        )}
         <Field label="Region">
           <Select value={cfg.region} options={REGIONS} onChange={(v) => onUpdate({ region: v })} />
         </Field>
@@ -248,7 +260,65 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
         <Toggle label="Bottleneck" checked={cfg.isBottleneck} onChange={(v) => onUpdate({ isBottleneck: v })} />
       </Section>
 
-      {/* Section 4 — Deployment Strategy */}
+      {/* Section 4 — Replication */}
+      {cfg.replicationRole !== undefined && (
+        <Section title="Replication">
+          <Field label="Role">
+            <select
+              value={cfg.replicationRole}
+              onChange={(e) => onUpdate({ replicationRole: e.target.value })}
+              className="w-full bg-surface-800 text-surface-200 text-[10px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-blue-500 transition-colors"
+            >
+              <option value="none">None</option>
+              <option value="primary">Primary</option>
+              <option value="replica">Replica</option>
+            </select>
+          </Field>
+          {cfg.replicationRole === "replica" && (
+            <Field label="Replication Lag">
+              <NumInput value={cfg.replicationLagMs} min={0} max={5000} step={10} onChange={(v) => onUpdate({ replicationLagMs: v })} />
+            </Field>
+          )}
+        </Section>
+      )}
+
+      {/* Section 5 — Auto-Scaling */}
+      <Section title="Auto-Scaling">
+        <Toggle label="Enabled" checked={cfg.autoScaling?.enabled ?? false} onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, enabled: v } })} />
+        {(cfg.autoScaling?.enabled || (cfg.autoScaling && !simRunning)) && (
+          <>
+            <Field label="Min Instances">
+              <NumInput value={cfg.autoScaling?.minInstances ?? 1} min={1} max={100} onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, minInstances: v } })} />
+            </Field>
+            <Field label="Max Instances">
+              <NumInput value={cfg.autoScaling?.maxInstances ?? 10} min={1} max={500} onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, maxInstances: v } })} />
+            </Field>
+            <SliderField
+              label="CPU Target"
+              value={cfg.autoScaling?.targetCPUPercent ?? 70}
+              onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, targetCPUPercent: v } })}
+              suffix="%"
+            />
+            <SliderField
+              label="Memory Target"
+              value={cfg.autoScaling?.targetMemPercent ?? 80}
+              onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, targetMemPercent: v } })}
+              suffix="%"
+            />
+            <Field label="Cooldown (ticks)">
+              <NumInput value={cfg.autoScaling?.cooldownTicks ?? 3} min={1} max={50} onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, cooldownTicks: v } })} />
+            </Field>
+            <Field label="Scale Up Factor">
+              <NumInput value={cfg.autoScaling?.scaleUpFactor ?? 1.5} min={1.1} max={5} step={0.1} onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, scaleUpFactor: v } })} />
+            </Field>
+            <Field label="Scale Down Factor">
+              <NumInput value={cfg.autoScaling?.scaleDownFactor ?? 0.5} min={0.1} max={0.9} step={0.05} onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, scaleDownFactor: v } })} />
+            </Field>
+          </>
+        )}
+      </Section>
+
+      {/* Section 6 — Deployment Strategy */}
       <Section title="Deployment Strategy">
         <Field label="Strategy">
           <Select value={cfg.deployment.strategy} options={STRATEGIES} onChange={(v) => onUpdate({ deployment: { ...cfg.deployment, strategy: v as "rolling" | "blue_green" | "canary" } })} />
@@ -282,7 +352,7 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
         )}
       </Section>
 
-      {/* Section 5 — Security */}
+      {/* Section 7 — Security */}
       <Section title="Security">
         <Toggle label="Public Facing" checked={cfg.security.isPublicFacing} onChange={(v) => onUpdate({ security: { ...cfg.security, isPublicFacing: v } })} />
         <Toggle label="Requires TLS" checked={cfg.security.requiresTLS} onChange={(v) => onUpdate({ security: { ...cfg.security, requiresTLS: v } })} />
@@ -324,7 +394,7 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
         </div>
       </Section>
 
-      {/* Section 6 — Live Metrics */}
+      {/* Section 8 — Live Metrics */}
       {simRunning && (
         <Section title="Live Metrics">
           {metrics ? (
@@ -332,9 +402,27 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
               <Field label="Current RPS"><MetricValue>{metrics.currentRPS.toLocaleString()}</MetricValue></Field>
               <Field label="CPU"><MetricValue>{Math.round(metrics.cpuPercent)}%</MetricValue></Field>
               <Field label="Memory"><MetricValue>{Math.round(metrics.memoryPercent)}%</MetricValue></Field>
+              <Field label="Instances"><MetricValue>{cfg.instances}</MetricValue></Field>
+              {cfg.autoScaling?.enabled && (
+                <Field label="Desired Inst">
+                  <MetricValue>{metrics.desiredInstances ?? cfg.instances}</MetricValue>
+                </Field>
+              )}
+              {metrics.scalingEvent && (
+                <div className="text-[9px] text-amber-400 font-medium py-1">{metrics.scalingEvent}</div>
+              )}
               <Field label="Queue Depth"><MetricValue>{metrics.queueDepth}</MetricValue></Field>
               <Field label="P99 Latency"><MetricValue>{metrics.p99LatencyMs}ms</MetricValue></Field>
               <Field label="Error Count"><MetricValue>{metrics.errorCount}</MetricValue></Field>
+              {(cfg.replicationRole === "replica" && metrics.staleReadCount > 0) && (
+                <Field label="Stale Reads"><MetricValue>{Math.round(metrics.staleReadCount)} req</MetricValue></Field>
+              )}
+              {cfg.replicationRole !== "none" && metrics.dataInconsistency > 0 && (
+                <Field label="Data Inconsist."><MetricValue>{Math.round(metrics.dataInconsistency)}</MetricValue></Field>
+              )}
+              {metrics.isSplitBrain && (
+                <div className="text-[9px] text-red-400 font-semibold py-1">⚠ Split-brain detected</div>
+              )}
               {cfg.deployment.isCanaryActive && (
                 <Field label="Canary RPS"><MetricValue>{(metrics as any).canaryRPS?.toLocaleString() ?? 0}</MetricValue></Field>
               )}
@@ -408,6 +496,29 @@ function EdgeConfigContent({ edge, onUpdate, nodes }: {
           onChange={(v) => onUpdate({ routing: { ...routing, trafficPercent: v } })}
           suffix="%"
         />
+
+        {/* Network Physics */}
+        <div className="pt-2 border-t border-surface-800 space-y-2.5">
+          <div className="text-[9px] text-surface-600 font-medium uppercase tracking-wider">Network Physics</div>
+          <SliderField
+            label="Packet Loss"
+            value={routing.packetLoss ?? 0}
+            min={0}
+            max={5}
+            step={0.1}
+            onChange={(v) => onUpdate({ routing: { ...routing, packetLoss: v } })}
+            suffix="%"
+          />
+          <Field label="Jitter">
+            <NumInput
+              value={routing.jitterMs ?? 0}
+              min={0}
+              max={500}
+              step={1}
+              onChange={(v) => onUpdate({ routing: { ...routing, jitterMs: v } })}
+            />
+          </Field>
+        </div>
 
         {/* Read-only stats */}
         <div className="pt-2 border-t border-surface-800 space-y-1.5">

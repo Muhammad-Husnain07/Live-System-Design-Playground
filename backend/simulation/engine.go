@@ -64,7 +64,14 @@ func (e *Engine) restoreNodes() {
 			n.LatencyMs = orig.LatencyMs
 			n.ErrorRate = orig.ErrorRate
 			n.MaxRPS = orig.MaxRPS
-			n.Instances = orig.Instances
+			// Preserve auto-scaled instance count so scaling survives tick resets
+			if !n.AutoScaling.Enabled || n.LastScaleTick == 0 {
+				n.Instances = orig.Instances
+			}
+			n.RetryCount = 0
+			n.DroppedRequests = 0
+			n.StaleReadCount = 0
+			n.DataInconsistency = 0
 		}
 	}
 	// Sync deployment state from manager into node configs
@@ -199,6 +206,9 @@ func (e *Engine) RunTick() {
 	}
 
 	ctx.PropagateTick(rps)
+
+	// Auto-scaling evaluates utilization metrics computed inside PropagateTick
+	ApplyAutoScaling(ctx.Nodes, tickNum)
 
 	if cm != nil {
 		cm.ApplyPostTick(runID, ctx.Nodes)

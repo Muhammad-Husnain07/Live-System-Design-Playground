@@ -159,11 +159,88 @@ func parseCanvasToSimNodes(proj *models.ProjectDetailResponse) ([]simulation.Nod
 			}
 		}
 
+		if cfg, ok := cn.Data.Config["cacheHitRatio"]; ok {
+			if v, ok := cfg.(float64); ok {
+				n.CacheHitRatio = v
+			}
+		}
+		if cfg, ok := cn.Data.Config["connectionPoolMax"]; ok {
+			if v, ok := cfg.(float64); ok {
+				n.ConnectionPoolMax = int(v)
+			}
+		}
+		if cfg, ok := cn.Data.Config["coldStartMs"]; ok {
+			if v, ok := cfg.(float64); ok {
+				n.ColdStartMs = v
+			}
+		}
+		if cfg, ok := cn.Data.Config["diskIOPSMax"]; ok {
+			if v, ok := cfg.(float64); ok {
+				n.DiskIOPSMax = v
+			}
+		}
+		if cfg, ok := cn.Data.Config["isPrimaryDB"]; ok {
+			if v, ok := cfg.(bool); ok {
+				n.IsPrimaryDB = v
+			}
+		}
+
+		// Start with defaults for all AutoScaling sub-fields, then override from JSON
+		n.AutoScaling = simulation.DefaultAutoScaling()
+		if cfg, ok := cn.Data.Config["replicationRole"]; ok {
+			if v, ok := cfg.(string); ok {
+				n.ReplicationRole = v
+			}
+		}
+		if cfg, ok := cn.Data.Config["replicationLagMs"]; ok {
+			if v, ok := cfg.(float64); ok {
+				n.ReplicationLagMs = v
+			}
+		}
+
+		if cfg, ok := cn.Data.Config["autoScaling"]; ok {
+			if asMap, ok := cfg.(map[string]any); ok {
+				if e, ok := asMap["enabled"].(bool); ok {
+					n.AutoScaling.Enabled = e
+				}
+				if v, ok := asMap["minInstances"].(float64); ok {
+					n.AutoScaling.MinInstances = int(v)
+				}
+				if v, ok := asMap["maxInstances"].(float64); ok {
+					n.AutoScaling.MaxInstances = int(v)
+				}
+				if v, ok := asMap["targetCPUPercent"].(float64); ok {
+					n.AutoScaling.TargetCPUPercent = v
+				}
+				if v, ok := asMap["targetMemPercent"].(float64); ok {
+					n.AutoScaling.TargetMemPercent = v
+				}
+				if v, ok := asMap["cooldownTicks"].(float64); ok {
+					n.AutoScaling.CooldownTicks = int(v)
+				}
+				if v, ok := asMap["scaleUpFactor"].(float64); ok {
+					n.AutoScaling.ScaleUpFactor = v
+				}
+				if v, ok := asMap["scaleDownFactor"].(float64); ok {
+					n.AutoScaling.ScaleDownFactor = v
+				}
+			}
+		}
+
 		if n.MaxRPS <= 0 {
 			n.MaxRPS = 1000
 		}
 		if n.Instances <= 0 {
 			n.Instances = 1
+		}
+		if n.ConnectionPoolMax <= 0 {
+			n.ConnectionPoolMax = 100
+		}
+		if n.ColdStartMs <= 0 {
+			n.ColdStartMs = 500
+		}
+		if n.DiskIOPSMax <= 0 {
+			n.DiskIOPSMax = 3000
 		}
 
 		nodes = append(nodes, n)
@@ -186,6 +263,15 @@ func parseCanvasToSimNodes(proj *models.ProjectDetailResponse) ([]simulation.Nod
 			}
 			if t, ok := ce.Data.Routing["requiresTLS"].(bool); ok {
 				e.RequiresTLS = t
+			}
+			if p, ok := ce.Data.Routing["protocol"].(string); ok {
+				e.Protocol = p
+			}
+			if p, ok := ce.Data.Routing["packetLoss"].(float64); ok {
+				e.PacketLossPercent = p
+			}
+			if j, ok := ce.Data.Routing["jitterMs"].(float64); ok {
+				e.JitterMs = j
 			}
 		}
 		edges = append(edges, e)

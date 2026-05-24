@@ -9,8 +9,16 @@ import type { NodeType, NodeMetadata } from "../types/canvas";
 const base = {
   isFailed: false,
   isBottleneck: false,
+  cacheHitRatio: 0,
+  connectionPoolMax: 100,
+  coldStartMs: 500,
+  diskIOPSMax: 3000,
+  isPrimaryDB: false,
   deployment: { strategy: "rolling" as const, canaryPercent: 0, canaryVersion: "", isCanaryActive: false },
   security: { isPublicFacing: false, requiresTLS: false, allowedInbound: [] as string[], vpcId: "" },
+  autoScaling: { enabled: false, minInstances: 1, maxInstances: 10, targetCPUPercent: 70, targetMemPercent: 80, cooldownTicks: 3, scaleUpFactor: 1.5, scaleDownFactor: 0.5 },
+  replicationRole: "none",
+  replicationLagMs: 0,
 };
 
 type Override = Partial<typeof base> & { instances: number; maxRPS: number; latencyMs: number };

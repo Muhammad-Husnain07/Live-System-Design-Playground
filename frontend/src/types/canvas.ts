@@ -57,6 +57,17 @@ export interface SecurityConfig {
   vpcId: string;
 }
 
+export interface AutoScalingConfig {
+  enabled: boolean;
+  minInstances: number;
+  maxInstances: number;
+  targetCPUPercent: number;
+  targetMemPercent: number;
+  cooldownTicks: number;
+  scaleUpFactor: number;
+  scaleDownFactor: number;
+}
+
 export interface NodeConfig {
   instances: number;
   region: string;
@@ -67,6 +78,14 @@ export interface NodeConfig {
   isBottleneck: boolean;
   deployment: DeploymentConfig;
   security: SecurityConfig;
+  cacheHitRatio: number;
+  connectionPoolMax: number;
+  coldStartMs: number;
+  diskIOPSMax: number;
+  isPrimaryDB: boolean;
+  autoScaling: AutoScalingConfig;
+  replicationRole: string;
+  replicationLagMs: number;
 }
 
 export interface NodeMetrics {
@@ -78,6 +97,19 @@ export interface NodeMetrics {
   p99LatencyMs: number;
   canaryRPS: number;
   errorRate: number;
+  retryCount: number;
+  droppedRequests: number;
+  cacheHitRatio: number;
+  connectionPoolMax: number;
+  coldStartMs: number;
+  diskIOPSMax: number;
+  isPrimaryDB: boolean;
+  activeConnections: number;
+  desiredInstances: number;
+  scalingEvent: string;
+  staleReadCount: number;
+  isSplitBrain: boolean;
+  dataInconsistency: number;
 }
 
 export interface SimulationNodeState {
@@ -88,10 +120,12 @@ export interface SimulationNodeState {
 }
 
 export interface EdgeRoutingConfig {
-  protocol: "HTTP" | "gRPC" | "TCP" | "WebSocket" | "AMQP";
+  protocol: "HTTP" | "gRPC" | "TCP" | "WebSocket" | "AMQP" | "Replication";
   isSync: boolean;
   trafficPercent: number;
   requiresTLS: boolean;
+  packetLoss: number;
+  jitterMs: number;
 }
 
 export interface NodeMetadata {

@@ -16,6 +16,7 @@ const (
 	ChaosRegionDown       ChaosEventType = "RegionDown"
 	ChaosMemoryLeak       ChaosEventType = "MemoryLeak"
 	ChaosCPUSaturation    ChaosEventType = "CPUSaturation"
+	ChaosSplitBrain       ChaosEventType = "SplitBrain"
 )
 
 var ValidChaosTypes = map[ChaosEventType]bool{
@@ -27,6 +28,7 @@ var ValidChaosTypes = map[ChaosEventType]bool{
 	ChaosRegionDown:       true,
 	ChaosMemoryLeak:       true,
 	ChaosCPUSaturation:    true,
+	ChaosSplitBrain:       true,
 }
 
 func IsValidChaosType(ct ChaosEventType) bool {
@@ -171,6 +173,16 @@ func (cm *ChaosManager) applyOne(n *Node, ev *ChaosEvent) {
 		if n.LatencyMs < 1 {
 			n.LatencyMs = 1
 		}
+		// Jitter Bomb mode: at severity >= 0.7, spike jitter to 500ms
+		// simulating noisy neighbor problems in cloud environments.
+		// This causes erratic latency variance and packet reordering.
+		if ev.Severity >= 0.7 {
+			// Jitter spikes to severity * 500ms (at 0.7: 350ms, at 1.0: 500ms)
+			jitterSpike := ev.Severity * 500.0
+			// This jitter is applied by the propagator's edge-level jitter logic
+			// We encode it as a persistent latency multiplier effect
+			n.LatencyMs = n.LatencyMs + jitterSpike*0.5
+		}
 
 	case ChaosErrorRateSpike:
 		newRate := math.Min(ev.Severity, 1.0)
@@ -179,8 +191,21 @@ func (cm *ChaosManager) applyOne(n *Node, ev *ChaosEvent) {
 		}
 
 	case ChaosNetworkPartition:
-		n.Instances = 0
-		n.MaxRPS = 0
+		// Degraded mode: at severity 1.0, drop 100% of packets (total partition).
+		// At lower severity, drop proportionally — simulating degraded network.
+		dropPercent := ev.Severity * 100.0
+		if dropPercent >= 99.0 {
+			n.Instances = 0
+			n.MaxRPS = 0
+		} else {
+			// For degraded partitions, use ErrorRate to simulate partial packet loss.
+			newErrorRate := ev.Severity * 0.8
+			if newErrorRate > n.ErrorRate {
+				n.ErrorRate = newErrorRate
+			}
+			// Reduce instances to simulate degraded capacity
+			n.Instances = int(math.Max(1, float64(n.Instances)*(1.0-ev.Severity*0.5)))
+		}
 
 	case ChaosDDoS:
 		factor := 1.0 - ev.Severity*0.9
@@ -208,5 +233,21 @@ func (cm *ChaosManager) applyOne(n *Node, ev *ChaosEvent) {
 	case ChaosMemoryLeak:
 		n.ErrorRate = math.Min(0.05*ev.Severity+n.ErrorRate, 0.5)
 		n.LatencyMs = n.LatencyMs * (1.0 + ev.Severity*0.1)
+
+	case ChaosSplitBrain:
+		if !isDatabaseNode(n.NodeType) {
+			break
+		}
+		n.IsSplitBrain = true
+		n.DataInconsistency += ev.Severity * 1000.0
+		if n.ReplicationRole == "primary" {
+			// Primary loses write quorum; most writes fail
+			n.ErrorRate = math.Min(n.ErrorRate+ev.Severity*0.6, 0.95)
+		} else if n.ReplicationRole == "replica" {
+			// Replica promotes itself to primary, creating two primaries
+			n.ReplicationRole = "primary"
+			// Conflict resolution adds latency
+			n.LatencyMs = n.LatencyMs * (1.0 + ev.Severity*0.5)
+		}
 	}
 }

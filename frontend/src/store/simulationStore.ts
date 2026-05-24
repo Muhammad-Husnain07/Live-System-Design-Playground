@@ -22,6 +22,21 @@ export interface NodeMetricsSnapshot {
   isAsync: boolean;
   activeGroup?: string;
   blueGreenGroup?: string;
+  retryCount: number;
+  droppedRequests: number;
+  cacheHitRatio: number;
+  connectionPoolMax: number;
+  coldStartMs: number;
+  diskIOPSMax: number;
+  isPrimaryDB: boolean;
+  activeConnections: number;
+  desiredInstances: number;
+  scalingEvent: string;
+  replicationRole: string;
+  replicationLagMs: number;
+  staleReadCount: number;
+  isSplitBrain: boolean;
+  dataInconsistency: number;
 }
 
 export interface TickData {
