@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -72,6 +73,7 @@ func (e *Engine) restoreNodes() {
 			n.DroppedRequests = 0
 			n.StaleReadCount = 0
 			n.DataInconsistency = 0
+			n.SpotInterrupted = false
 		}
 	}
 	// Sync deployment state from manager into node configs
@@ -203,7 +205,11 @@ func (e *Engine) RunTick() {
 	if cm != nil {
 		e.restoreNodes()
 		cm.ApplyPreTick(runID, ctx.Nodes, tickNum)
+	} else {
+		e.restoreNodes()
 	}
+
+	applySpotInterruptions(ctx.Nodes)
 
 	ctx.PropagateTick(rps)
 
@@ -223,5 +229,18 @@ func (e *Engine) RunTick() {
 
 	if onTick != nil {
 		onTick(tick, tickNum)
+	}
+}
+
+func applySpotInterruptions(nodeMap map[string]*Node) {
+	for _, n := range nodeMap {
+		if n.ComputeTier == "spot" && !n.IsFailed {
+			if rand.Float64() < 0.05 {
+				n.IsFailed = true
+				n.SpotInterrupted = true
+				n.Instances = 0
+				n.MaxRPS = 0
+			}
+		}
 	}
 }

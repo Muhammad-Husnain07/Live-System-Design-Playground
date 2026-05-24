@@ -5428,3 +5428,122 @@ Re-verified all Phase R4 specifications on 2026-05-24. All checks pass with no i
 | `frontend NodeConfigPanel.tsx` — Replication protocol in edge config dropdown | ✅ confirmed at `NodeConfigPanel.tsx:10` |
 | `frontend nodeRegistry.ts` — Default `replicationRole: "none"`, `replicationLagMs: 0` | ✅ confirmed at `nodeRegistry.ts:20-21` |
 | No stubs, TODOs, or placeholder values found | ✅ |
+
+## Phase R4 — Real-world FinOps Engine — 2026-05-24
+
+**Status: Phase R4 — Real-world FinOps engine complete**
+
+### Goal
+Overhaul the FinOps calculator to use exact AWS pricing models including Data Egress, Tiered Storage, Spot/Reserved Instances, and Per-Request pricing. Add Compute Tier configuration to nodes and Spot Instance interruption simulation during runtime.
+
+### AWS Pricing Formulas
+
+#### 1. Data Egress
+Every edge in the canvas represents data transfer. Cost is computed per edge based on regions and target type:
+
+| Condition | Rate | Formula |
+|-----------|------|---------|
+| Source Region ≠ Target Region | $0.02/GB | Inter-region transfer |
+| Target is ExternalClient | $0.09/GB | Internet egress (first 10TB) |
+| Same region | Free | $0.00/GB |
+
+**GB per month calculation:**
+```
+GB/mo = (RPS × AvgResponseSizeKB × 86400 × 30) / (1024 × 1024)
+```
+
+**Default Response Sizes:**
+| Node Type | Response Size |
+|-----------|--------------|
+| AppServer, Microservice, WebServer | 50 KB |
+| PostgreSQL, MySQL, MongoDB, Redis, Elasticsearch | 10 KB |
+| CDN | 500 KB |
+| All others | 10 KB |
+
+#### 2. Compute Tiers
+| Tier | Multiplier | Effective Price (t3.medium) | Behavior |
+|------|-----------|------------------------------|----------|
+| `on_demand` | 1.0× | $30.37/mo | Standard pricing |
+| `reserved` | 0.6× | $18.22/mo | 40% discount, 1-year commit |
+| `spot` | 0.3× | $9.11/mo | 70% discount, 5% interruption rate per tick |
+
+**Spot Interruption:** During simulation, spot instances have a 5% chance per tick of failing (`IsFailed=true`, `Instances=0`). The frontend shows a "⚠ Spot instance interrupted" warning badge.
+
+#### 3. Per-Request Pricing (DynamoDB/Aurora Serverless)
+Applied to `ServerlessFunction` and database nodes based on estimated RPS with 70/30 read/write split:
+
+| Unit | Cost |
+|------|------|
+| Write request unit | $1.25 per million units |
+| Read request unit | $0.25 per million units |
+
+```
+Monthly WRUs = (RPS × 86400 × 30) / 1,000,000 × 0.3
+Monthly RRUs = (RPS × 86400 × 30) / 1,000,000 × 0.7
+```
+
+#### 4. Tiered Storage (S3)
+Estimated storage per node type (e.g., 100GB/DB instance, 500GB/CDN, 50GB/AppServer):
+
+| Tier | Range | Rate |
+|------|-------|------|
+| Tier 1 | First 50 TB | $0.023/GB |
+| Tier 2 | Next 450 TB | $0.022/GB |
+| Tier 3 | Over 500 TB | $0.021/GB |
+
+### Files Modified
+
+| File | Lines | Change |
+|------|-------|--------|
+| `backend/services/finops/calculator.go` | 499→590 | Full rewrite: added data egress computation per edge, compute tier multipliers (on_demand/reserved/spot), per-request DynamoDB-style pricing for serverless/DB nodes, S3 tiered storage cost, `DataEgressTotal` on `CostEstimate`, "Data Transfer", "Request-Based", "Tiered Storage" categories, egress optimization recommendation |
+| `backend/simulation/models.go` | 220→222 | Added `ComputeTier string` to `Node` config; added `SpotInterrupted bool` runtime field; both added to `NodeMetricsSnapshot` |
+| `backend/simulation/metrics.go` | 104→106 | Added `ComputeTier` and `SpotInterrupted` to `NodeMetricsSnapshot` |
+| `backend/simulation/engine.go` | 235→237 | Added `applySpotInterruptions()` function (5% per tick fail for spot nodes); calls it in `RunTick` after chaos pre-tick; resets `SpotInterrupted` in `restoreNodes()`; imports `math/rand` |
+| `backend/handlers/simulation.go` | 528→530 | Parses `computeTier` from node config |
+| `frontend/src/types/canvas.ts` | 161→162 | Added `computeTier: "on_demand" \| "reserved" \| "spot"` to `NodeConfig`; added `spotInterrupted: boolean` to `NodeMetrics` |
+| `frontend/src/store/simulationStore.ts` | 114→115 | Added `computeTier` and `spotInterrupted` to `NodeMetricsSnapshot` |
+| `frontend/src/store/finopsStore.ts` | 64 | Added optional `dataEgressTotal?: number` to `CostEstimate` |
+| `frontend/src/hooks/useSimulation.ts` | 261→262 | Maps `spotInterrupted` from tick data |
+| `frontend/src/utils/nodeRegistry.ts` | 247→248 | Added default `computeTier: "on_demand"` to base config |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | 556→560 | Added "Compute Tier" dropdown in Capacity section; added spot interruption warning in Live Metrics |
+| `frontend/src/components/panels/FinOpsPanel.tsx` | 300→310 | Added `EgressDonutChart` component with PieChart donut showing Data Egress vs Other Costs; imported `PieChart`, `Pie`, `Cell` |
+
+### Frontend UI Changes
+
+| Section | Change |
+|---------|--------|
+| NodeConfig → Capacity | "Compute Tier" dropdown: On-Demand ($30.37), Reserved 1yr ($18.22), Spot ($9.11 — 5% interrupt) |
+| NodeConfig → Live Metrics | "⚠ Spot instance interrupted" warning badge (orange) when `metrics.spotInterrupted` |
+| FinOps → Overview | Data Egress donut chart showing proportion of egress vs other costs |
+| FinOps → Breakdown | New "Data Transfer", "Request-Based", "Tiered Storage" categories with detailed line items |
+
+### Build & Test Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` (backend) | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+| `go test -count=1 ./services/finops/...` | ✅ 27/27 PASS |
+| `go test -count=1 ./simulation/...` | ✅ 8/8 PASS |
+| `tsc --noEmit` (frontend) | ✅ PASSED (0 errors) |
+| `npx vitest run` (frontend) | ✅ 32/32 PASS (7 test files) |
+
+### Verification: PASSED — 2026-05-24
+
+| Check | Result |
+|-------|--------|
+| `calculator.go` — Data egress: `InterRegionEgressCost = 0.02`, `InternetEgressCost = 0.09`, GB formula | ✅ |
+| `calculator.go` — Default response sizes: AppServer=50KB, DB=10KB, CDN=500KB | ✅ |
+| `calculator.go` — Compute tiers: on_demand=1.0×, reserved=0.6×, spot=0.3× | ✅ |
+| `calculator.go` — Per-request pricing: write=$1.25/M, read=$0.25/M, 70/30 split | ✅ |
+| `calculator.go` — Tiered storage: T1=$0.023/GB, T2=$0.022/GB, T3=$0.021/GB | ✅ |
+| `calculator.go` — `DataEgressTotal` on `CostEstimate`, new categories | ✅ |
+| `models.go` — `ComputeTier string` on `Node`, `SpotInterrupted bool` runtime field | ✅ |
+| `engine.go` — `applySpotInterruptions()`: 5% per tick fail for spot | ✅ |
+| `engine.go` — `restoreNodes()` resets `SpotInterrupted = false` | ✅ |
+| `metrics.go` — Snapshots `ComputeTier` and `SpotInterrupted` | ✅ |
+| `handlers/simulation.go` — Parses `computeTier` | ✅ |
+| `frontend canvas.ts` — `computeTier` on config, `spotInterrupted` on metrics | ✅ |
+| `frontend NodeConfigPanel.tsx` — Compute Tier dropdown, spot warning | ✅ |
+| `frontend FinOpsPanel.tsx` — Data Egress donut chart | ✅ |
+| All existing tests still pass | ✅ |

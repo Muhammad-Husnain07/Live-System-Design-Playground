@@ -55,11 +55,13 @@ func SnapshotTick(tickNum int, nodes []Node, edges []Edge, depMgr *DeploymentMan
 			ActiveConnections: n.ActiveConnections,
 			DesiredInstances:  n.DesiredInstances,
 			ScalingEvent:      n.ScalingEvent,
+			ComputeTier:       n.ComputeTier,
 			ReplicationRole:   n.ReplicationRole,
 			ReplicationLagMs:  n.ReplicationLagMs,
 			StaleReadCount:    n.StaleReadCount,
 			IsSplitBrain:      n.IsSplitBrain,
 			DataInconsistency: n.DataInconsistency,
+			SpotInterrupted:   n.SpotInterrupted,
 		}
 		metrics = append(metrics, snapshot)
 

@@ -95,6 +95,7 @@ type Node struct {
 	AutoScaling       AutoScaling `json:"autoScaling"`
 	ReplicationRole   string      `json:"replicationRole"`
 	ReplicationLagMs  float64     `json:"replicationLagMs"`
+	ComputeTier       string      `json:"computeTier"`
 
 	// Runtime fields (reset per tick)
 	CurrentRPS        float64 `json:"-"`
@@ -119,6 +120,7 @@ type Node struct {
 	StaleReadCount      float64 `json:"-"`
 	IsSplitBrain        bool    `json:"-"`
 	DataInconsistency   float64 `json:"-"`
+	SpotInterrupted     bool    `json:"-"`
 }
 
 type Edge struct {
@@ -190,11 +192,13 @@ type NodeMetricsSnapshot struct {
 	ActiveConnections   float64  `json:"activeConnections"`
 	DesiredInstances    int      `json:"desiredInstances"`
 	ScalingEvent        string   `json:"scalingEvent,omitempty"`
+	ComputeTier         string   `json:"computeTier,omitempty"`
 	ReplicationRole     string   `json:"replicationRole,omitempty"`
 	ReplicationLagMs    float64  `json:"replicationLagMs,omitempty"`
 	StaleReadCount      float64  `json:"staleReadCount,omitempty"`
 	IsSplitBrain        bool     `json:"isSplitBrain,omitempty"`
 	DataInconsistency   float64  `json:"dataInconsistency,omitempty"`
+	SpotInterrupted     bool     `json:"spotInterrupted,omitempty"`
 }
 
 type Tick struct {

@@ -237,6 +237,17 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
         <Field label="Avg Latency">
           <NumInput value={cfg.latencyMs} min={0} onChange={(v) => onUpdate({ latencyMs: v })} />
         </Field>
+        <Field label="Compute Tier">
+          <select
+            value={cfg.computeTier ?? "on_demand"}
+            onChange={(e) => onUpdate({ computeTier: e.target.value as "on_demand" | "reserved" | "spot" })}
+            className="w-full bg-surface-800 text-surface-200 text-[10px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-blue-500 transition-colors"
+          >
+            <option value="on_demand">On-Demand ($30.37)</option>
+            <option value="reserved">Reserved 1yr ($18.22)</option>
+            <option value="spot">Spot ($9.11 — 5% interrupt)</option>
+          </select>
+        </Field>
         {cfg.latencyMs > 0 && (
           <div className="flex items-center gap-1">
             <div className="flex-1 h-1 bg-surface-700 rounded-full overflow-hidden">
@@ -422,6 +433,9 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
               )}
               {metrics.isSplitBrain && (
                 <div className="text-[9px] text-red-400 font-semibold py-1">⚠ Split-brain detected</div>
+              )}
+              {metrics.spotInterrupted && (
+                <div className="text-[9px] text-orange-400 font-semibold py-1">⚠ Spot instance interrupted</div>
               )}
               {cfg.deployment.isCanaryActive && (
                 <Field label="Canary RPS"><MetricValue>{(metrics as any).canaryRPS?.toLocaleString() ?? 0}</MetricValue></Field>

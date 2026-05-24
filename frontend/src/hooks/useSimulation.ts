@@ -76,6 +76,7 @@ export function useSimulation(projectId: string) {
             staleReadCount: snap.staleReadCount ?? 0,
             isSplitBrain: snap.isSplitBrain ?? false,
             dataInconsistency: snap.dataInconsistency ?? 0,
+            spotInterrupted: snap.spotInterrupted ?? false,
           },
         },
       };

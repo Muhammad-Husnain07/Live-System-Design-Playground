@@ -32,11 +32,13 @@ export interface NodeMetricsSnapshot {
   activeConnections: number;
   desiredInstances: number;
   scalingEvent: string;
+  computeTier: string;
   replicationRole: string;
   replicationLagMs: number;
   staleReadCount: number;
   isSplitBrain: boolean;
   dataInconsistency: number;
+  spotInterrupted: boolean;
 }
 
 export interface TickData {

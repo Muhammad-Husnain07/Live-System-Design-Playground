@@ -7,6 +7,7 @@ import EmptyState from "../ui/EmptyState";
 import api from "../../utils/api";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell,
 } from "recharts";
 
 const USER_PRESETS = [
@@ -71,6 +72,61 @@ const CHART_TICK = { fontSize: 9, fill: "#71717a" };
 const CHART_TOOLTIP = { background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 11 };
 const CHART_TOOLTIP_LABEL = { color: "#e4e4e7" };
 const CHART_DOT = { fill: "#22c55e", r: 3 };
+
+const DONUT_COLORS = ["#f97316", "#22c55e", "#3b82f6", "#a855f7", "#06b6d4", "#eab308"];
+
+const EgressDonutChart = memo(function EgressDonutChart({ estimate }: { estimate: CostReport["currentEstimate"] }) {
+  const chartData = useMemo(() => {
+    const otherTotal = estimate.totalMonthlyCost - (estimate.dataEgressTotal ?? 0);
+    return [
+      { name: "Data Egress", value: Math.round((estimate.dataEgressTotal ?? 0) * 100) / 100 },
+      { name: "Other Costs", value: Math.round(Math.max(otherTotal, 0) * 100) / 100 },
+    ];
+  }, [estimate]);
+
+  if ((estimate.dataEgressTotal ?? 0) <= 0) return null;
+
+  return (
+    <div className="bg-surface-900 rounded border border-surface-800 p-3">
+      <p className="text-[9px] uppercase tracking-wider text-surface-500 font-medium mb-2">
+        Data Egress
+      </p>
+      <div className="flex items-center gap-3">
+        <ResponsiveContainer width={120} height={120}>
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              innerRadius={32}
+              outerRadius={52}
+              dataKey="value"
+              startAngle={90}
+              endAngle={-270}
+            >
+              {chartData.map((_, idx) => (
+                <Cell key={idx} fill={DONUT_COLORS[idx]} stroke="none" />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 11 }}
+              formatter={(value: number) => [formatCurrency(value), ""]}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="space-y-1.5">
+          {chartData.map((d, i) => (
+            <div key={d.name} className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: DONUT_COLORS[i] }} />
+              <span className="text-[9px] text-surface-400">{d.name}</span>
+              <span className="text-[10px] font-mono text-surface-200 ml-auto">{formatCurrency(d.value)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 const ChartCard = memo(function ChartCard({ projections }: { projections: CostReport["scalingProjections"] }) {
   const chartData = useMemo(() => projections.map((p) => ({
@@ -263,6 +319,8 @@ export default function FinOpsPanel() {
                   for {estimate!.monthlyUsers.toLocaleString()} users
                 </p>
               </div>
+
+              <EgressDonutChart estimate={estimate!.currentEstimate} />
 
               <div>
                 <p className="text-[9px] uppercase tracking-wider text-surface-500 font-medium mb-1.5">

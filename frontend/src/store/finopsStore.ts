@@ -20,6 +20,7 @@ export interface CostEstimate {
   multiplier: number;
   totalMonthlyCost: number;
   breakdown: CostCategory[];
+  dataEgressTotal?: number;
 }
 
 export interface Recommendation {

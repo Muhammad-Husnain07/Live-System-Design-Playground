@@ -197,6 +197,11 @@ func parseCanvasToSimNodes(proj *models.ProjectDetailResponse) ([]simulation.Nod
 				n.ReplicationLagMs = v
 			}
 		}
+		if cfg, ok := cn.Data.Config["computeTier"]; ok {
+			if v, ok := cfg.(string); ok {
+				n.ComputeTier = v
+			}
+		}
 
 		if cfg, ok := cn.Data.Config["autoScaling"]; ok {
 			if asMap, ok := cfg.(map[string]any); ok {

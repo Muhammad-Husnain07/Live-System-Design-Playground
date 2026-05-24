@@ -86,6 +86,7 @@ export interface NodeConfig {
   autoScaling: AutoScalingConfig;
   replicationRole: string;
   replicationLagMs: number;
+  computeTier: "on_demand" | "reserved" | "spot";
 }
 
 export interface NodeMetrics {
@@ -110,6 +111,7 @@ export interface NodeMetrics {
   staleReadCount: number;
   isSplitBrain: boolean;
   dataInconsistency: number;
+  spotInterrupted: boolean;
 }
 
 export interface SimulationNodeState {

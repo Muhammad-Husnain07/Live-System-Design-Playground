@@ -19,6 +19,7 @@ const base = {
   autoScaling: { enabled: false, minInstances: 1, maxInstances: 10, targetCPUPercent: 70, targetMemPercent: 80, cooldownTicks: 3, scaleUpFactor: 1.5, scaleDownFactor: 0.5 },
   replicationRole: "none",
   replicationLagMs: 0,
+  computeTier: "on_demand",
 };
 
 type Override = Partial<typeof base> & { instances: number; maxRPS: number; latencyMs: number };
