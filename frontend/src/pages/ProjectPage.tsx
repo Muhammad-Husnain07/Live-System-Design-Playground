@@ -328,7 +328,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     autoSaveTimer.current = setTimeout(() => {
       const { isDirty: dirty, collabConnected: collab } = useCanvasStore.getState();
       if (dirty && !collab) doAutoSave();
-    }, 30000);
+    }, 3000);
   }, [doAutoSave]);
 
   useEffect(() => {
