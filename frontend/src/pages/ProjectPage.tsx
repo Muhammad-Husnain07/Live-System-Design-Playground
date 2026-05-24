@@ -273,7 +273,6 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const clearActiveChallenge = useChallengeStore((s) => s.clearActiveChallenge);
   const wsStatus = useSimulationStore((s) => s.connectionStatus);
   const prevDirty = useRef(isDirty);
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { start: simStart, stop: simStop } = useSimulation(projectId);
 
@@ -303,13 +302,6 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     }
   }, [currentProject, setNodes, setEdges, markSaved]);
 
-  useEffect(() => {
-    if (isDirty && !prevDirty.current) {
-      scheduleAutoSave();
-    }
-    prevDirty.current = isDirty;
-  }, [isDirty, scheduleAutoSave]);
-
   const doAutoSave = useCallback(async () => {
     if (!projectId) return;
     if (useCanvasStore.getState().collabConnected) return;
@@ -327,6 +319,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     setSaving(false);
   }, [projectId, saveCanvas, markSaved]);
 
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const changeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scheduleAutoSave = useCallback(() => {
@@ -337,6 +330,13 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
       if (dirty && !collab) doAutoSave();
     }, 30000);
   }, [doAutoSave]);
+
+  useEffect(() => {
+    if (isDirty && !prevDirty.current) {
+      scheduleAutoSave();
+    }
+    prevDirty.current = isDirty;
+  }, [isDirty, scheduleAutoSave]);
 
   const flushCanvasChanges = useCallback(() => {
     if (changeTimerRef.current) { clearTimeout(changeTimerRef.current); changeTimerRef.current = null; }
