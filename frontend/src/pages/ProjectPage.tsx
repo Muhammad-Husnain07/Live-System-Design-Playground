@@ -410,7 +410,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const onNodeDragStop = useCallback(() => {
     pushUndoState();
     syncToYjs();
-  }, [pushUndoState, syncToYjs]);
+    scheduleAutoSave();
+  }, [pushUndoState, syncToYjs, scheduleAutoSave]);
 
   const handleMouseMove = useCallback((event: React.MouseEvent) => {
     if (!collabProvider?.awareness || !collabConnected) return;
@@ -512,6 +513,13 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onKeyDown]);
+
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
+    };
+  }, []);
 
   if (isLoading && !currentProject) {
     return (

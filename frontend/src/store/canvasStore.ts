@@ -240,7 +240,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     set({
       nodes: get().nodes.map((n) => {
         const { metrics, ...restData } = n.data;
-        return { ...n, data: restData };
+        const { isBottleneck, isFailed, ...restConfig } = restData.config ?? {};
+        return { ...n, data: { ...restData, config: restConfig } };
       }),
       isSimulationRunning: false,
     });
