@@ -5547,3 +5547,31 @@ Estimated storage per node type (e.g., 100GB/DB instance, 500GB/CDN, 50GB/AppSer
 | `frontend NodeConfigPanel.tsx` — Compute Tier dropdown, spot warning | ✅ |
 | `frontend FinOpsPanel.tsx` — Data Egress donut chart | ✅ |
 | All existing tests still pass | ✅ |
+
+### Verification: PASSED — 2026-05-24 (full spec cross-check)
+
+**Spec cross-check results:**
+
+| # | Spec Requirement | Status | Location |
+|---|-----------------|--------|----------|
+| 1a | Data egress: every edge = data transfer | ✅ | `calculator.go` `calculateEdgeEgress()` called in `Calculate()` for each edge |
+| 1b | Source Region ≠ Target Region → $0.02/GB | ✅ | `calculator.go:52` `InterRegionEgressCost = 0.02` |
+| 1c | Target is ExternalClient → $0.09/GB internet egress | ✅ | `calculator.go:53` `InternetEgressCost = 0.09`; check at line 281 |
+| 1d | GB/mo = (RPS × KB × 86400 × 30) / (1024×1024) | ✅ | `calculator.go:276` exact formula |
+| 1e | Default response sizes: AppServer=50KB, DB=10KB, CDN=500KB | ✅ | `calculator.go:189-200` `getResponseSizeKB()` |
+| 2a | `ComputeTier` string on `NodeConfig` ("on_demand", "reserved", "spot") | ✅ | `canvas.ts:89`, `models.go:98`, `nodeRegistry.ts:22`, `simulation.go:200-203` |
+| 2b | On-Demand: $30.37 | ✅ | `calculator.go:49` `BaseComputeMonthly = 30.37`; tier multiplier 1.0 at `calculator.go:184` |
+| 2c | Reserved (1yr): 40% discount = $18.22 | ✅ | `calculator.go:185` multiplier 0.6 |
+| 2d | Spot: 70% discount = $9.11, 5% interruption per tick | ✅ | `calculator.go:186` multiplier 0.3; `engine.go:235-245` `applySpotInterruptions()` |
+| 3a | Per-request pricing for ServerlessFunction/DB nodes | ✅ | `calculator.go:310-343` `calculatePerRequestCost()` |
+| 3b | Write Cost = $1.25 per million write units | ✅ | `calculator.go:56` `WriteRequestUnitCost = 1.25` |
+| 3c | Read Cost = $0.25 per million read units | ✅ | `calculator.go:57` `ReadRequestUnitCost = 0.25` |
+| 3d | Calculated based on RPS (70/30 read/write split) | ✅ | `calculator.go:320-321` `readUnits×0.7, writeUnits×0.3` |
+| 4a | Tiered storage: first 50TB @ $0.023/GB | ✅ | `calculator.go:60,63` `StorageTier1Cost=0.023, StorageTier1Cap=50×1024` |
+| 4b | Next 450TB @ $0.022/GB | ✅ | `calculator.go:61,64` `StorageTier2Cost=0.022, StorageTier2Cap=500×1024` |
+| 4c | Over 500TB @ $0.021/GB | ✅ | `calculator.go:62` `StorageTier3Cost=0.021` |
+| F1 | Data Egress donut chart in FinOpsPanel | ✅ | `FinOpsPanel.tsx:78-128` `EgressDonutChart` component with `PieChart` |
+| F2 | Compute Tier dropdown in NodeConfigPanel | ✅ | `NodeConfigPanel.tsx:240-250` with three options and prices |
+| F3 | Spot interruption badge in Live Metrics | ✅ | `NodeConfigPanel.tsx:437-439` orange "⚠ Spot instance interrupted" |
+| H1 | HANDOFF.md documents exact AWS pricing formulas | ✅ | Lines 5439-5492 with tables for all 4 pricing models |
+| H2 | Status line: "Phase R4 — Real-world FinOps engine complete" | ✅ | Line 5434 |
