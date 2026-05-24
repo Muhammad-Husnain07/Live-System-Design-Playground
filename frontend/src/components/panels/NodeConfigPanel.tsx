@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCanvasStore } from "../../store/canvasStore";
 import { NODE_REGISTRY } from "../../utils/nodeRegistry";
@@ -202,7 +203,7 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
         </Field>
         {meta && (
           <div className="flex items-center gap-2">
-            <span className="text-sm">{meta.icon}</span>
+            <meta.icon className="h-4 w-4" />
             <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${meta.color}20`, color: meta.color }}>
               {meta.label}
             </span>
@@ -313,7 +314,7 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
                         className="accent-green-500"
                       />
                       <span className="text-[10px] text-surface-400 group-hover:text-surface-300 truncate">
-                        {nm?.icon ?? ""} {n.data?.label ?? n.id}
+                        {nm && <nm.icon className="h-3 w-3 shrink-0" />} {n.data?.label ?? n.id}
                       </span>
                     </label>
                   );
@@ -380,7 +381,7 @@ function EdgeConfigContent({ edge, onUpdate, nodes }: {
       <div className="px-3 pt-3 pb-2 border-b border-surface-800">
         <div className="text-xs font-medium text-surface-200">Edge Connection</div>
         <div className="text-[10px] text-surface-500 mt-1">
-          {srcLabel} → {tgtLabel}
+          {srcLabel} <ArrowRight className="h-3 w-3 inline" /> {tgtLabel}
         </div>
       </div>
 

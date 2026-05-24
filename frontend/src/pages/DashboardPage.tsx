@@ -5,6 +5,7 @@ import { useProjectStore } from "../store/projectStore";
 import ProjectCard from "../components/ui/ProjectCard";
 import NewProjectModal from "../components/ui/NewProjectModal";
 import ImportModal from "../components/panels/ImportModal";
+import { Plus } from "lucide-react";
 import { SkeletonCard } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 
@@ -120,7 +121,7 @@ export default function DashboardPage() {
           </div>
         ) : projects.length === 0 ? (
           <EmptyState
-            icon="+"
+            icon={<Plus className="h-6 w-6" />}
             title="No projects yet"
             description="Create your first architecture to get started."
             action={

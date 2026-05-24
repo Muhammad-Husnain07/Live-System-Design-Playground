@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Trophy, Medal, Award, ArrowLeft } from "lucide-react";
 import { useChallengeStore } from "../store/challengeStore";
 
 export default function LeaderboardPage() {
@@ -17,7 +18,7 @@ export default function LeaderboardPage() {
           onClick={() => navigate("/dashboard")}
           className="text-sm text-surface-400 hover:text-surface-200 transition-colors"
         >
-          &larr;
+          <ArrowLeft className="h-4 w-4" />
         </button>
         <h1 className="text-sm font-semibold">Leaderboard</h1>
       </header>
@@ -47,7 +48,7 @@ export default function LeaderboardPage() {
                 {leaderboard.map((entry) => (
                   <tr key={`${entry.rank}-${entry.username}`} className="border-b border-surface-800/50 last:border-b-0 hover:bg-surface-800/30 transition-colors">
                     <td className="px-4 py-2.5">
-                      {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : (
+                      {entry.rank === 1 ? <Trophy className="h-5 w-5 text-yellow-400" /> : entry.rank === 2 ? <Medal className="h-5 w-5 text-gray-400" /> : entry.rank === 3 ? <Award className="h-5 w-5 text-amber-700" /> : (
                         <span className="text-surface-500 font-mono">{entry.rank}</span>
                       )}
                     </td>

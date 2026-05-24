@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Clock, ArrowLeft } from "lucide-react";
 import { useChallengeStore, type Challenge } from "../store/challengeStore";
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -35,7 +36,7 @@ function ChallengeCard({ challenge, onStart }: { challenge: Challenge; onStart: 
       <p className="text-[11px] text-surface-400 leading-relaxed line-clamp-2">{challenge.description}</p>
       <div className="flex items-center justify-between mt-auto">
         <span className="text-[10px] text-surface-500">
-          ⏱ {formatTime(challenge.timeLimitSeconds)}
+          <Clock className="h-4 w-4" /> {formatTime(challenge.timeLimitSeconds)}
         </span>
         <button
           onClick={handleStart}
@@ -75,7 +76,7 @@ export default function ChallengesPage() {
           onClick={() => navigate("/dashboard")}
           className="text-sm text-surface-400 hover:text-surface-200 transition-colors"
         >
-          &larr;
+          <ArrowLeft className="h-4 w-4" />
         </button>
         <h1 className="text-sm font-semibold">Challenges</h1>
       </header>

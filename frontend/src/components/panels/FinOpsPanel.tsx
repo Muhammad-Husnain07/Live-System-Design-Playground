@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
+import { ChevronUp, ChevronDown, DollarSign } from "lucide-react";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useFinOpsStore, type CostReport, type CostCategory } from "../../store/finopsStore";
 import { useToastStore } from "../../store/toastStore";
@@ -43,7 +44,7 @@ function CategoryRow({ cat }: { cat: CostCategory }) {
           <span className="text-[11px] font-mono font-medium text-green-400 tabular-nums">
             {formatCurrency(cat.subtotal)}
           </span>
-          <span className="text-[9px] text-surface-600">{expanded ? "▲" : "▼"}</span>
+          {expanded ? <ChevronUp className="h-4 w-4 text-surface-600" /> : <ChevronDown className="h-4 w-4 text-surface-600" />}
         </div>
       </button>
       {expanded && (
@@ -65,11 +66,20 @@ function CategoryRow({ cat }: { cat: CostCategory }) {
   );
 }
 
-function ChartCard({ projections }: { projections: CostReport["scalingProjections"] }) {
-  const chartData = projections.map((p) => ({
+const CHART_GRID = { strokeDasharray: "3 3", stroke: "#27272a" };
+const CHART_TICK = { fontSize: 9, fill: "#71717a" };
+const CHART_TOOLTIP = { background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 11 };
+const CHART_TOOLTIP_LABEL = { color: "#e4e4e7" };
+const CHART_DOT = { fill: "#22c55e", r: 3 };
+
+const ChartCard = memo(function ChartCard({ projections }: { projections: CostReport["scalingProjections"] }) {
+  const chartData = useMemo(() => projections.map((p) => ({
     name: p.userTier.replace(/ users.*$/, ""),
     monthlyCost: Math.round(p.totalMonthlyCost * 100) / 100,
-  }));
+  })), [projections]);
+
+  const tickFormatter = useCallback((v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`, []);
+  const tooltipFormatter = useCallback((value: number) => [formatCurrency(Number(value)), "Monthly Cost"], []);
 
   return (
     <div className="bg-surface-900 rounded border border-surface-800 p-3">
@@ -78,20 +88,16 @@ function ChartCard({ projections }: { projections: CostReport["scalingProjection
       </p>
       <ResponsiveContainer width="100%" height={160}>
         <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-          <XAxis dataKey="name" tick={{ fontSize: 9, fill: "#71717a" }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 9, fill: "#71717a" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
-          <Tooltip
-            contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 11 }}
-            labelStyle={{ color: "#e4e4e7" }}
-            formatter={(value) => [formatCurrency(Number(value)), "Monthly Cost"]}
-          />
-          <Line type="monotone" dataKey="monthlyCost" stroke="#22c55e" strokeWidth={2} dot={{ fill: "#22c55e", r: 3 }} />
+          <CartesianGrid {...CHART_GRID} />
+          <XAxis dataKey="name" tick={CHART_TICK} axisLine={false} tickLine={false} />
+          <YAxis tick={CHART_TICK} axisLine={false} tickLine={false} tickFormatter={tickFormatter} />
+          <Tooltip contentStyle={CHART_TOOLTIP} labelStyle={CHART_TOOLTIP_LABEL} formatter={tooltipFormatter as any} />
+          <Line type="monotone" dataKey="monthlyCost" stroke="#22c55e" strokeWidth={2} dot={CHART_DOT} />
         </LineChart>
       </ResponsiveContainer>
     </div>
   );
-}
+});
 
 function RecommCard({ rec, index }: { rec: CostReport["recommendations"][0]; index: number }) {
   return (
@@ -183,7 +189,7 @@ export default function FinOpsPanel() {
   return (
     <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col overflow-hidden">
       <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
-        <span className="text-sm text-green-400 font-bold">$</span>
+        <DollarSign className="h-4 w-4 text-green-400" />
         <span className="text-xs font-semibold text-surface-100">Cost Estimation</span>
         {hasResults && (
           <span className="ml-auto text-[9px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full font-mono">

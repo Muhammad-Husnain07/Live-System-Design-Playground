@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSimulationStore } from "../store/simulationStore";
 import { useChaosStore } from "../store/chaosStore";
@@ -6,6 +6,7 @@ import { useDeployStore } from "../store/deploymentStore";
 import { useSecurityStore } from "../store/securityStore";
 import { useProjectStore } from "../store/projectStore";
 import html2canvas from "html2canvas";
+import { Camera, ArrowLeft } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar,
@@ -16,6 +17,52 @@ const WS_BASE =
     .replace(/^http/, "ws")
     .replace(/\/api\/?$/, "");
 import api from "../utils/api";
+
+const CHART_GRID_STYLE = { strokeDasharray: "3 3", stroke: "#27272a" };
+const CHART_TICK_STYLE = { fontSize: 9, fill: "#71717a" };
+const CHART_TOOLTIP_STYLE = { background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 11 };
+const CHART_TOOLTIP_LABEL = { color: "#e4e4e7" };
+
+interface TrafficDatum { tick: number; rps: number; errors: number }
+
+const TrafficChart = memo(function TrafficChart({ data }: { data: TrafficDatum[] }) {
+  if (data.length <= 1) {
+    return <div className="h-[200px] flex items-center justify-center text-[10px] text-surface-600">Waiting for tick data…</div>;
+  }
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <LineChart data={data}>
+        <CartesianGrid {...CHART_GRID_STYLE} />
+        <XAxis dataKey="tick" tick={CHART_TICK_STYLE} axisLine={false} tickLine={false} />
+        <YAxis tick={CHART_TICK_STYLE} axisLine={false} tickLine={false} />
+        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={CHART_TOOLTIP_LABEL} />
+        <Line type="monotone" dataKey="rps" stroke="#3b82f6" strokeWidth={2} dot={false} name="RPS" />
+        <Line type="monotone" dataKey="errors" stroke="#ef4444" strokeWidth={1.5} dot={false} name="Errors %" strokeDasharray="4 3" />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+});
+
+interface ErrorBarDatum { name: string; errorRate: number; rps: number }
+
+const ErrorBarChart = memo(function ErrorBarChart({ data }: { data: ErrorBarDatum[] }) {
+  if (data.length === 0) {
+    return <div className="h-[200px] flex items-center justify-center text-[10px] text-surface-600">No errors</div>;
+  }
+  const tickFormatter = useCallback((v: number) => `${v}%`, []);
+  const tooltipFormatter = useCallback((value: number) => [`${Number(value)}%`, "Error Rate"], []);
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={data} layout="vertical">
+        <CartesianGrid {...CHART_GRID_STYLE} />
+        <XAxis type="number" tick={CHART_TICK_STYLE} axisLine={false} tickLine={false} domain={[0, 100]} tickFormatter={tickFormatter} />
+        <YAxis dataKey="name" type="category" tick={CHART_TICK_STYLE} axisLine={false} tickLine={false} width={80} />
+        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={CHART_TOOLTIP_LABEL} formatter={tooltipFormatter as any} />
+        <Bar dataKey="errorRate" fill="#ef4444" radius={[0, 3, 3, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+});
 
 function formatNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -84,7 +131,7 @@ export default function ObservabilityPage() {
         const wsUrl = `${WS_BASE}/ws/simulation?ticket=${ticket}&projectId=${projectId}`;
         ws = new WebSocket(wsUrl);
         ws.onopen = () => {
-          addEvent("simulation", "▶", "Dashboard connected", `Listening to run ${runId.slice(0, 8)}…`);
+          addEvent("simulation", "play", "Dashboard connected", `Listening to run ${runId.slice(0, 8)}…`);
         };
         ws.onmessage = (event) => {
           try {
@@ -114,42 +161,45 @@ export default function ObservabilityPage() {
     };
   }, [projectId, runId, addEvent]);
 
+  const prevRunning = useRef(isRunning);
+  const loggedViolations = useRef(new Set<string>());
+  const loggedDeployments = useRef(new Set<string>());
+
   useEffect(() => {
+    if (isRunning === prevRunning.current) return;
+    prevRunning.current = isRunning;
     if (isRunning) {
-      addEvent("simulation", "▶", "Simulation running", `${formatNum(elapsed)} elapsed`);
+      addEvent("simulation", "play", "Simulation running", "");
     } else {
-      addEvent("simulation", "■", "Simulation stopped", "");
+      addEvent("simulation", "stop", "Simulation stopped", "");
     }
-  }, [isRunning, elapsed, addEvent]);
+  }, [isRunning, addEvent]);
 
   useEffect(() => {
     if (chaosEvents.length > 0) {
       const latest = chaosEvents[chaosEvents.length - 1];
-      addEvent("chaos", "☠", `Chaos: ${latest.eventType}`, `node ${latest.nodeId.slice(0, 8)}, severity ${Math.round(latest.severity * 100)}%`);
+      addEvent("chaos", "skull", `Chaos: ${latest.eventType}`, `node ${latest.nodeId.slice(0, 8)}, severity ${Math.round(latest.severity * 100)}%`);
     }
   }, [chaosEvents, addEvent]);
 
   useEffect(() => {
-    if (violations.length > 0 && events.length > 0) {
-      const lastViolation = violations[violations.length - 1];
-      const alreadyLogged = events.some((e) => e.type === "security" && e.message.includes(lastViolation.type));
-      if (!alreadyLogged) {
-        addEvent("security", "🛡", `Violation: ${lastViolation.type.replace(/_/g, " ")}`, lastViolation.message);
-      }
-    }
-  }, [violations, addEvent, events.length]);
+    if (violations.length === 0) return;
+    const lastViolation = violations[violations.length - 1];
+    const key = `${lastViolation.sourceNodeId}:${lastViolation.type}`;
+    if (loggedViolations.current.has(key)) return;
+    loggedViolations.current.add(key);
+    addEvent("security", "shield", `Violation: ${lastViolation.type.replace(/_/g, " ")}`, lastViolation.message);
+  }, [violations, addEvent]);
 
   useEffect(() => {
     const depKeys = Object.keys(deployStates);
-    if (depKeys.length > 0 && events.length > 0) {
-      const latestDep = depKeys[depKeys.length - 1];
-      const state = deployStates[latestDep];
-      const alreadyLogged = events.some((e) => e.type === "deployment" && e.detail.includes(latestDep));
-      if (!alreadyLogged) {
-        addEvent("deployment", "🚀", `Deployment: ${state.activeGroup}`, `node ${latestDep.slice(0, 8)} → ${state.activeGroup}`);
-      }
-    }
-  }, [deployStates, addEvent, events.length]);
+    if (depKeys.length === 0) return;
+    const latestDep = depKeys[depKeys.length - 1];
+    if (loggedDeployments.current.has(latestDep)) return;
+    loggedDeployments.current.add(latestDep);
+    const state = deployStates[latestDep];
+    addEvent("deployment", "rocket", `Deployment: ${state.activeGroup}`, `node ${latestDep.slice(0, 8)} → ${state.activeGroup}`);
+  }, [deployStates, addEvent]);
 
   const trafficData = useMemo(() => {
     return ticks.slice(-60).map((t) => ({
@@ -208,7 +258,7 @@ export default function ObservabilityPage() {
             className="text-sm text-surface-400 hover:text-surface-200 transition-colors"
             title="Back to Project"
           >
-            &larr;
+            <ArrowLeft className="h-4 w-4" />
           </button>
           <h1 className="text-lg font-semibold text-surface-100">Observability</h1>
           <span className="text-xs text-surface-500 bg-surface-800 px-2 py-0.5 rounded">{currentProject?.name ?? projectId}</span>
@@ -231,7 +281,7 @@ export default function ObservabilityPage() {
             disabled={screenshotting}
             className="px-3 py-1.5 text-[11px] font-medium bg-surface-800 hover:bg-surface-700 text-surface-300 rounded transition-colors disabled:opacity-40 flex items-center gap-1.5"
           >
-            {screenshotting ? "Capturing…" : "📷 Screenshot Dashboard"}
+            {screenshotting ? "Capturing…" : <><Camera className="h-4 w-4" /> Screenshot Dashboard</>}
           </button>
         </div>
       </header>
@@ -248,37 +298,12 @@ export default function ObservabilityPage() {
           <div className="grid grid-cols-3 gap-6">
             <div className="col-span-2 bg-surface-900 rounded-lg border border-surface-800 p-4">
               <p className="text-[10px] uppercase tracking-wider text-surface-500 font-medium mb-3">Traffic Over Time (last 60 ticks)</p>
-              {trafficData.length > 1 ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={trafficData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                    <XAxis dataKey="tick" tick={{ fontSize: 9, fill: "#71717a" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 9, fill: "#71717a" }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 11 }} labelStyle={{ color: "#e4e4e7" }} />
-                    <Line type="monotone" dataKey="rps" stroke="#3b82f6" strokeWidth={2} dot={false} name="RPS" />
-                    <Line type="monotone" dataKey="errors" stroke="#ef4444" strokeWidth={1.5} dot={false} name="Errors %" strokeDasharray="4 3" />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[200px] flex items-center justify-center text-[10px] text-surface-600">Waiting for tick data…</div>
-              )}
+              <TrafficChart data={trafficData} />
             </div>
 
             <div className="bg-surface-900 rounded-lg border border-surface-800 p-4">
               <p className="text-[10px] uppercase tracking-wider text-surface-500 font-medium mb-3">Error Rate by Node</p>
-              {errorBarData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={errorBarData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                    <XAxis type="number" tick={{ fontSize: 9, fill: "#71717a" }} axisLine={false} tickLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                    <YAxis dataKey="name" type="category" tick={{ fontSize: 9, fill: "#71717a" }} axisLine={false} tickLine={false} width={80} />
-                    <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 11 }} labelStyle={{ color: "#e4e4e7" }} formatter={(value) => [`${Number(value)}%`, "Error Rate"]} />
-                    <Bar dataKey="errorRate" fill="#ef4444" radius={[0, 3, 3, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[200px] flex items-center justify-center text-[10px] text-surface-600">No errors</div>
-              )}
+              <ErrorBarChart data={errorBarData} />
             </div>
           </div>
 

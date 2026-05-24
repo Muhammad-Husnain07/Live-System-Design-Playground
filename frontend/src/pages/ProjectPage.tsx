@@ -4,6 +4,7 @@ import ReactFlow, {
   Background,
   Controls,
   MiniMap,
+  Panel,
   type Node,
   type Edge,
   type OnNodesChange,
@@ -14,6 +15,7 @@ import ReactFlow, {
   ReactFlowProvider,
 } from "reactflow";
 import "reactflow/dist/style.css";
+import { Sword, Trophy, Frown } from "lucide-react";
 import { useProjectStore } from "../store/projectStore";
 import { useCanvasStore } from "../store/canvasStore";
 import { nodeTypes, edgeTypes, getReactFlowType } from "../components/canvas/nodeTypes";
@@ -149,7 +151,7 @@ function ChallengeTimerBar({ challenge, onSubmit, submitting }: { challenge: Non
     <div className={`h-10 shrink-0 flex items-center justify-between px-4 border-b ${isUrgent ? "bg-red-500/10 border-red-500/30" : "bg-surface-900 border-surface-800"}`}>
       <div className="flex items-center gap-3">
         <span className="text-[10px] text-surface-500 font-medium uppercase tracking-wider">
-          ⚔️ {challenge.title}
+          <Sword className="h-4 w-4" /> {challenge.title}
         </span>
       </div>
       <div className="flex items-center gap-3">
@@ -194,7 +196,7 @@ function ScoreReportModal({ report, onClose }: { report: { cost: number; reliabi
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-surface-900 border border-surface-700 rounded-xl p-6 w-80 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="text-center mb-4">
-          <span className="text-3xl">{report.passed ? "🎉" : "😞"}</span>
+          <span className="text-3xl">{report.passed ? <Trophy className="h-4 w-4" /> : <Frown className="h-4 w-4" />}</span>
           <h3 className={`text-lg font-bold mt-2 ${report.passed ? "text-green-400" : "text-red-400"}`}>
             {report.passed ? "Challenge Passed!" : "Challenge Failed"}
           </h3>
@@ -442,6 +444,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         id: `${nodeType}-${Date.now()}`,
         type: getReactFlowType(nodeType),
         position,
+        style: { width: 220, height: 120 },
         data: {
           nodeType,
           label: meta.label,
@@ -602,6 +605,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
             elevateNodesOnSelect
             nodeExtent={canvasExtent}
             translateExtent={canvasExtent}
+            snapToGrid
+            snapGrid={[16, 16]}
             deleteKeyCode={["Backspace", "Delete"]}
             onNodesDelete={(deleted) => {
               deleted.forEach((n) => removeNode(n.id));
@@ -616,13 +621,25 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
           >
             <VpcBoundaries nodes={nodes} />
             <Background color="#27272a" gap={20} />
-            <Controls className="bg-surface-900 border-surface-700 [&>button]:border-surface-700 [&>button]:bg-surface-800 [&>button]:hover:bg-surface-700" />
+            <Controls className="[&>button]:!bg-surface-800 [&>button]:!border-surface-700 [&>button]:!text-surface-400 hover:[&>button]:!bg-surface-700 [&>button]:!shadow-none !bg-transparent !border-0 !shadow-none !flex-col-reverse" />
             <MiniMap
-              className="border border-surface-700 rounded-lg"
+              className="!border !border-surface-700 !rounded-lg overflow-hidden"
               style={{ background: "#09090b" }}
-              nodeColor="#27272a"
-              maskColor="rgba(9,9,11,0.7)"
+              nodeColor={(n) => {
+                const nt = (n.data as any)?.nodeType;
+                const meta = nt ? (NODE_REGISTRY as any)[nt] : null;
+                return meta?.color ?? "#27272a";
+              }}
+              maskColor="rgba(9,9,11,0.85)"
+              nodeStrokeWidth={2}
             />
+            <Panel position="bottom-left">
+              <div className="flex items-center gap-2 text-[10px] text-surface-600 font-mono bg-surface-950/80 backdrop-blur-sm px-2.5 py-1 rounded border border-surface-800 pointer-events-auto">
+                <span>Nodes: {nodes.length}</span>
+                <span className="text-surface-700">|</span>
+                <span>Edges: {edges.length}</span>
+              </div>
+            </Panel>
           </ReactFlow>
           {collabConnected && remoteCursors.map((c) => (
             <div
