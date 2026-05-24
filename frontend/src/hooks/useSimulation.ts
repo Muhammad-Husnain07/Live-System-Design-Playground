@@ -186,7 +186,8 @@ export function useSimulation(projectId: string) {
       try {
         const cfg = { ...useSimulationStore.getState().config, ...overrides };
         const { nodes, edges } = useCanvasStore.getState();
-        await api.put(`/projects/${projectId}/canvas`, { canvas_data: { nodes, edges } });
+        const { data: saveData } = await api.put(`/projects/${projectId}/canvas`, { canvas_data: { nodes, edges } });
+        useCanvasStore.getState().markSaved(saveData.updated_at);
         const resp = await api.post("/simulations/start", {
           projectId,
           targetRPS: cfg.targetRPS,
@@ -220,6 +221,8 @@ export function useSimulation(projectId: string) {
     if (currentRunId) {
       try { await api.post(`/simulations/${currentRunId}/stop`); } catch { /* ignore */ }
     }
+    if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    tickQueueRef.current = [];
     closeWs();
     if (elapsedTimer.current) { clearInterval(elapsedTimer.current); elapsedTimer.current = null; }
     useSimulationStore.getState().reset();

@@ -244,6 +244,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
         return { ...n, data: { ...restData, config: restConfig } };
       }),
       isSimulationRunning: false,
+      isDirty: true,
     });
   },
 }));
