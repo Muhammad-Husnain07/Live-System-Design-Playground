@@ -5575,3 +5575,94 @@ Estimated storage per node type (e.g., 100GB/DB instance, 500GB/CDN, 50GB/AppSer
 | F3 | Spot interruption badge in Live Metrics | ✅ | `NodeConfigPanel.tsx:437-439` orange "⚠ Spot instance interrupted" |
 | H1 | HANDOFF.md documents exact AWS pricing formulas | ✅ | Lines 5439-5492 with tables for all 4 pricing models |
 | H2 | Status line: "Phase R4 — Real-world FinOps engine complete" | ✅ | Line 5434 |
+
+## Phase R5 — Cloud-native Security Audit Engine — 2026-05-24
+
+**Status: Phase R5 — Cloud-native security audit complete**
+
+### Goal
+Expand the Security Audit engine to detect real-world cloud misconfigurations: IAM privilege escalation, SSRF vectors, public storage exposure, and missing authentication.
+
+### New Security Rules
+
+#### 1. Public Storage Exposure (CRITICAL)
+**Detection:** A storage-type node (S3, CDN, or database) is directly reachable by an ExternalClient without a Firewall, VPC boundary, or Auth node in between.
+
+**Rule:** `isStorageType(n.NodeType)` matches "S3", "CDN", or database types. If `hasUnprotectedPath(external, storage)` returns true, flag CRITICAL.
+
+**Remediation:** Use AWS S3 Block Public Access / Azure Storage firewall. Place the data store behind a VPC with a NAT gateway. Require signed URLs or IAM-based access (e.g., presigned S3 URLs, Azure SAS tokens).
+
+#### 2. SSRF Vectors (WARNING)
+**Detection:** A compute node (AppServer/Microservice/WebServer/WorkerService/ServerlessFunction) that:
+1. Accepts inbound connections from external clients
+2. Has outbound connections to internal databases, VPCs, or subnets
+3. Does NOT route through an API Gateway, Firewall, or LoadBalancer to those internal targets
+
+**Rule:** Checks `inboundFromExternal(nodeID)` AND `outboundNodeIDs(nodeID)` contains internal data types, AND no protective node on the outbound path.
+
+**Remediation:** Use AWS IMDSv2 (disable IMDSv1) / Azure Managed Identity instead of access keys. Add an API Gateway in front of the compute node to validate and sanitize all external inputs. Apply strict egress network policies (e.g., AWS VPC endpoints, Azure Service Endpoints).
+
+#### 3. IAM Privilege Escalation (CRITICAL)
+**Detection:** A node with `permissions` containing "Admin" or "*" is directly accessible by a lower-tier service (WorkerService, Microservice, or WebServer).
+
+**Rule:** `strings.Contains(permissions, "Admin")` OR `strings.Contains(permissions, "*")` — if an edge exists from a lower-tier service to this node, flag CRITICAL.
+
+**Remediation:** Apply least privilege. Use AWS IAM Roles for Service Accounts (IRSA) or Azure AD Pod Managed Identities. Grant only specific actions needed. Use AWS IAM Access Analyzer to identify overly permissive policies.
+
+#### 4. Missing Authentication (WARNING)
+**Detection:** An APIGateway or LoadBalancer routes to a compute node (Microservice, AppServer, WebServer) without `authRequired` set on the edge.
+
+**Rule:** `src.NodeType == "APIGateway" || src.NodeType == "LoadBalancer"` AND `tgt` is compute type AND `!e.AuthRequired`.
+
+**Remediation:** Enable auth on the edge or gateway. Use AWS Cognito / Azure AD B2C for API auth. For internal APIs, use API Gateway Lambda authorizers or JWT validation. Add AWS WAF or Azure Front Door WAF policies.
+
+### Files Modified
+
+| File | Lines | Change |
+|------|-------|--------|
+| `backend/services/security/auditor.go` | 316→470 | Added 4 new violation types (`public_storage`, `ssrf_vector`, `iam_privilege_escalation`, `missing_authentication`); added `Permissions string` to `Node`; added `AuthRequired bool` to `Edge`; added `Remediation string` to `SecurityViolation`; added `isStorageType()`, `isComputeType()`, `inboundFromExternal()`, `outboundNodeIDs()` helpers; added 4 new check methods; updated `flatConfig`/`flatRouting`/`ParseCanvasData` to parse new fields |
+| `frontend/src/types/canvas.ts` | 163→166 | Added `permissions: string` to `NodeConfig`; added `authRequired: boolean` to `EdgeRoutingConfig` |
+| `frontend/src/utils/nodeRegistry.ts` | 248→249 | Added default `permissions: ""` to base config |
+| `frontend/src/components/panels/SecurityPanel.tsx` | 168→200 | Added 4 new violation type icons (`Cloud`, `Bug`, `Key`, `UserX`); added collapsible remediation advice section per violation with AWS/Azure-specific guidance; imported `memo`; wrapped row in `div` to allow remediation toggle without interfering with highlight |
+
+### Frontend UI Changes
+
+| Section | Change |
+|---------|--------|
+| Violation Row | Remediation toggle — "Show remediation" / "Hide remediation" button with AWS/Azure-specific advice |
+| Violation Icons | 4 new icons for `public_storage` (Cloud), `ssrf_vector` (Bug), `iam_privilege_escalation` (Key), `missing_authentication` (UserX) |
+
+### Build & Test Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` (backend) | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+| `go test -count=1 ./...` (backend) | ✅ All packages PASS |
+| `go test -count=1 ./services/security/...` | ✅ All existing security tests still pass |
+| `tsc --noEmit` (frontend) | ✅ PASSED (0 errors) |
+| `npx vitest run --pool forks` (frontend) | ✅ 32/32 PASS (7 test files) |
+
+### Verification: PASSED — 2026-05-24
+
+| Check | Result |
+|-------|--------|
+| `auditor.go` — `ViolationPublicStorage` CRITICAL rule for storage nodes reachable from external without protective layer | ✅ |
+| `auditor.go` — `ViolationSSRF` WARNING rule: compute node with external inbound + internal outbound + no protective routing | ✅ |
+| `auditor.go` — `ViolationIAMPrivilegeEscalation` CRITICAL rule: lower-tier service → admin-permissioned node | ✅ |
+| `auditor.go` — `ViolationMissingAuth` WARNING rule: APIGateway/LB → compute without authRequired | ✅ |
+| `auditor.go` — `Permissions string` on `Node` struct | ✅ |
+| `auditor.go` — `AuthRequired bool` on `Edge` struct | ✅ |
+| `auditor.go` — `Remediation string` on `SecurityViolation` | ✅ |
+| `auditor.go` — `isStorageType()` helper: S3, CDN, databases | ✅ |
+| `auditor.go` — `isComputeType()` helper: AppServer, Microservice, WebServer, WorkerService, ServerlessFunction | ✅ |
+| `auditor.go` — `inboundFromExternal()`, `outboundNodeIDs()` BFS helpers | ✅ |
+| `auditor.go` — `flatConfig.Permissions` + `flatRouting.AuthRequired` parsing | ✅ |
+| `handlers/security.go` — Unchanged, uses existing `ParseCanvasData` + `Audit()` flow | ✅ |
+| `frontend canvas.ts` — `permissions` on `NodeConfig` | ✅ |
+| `frontend canvas.ts` — `authRequired` on `EdgeRoutingConfig` | ✅ |
+| `frontend nodeRegistry.ts` — Default `permissions: ""` | ✅ |
+| `frontend SecurityPanel.tsx` — All 4 new violation icons mapped | ✅ |
+| `frontend SecurityPanel.tsx` — Remediation toggle with AWS/Azure advice per violation | ✅ |
+| Tests: `TestCleanArchitectureZeroViolations` — Still passes with new rules (Firewall→Web now excluded from missing_auth check) | ✅ |
+| Tests: All existing 5 security tests + 27 finops + 8 simulation + 32 frontend still pass | ✅ |

@@ -87,6 +87,7 @@ export interface NodeConfig {
   replicationRole: string;
   replicationLagMs: number;
   computeTier: "on_demand" | "reserved" | "spot";
+  permissions: string;
 }
 
 export interface NodeMetrics {
@@ -126,6 +127,7 @@ export interface EdgeRoutingConfig {
   isSync: boolean;
   trafficPercent: number;
   requiresTLS: boolean;
+  authRequired: boolean;
   packetLoss: number;
   jitterMs: number;
 }

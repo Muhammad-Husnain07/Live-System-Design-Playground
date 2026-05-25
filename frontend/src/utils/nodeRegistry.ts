@@ -20,6 +20,7 @@ const base = {
   replicationRole: "none",
   replicationLagMs: 0,
   computeTier: "on_demand",
+  permissions: "",
 };
 
 type Override = Partial<typeof base> & { instances: number; maxRPS: number; latencyMs: number };

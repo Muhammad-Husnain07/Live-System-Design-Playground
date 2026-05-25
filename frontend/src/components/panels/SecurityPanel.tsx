@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
-import { Unlock, Database, Globe, DoorOpen, Shield, Lock, type LucideIcon } from "lucide-react";
+import { useState, useCallback, useEffect, memo } from "react";
+import { Unlock, Database, Globe, DoorOpen, Shield, Lock, Cloud, Bug, Key, UserX, type LucideIcon } from "lucide-react";
 import { useSecurityStore, type SecurityViolation } from "../../store/securityStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
@@ -10,6 +10,10 @@ const VIOLATION_ICONS: Record<string, LucideIcon> = {
   public_database: Database,
   cross_vpc_unfirewalled: Globe,
   overly_permissive_inbound: DoorOpen,
+  public_storage: Cloud,
+  ssrf_vector: Bug,
+  iam_privilege_escalation: Key,
+  missing_authentication: UserX,
 };
 
 function ViolationRow({
@@ -21,6 +25,7 @@ function ViolationRow({
 }) {
   const nodes = useCanvasStore((s) => s.nodes);
   const edges = useCanvasStore((s) => s.edges);
+  const [showRemediation, setShowRemediation] = useState(false);
   const edgesList = edges.map((e) => ({ id: e.id, source: e.source, target: e.target }));
   const highlightViolation = useSecurityStore((s) => s.highlightViolation);
   const highlightedNodeIds = useSecurityStore((s) => s.highlightedNodeIds);
@@ -32,28 +37,43 @@ function ViolationRow({
   const ViolationIcon = VIOLATION_ICONS[violation.type] ?? Lock;
 
   return (
-    <button
-      onClick={() => {
-        highlightViolation(violation, edgesList);
-        onClick();
-      }}
-      className={`w-full text-left bg-surface-900 border rounded-lg p-2.5 transition-all hover:bg-surface-800 ${
+    <div
+      className={`bg-surface-900 border rounded-lg p-2.5 transition-all ${
         isActive ? "border-red-500/50 ring-1 ring-red-500/20" : "border-surface-800"
       }`}
     >
-      <div className="flex items-center gap-2 mb-1">
-        <ViolationIcon className="h-4 w-4" />
-        <span className="text-[10px] font-medium text-surface-200 truncate flex-1">
-          {violation.type.replace(/_/g, " ")}
-        </span>
-      </div>
-      <p className="text-[9px] text-surface-400 leading-relaxed line-clamp-2">{violation.message}</p>
-      <div className="flex items-center gap-1.5 mt-1.5 text-[9px]">
-        <span className="text-surface-500 truncate max-w-[80px]">{sourceLabel}</span>
-        <span className="text-surface-600">&rarr;</span>
-        <span className="text-surface-500 truncate max-w-[80px]">{targetLabel}</span>
-      </div>
-    </button>
+      <button
+        onClick={() => {
+          highlightViolation(violation, edgesList);
+          onClick();
+        }}
+        className="w-full text-left"
+      >
+        <div className="flex items-center gap-2 mb-1">
+          <ViolationIcon className="h-4 w-4" />
+          <span className="text-[10px] font-medium text-surface-200 truncate flex-1">
+            {violation.type.replace(/_/g, " ")}
+          </span>
+        </div>
+        <p className="text-[9px] text-surface-400 leading-relaxed line-clamp-2">{violation.message}</p>
+        <div className="flex items-center gap-1.5 mt-1.5 text-[9px]">
+          <span className="text-surface-500 truncate max-w-[80px]">{sourceLabel}</span>
+          <span className="text-surface-600">&rarr;</span>
+          <span className="text-surface-500 truncate max-w-[80px]">{targetLabel}</span>
+        </div>
+      </button>
+      {violation.remediation && (
+        <button
+          onClick={() => setShowRemediation((v) => !v)}
+          className="mt-2 w-full text-left text-[8px] px-2 py-1 rounded bg-blue-950/30 border border-blue-800/30 hover:bg-blue-900/30 transition-colors"
+        >
+          <span className="text-blue-400 font-medium">{showRemediation ? "Hide" : "Show"} remediation</span>
+          {showRemediation && (
+            <p className="text-blue-300/80 mt-1 leading-relaxed">{violation.remediation}</p>
+          )}
+        </button>
+      )}
+    </div>
   );
 }
 
