@@ -5666,3 +5666,258 @@ Expand the Security Audit engine to detect real-world cloud misconfigurations: I
 | `frontend SecurityPanel.tsx` — Remediation toggle with AWS/Azure advice per violation | ✅ |
 | Tests: `TestCleanArchitectureZeroViolations` — Still passes with new rules (Firewall→Web now excluded from missing_auth check) | ✅ |
 | Tests: All existing 5 security tests + 27 finops + 8 simulation + 32 frontend still pass | ✅ |
+
+### Re-Verification: PASSED — 2026-05-25
+
+| Check | Result |
+|-------|--------|
+| `auditor.go` — 4 new ViolationType constants (`public_storage`, `ssrf_vector`, `iam_privilege_escalation`, `missing_authentication`) | ✅ |
+| `auditor.go` — `Permissions string` on `Node`, `AuthRequired bool` on `Edge`, `Remediation string` on `SecurityViolation` | ✅ |
+| `auditor.go` — `isStorageType()` (S3, CDN, isDataType), `isComputeType()` (AppServer, Microservice, WebServer, WorkerService, ServerlessFunction) | ✅ |
+| `auditor.go` — `inboundFromExternal()`, `outboundNodeIDs()` BFS helpers | ✅ |
+| `auditor.go` — `checkPublicStorageExposure()` CRITICAL rule | ✅ |
+| `auditor.go` — `checkSSRFVectors()` WARNING rule | ✅ |
+| `auditor.go` — `checkIAMPrivilegeEscalation()` CRITICAL rule | ✅ |
+| `auditor.go` — `checkMissingAuthentication()` WARNING rule (Firewall→Web excluded) | ✅ |
+| `auditor.go` — `flatConfig.Permissions` + `flatRouting.AuthRequired` + `ParseCanvasData` mapping | ✅ |
+| `frontend canvas.ts` — `permissions` on `NodeConfig`, `authRequired` on `EdgeRoutingConfig` | ✅ |
+| `frontend nodeRegistry.ts` — Default `permissions: ""` | ✅ |
+| `frontend SecurityPanel.tsx` — 4 new violation icons (Cloud, Bug, Key, UserX), collapsible remediation toggle with AWS/Azure advice | ✅ |
+| `go build ./...` — PASSED (0 errors) | ✅ |
+| `go vet ./...` — PASSED (0 errors) | ✅ |
+| `go test -count=1 ./...` — ALL packages PASS (10/10) | ✅ |
+| `tsc --noEmit` — PASSED (0 errors) | ✅ |
+| `npx vitest run --pool forks` — 32/32 PASS (7 test files) | ✅ |
+
+## Phase R6 — Distributed Tracing & APM Observability — 2026-05-25
+
+**Status: Phase R6 — Distributed tracing & APM observability complete**
+
+### Goal
+Transform the observability dashboard to model real APM tools (Datadog, Jaeger) by implementing request tracing, span generation, RED metrics, and structured log tail.
+
+### Backend: Trace & Span Engine
+
+#### Trace/Span Data Model (`backend/simulation/tracing.go`)
+- **`Span`**: SpanID, TraceID, NodeID, NodeLabel, NodeType, EntryTime, ExitTime, DurationMs, Status (OK/ERROR), SpanType (CACHE_HIT, ASYNC_WAIT)
+- **`Trace`**: TraceID, Spans[], RootNodeID, RootNodeLabel, StartTime, EndTime, TotalDurationMs, Status, HasError
+- **`TraceCollector`**: Thread-safe ring buffer of last 50 traces with `Add()`, `Recent()`, `Len()`
+
+#### Trace Generation
+- `generateTraces(tickTime)` on the `Engine` runs after each `PropagateTick`
+- Sampling rate: ~1 trace per 100 requests (computed as `requestCount = totalRPS * tickDurationSec; traceCount = requestCount/100`)
+- Span path discovery: BFS from random entry node with `CurrentRPS > 0` through `EdgeOutMap`, recording all visited nodes
+- Span timing: each span's duration = node's `P99LatencyMs` (or base `LatencyMs`); spans are laid out sequentially, not overlapping
+- Span types: `CACHE_HIT` applied when `isCacheableNode` and random chance below `CacheHitRatio`; `ASYNC_WAIT` applied when `IsAsyncNodeType`
+- Status: `ERROR` when node `ErrorRate > 0.05` or `IsFailed`
+- `TraceCollector` initialized in `NewEngine` as part of `Engine` struct
+
+#### API Endpoint
+- `GET /api/simulations/:id/traces` — Returns `{ traces: Trace[] }` (last 50 traces from in-memory collector)
+- Route registered in `backend/main.go` line 100: `simGroup.Get("/:id/traces", sim.GetTraces)`
+- Handler in `backend/handlers/tracing.go`: retrieves engine from map or DB, returns `TraceCollector.Recent()`
+
+### Frontend: ObservabilityPage
+
+#### 1. RED Metrics per Service
+- Section displays a grid of per-service charts (up to 9 services)
+- Each chart (`RedChart`) shows 5 time-series lines:
+  - **Rate** (blue): `currentRPS`
+  - **Errors** (red): `errorCount`
+  - **Duration** (green/amber/purple): `p50 ≈ latencyMs * 1.2`, `p90 ≈ p99LatencyMs * 0.7`, `p99 ≈ p99LatencyMs`
+- Data window: last 120 ticks
+- `computeRedMetrics()` aggregates by node label from tick data
+
+#### 2. Trace Explorer Panel
+- **Trace Table**: Lists recent traces from API (polled every 2s via `GET /api/simulations/:id/traces`)
+  - Columns: Status dot, Trace ID (truncated), Service name, Duration, Status text, Span count
+  - Clicking a trace row selects/deselects it
+- **Waterfall Chart** (left panel shows table, right panel shows waterfall):
+  - Header shows trace ID, span count, total duration, error indicator
+  - Each span row shows: Service name + type, duration (ms), horizontal bar proportional to `durationMs / maxDuration`
+  - Bar colors: blue (normal), red (ERROR), green (CACHE_HIT), amber (ASYNC_WAIT)
+  - Alternating row backgrounds for readability
+
+#### 3. Structured Log Generator
+- `generateLogEntry()` produces fake structured logs from tick data:
+  - `{ "timestamp": "...", "service": "AppServer-1", "level": "ERROR", "message": "Connection pool exhausted", "traceId": "..." }`
+- 8 service types with 5 realistic messages each (e.g., "Connection pool exhausted", "gRPC call failed with code UNAVAILABLE", "Deadlock detected")
+- Message templates support `{n}`, `{key}`, `{id}`, `{svc}` placeholders randomized at generation time
+- Log levels: ~60% INFO, 20% WARN, 20% ERROR
+- Generator runs every 800ms during simulation, keeps last 200 entries
+- Auto-scroll toggle (default on) follows bottom of log tail
+- Columns: Level badge, Timestamp, Service name, Message, Trace ID (truncated)
+
+### Files Modified / Created
+
+| File | Lines | Change |
+|------|-------|--------|
+| `backend/simulation/tracing.go` | 165 (new) | Trace/Span structs, `TraceCollector`, `NewTraceFromNodes()`, `Engine.generateTraces()` |
+| `backend/simulation/engine.go` | 3 | Added `TraceCollector *TraceCollector` field to `Engine`; init in `NewEngine`; call `generateTraces()` in `RunTick` |
+| `backend/handlers/tracing.go` | 28 (new) | `GetTraces` handler for `GET /api/simulations/:id/traces` |
+| `backend/main.go` | 1 | Route registration: `simGroup.Get("/:id/traces", sim.GetTraces)` |
+| `frontend/src/pages/ObservabilityPage.tsx` | 479 (rewrite) | RED metrics per service, trace explorer with waterfall chart, structured log tail |
+
+### Build & Test Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` (backend) | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+| `go test -count=1 ./...` (backend) | ✅ All packages PASS (10/10) |
+| `tsc --noEmit` (frontend) | ✅ PASSED (0 errors) |
+| `npx vitest run --pool forks` (frontend) | ✅ 32/32 PASS (7 test files) |
+
+### Verification: PASSED — 2026-05-25
+
+| Check | Result |
+|-------|--------|
+| `tracing.go` — `Span` struct with SpanID, TraceID, NodeID, EntryTime, ExitTime, DurationMs, Status, SpanType | ✅ |
+| `tracing.go` — `Trace` struct with TraceID, Spans, RootNodeID, RootNodeLabel, StartTime, EndTime, TotalDurationMs, Status, HasError | ✅ |
+| `tracing.go` — `TraceCollector` with thread-safe `Add()`/`Recent()` and max 50 cap | ✅ |
+| `tracing.go` — `NewTraceFromNodes()` constructs trace from visited node path with timing | ✅ |
+| `tracing.go` — `Engine.generateTraces()` samples ~1/100 requests, BFS walks entry→downstream | ✅ |
+| `tracing.go` — `CACHE_HIT` mark when `isCacheableNode` + `rand < CacheHitRatio` | ✅ |
+| `tracing.go` — `ASYNC_WAIT` mark when `IsAsyncNodeType` | ✅ |
+| `engine.go` — `TraceCollector *TraceCollector` field on Engine | ✅ |
+| `engine.go` — `generateTraces()` called after `SnapshotTick` in `RunTick` | ✅ |
+| `engine.go` — `NewTraceCollector(50)` init in `NewEngine` | ✅ |
+| `handlers/tracing.go` — `GetTraces` returns `engine.TraceCollector.Recent()` | ✅ |
+| `main.go` — Route `GET /:id/traces` on simGroup | ✅ |
+| `ObservabilityPage.tsx` — RED Metrics per-service grid with Rate/Errors/p50/p90/p99 lines | ✅ |
+| `ObservabilityPage.tsx` — Trace Explorer table (trace ID, latency, status) with click-to-select | ✅ |
+| `ObservabilityPage.tsx` — Waterfall chart showing spans, bar colors, error highlight in red | ✅ |
+| `ObservabilityPage.tsx` — Structured log generator (8 service types, realistic messages, 800ms interval) | ✅ |
+| `ObservabilityPage.tsx` — Log tail with auto-scroll, level/timestamp/service/message/traceId columns | ✅ |
+| `ObservabilityPage.tsx` — Polls `GET /api/simulations/:id/traces` every 2s during simulation | ✅ |
+
+### Re-Verification: PASSED — 2026-05-25
+
+| Check | Result |
+|-------|--------|
+| `tracing.go` — `Span` struct with SpanID, TraceID, NodeID, EntryTime, ExitTime, Status (OK/ERROR), SpanType | ✅ |
+| `tracing.go` — `Trace` struct with TraceID, Spans[], RootNodeID, RootNodeLabel, StartTime, EndTime, TotalDurationMs, HasError | ✅ |
+| `tracing.go` — `TraceCollector` with thread-safe `Add()`/`Recent()`, max 50 | ✅ |
+| `tracing.go` — CACHE_HIT mark when `isCacheableNode` + `rand < CacheHitRatio` | ✅ |
+| `tracing.go` — ASYNC_WAIT mark when `IsAsyncNodeType` | ✅ |
+| `tracing.go` — `Engine.generateTraces()` samples ~1 trace per 100 requests, BFS walk from entry nodes | ✅ |
+| `engine.go` — `TraceCollector *TraceCollector` field on Engine, init `NewTraceCollector(50)`, called after `SnapshotTick` | ✅ |
+| `handlers/tracing.go` — `GetTraces` returns `engine.TraceCollector.Recent()` | ✅ |
+| `main.go` — Route `simGroup.Get("/:id/traces", sim.GetTraces)` | ✅ |
+| `ObservabilityPage.tsx` — RED Metrics per-service grid (Rate: currentRPS, Errors: errorCount, Duration: p50/p90/p99 lines) | ✅ |
+| `ObservabilityPage.tsx` — Trace Explorer table (Trace ID, Service, Duration, Status, Span count) with click selection | ✅ |
+| `ObservabilityPage.tsx` — Waterfall chart: exact node path, time per span, ERROR in red, CACHE_HIT green, ASYNC_WAIT amber | ✅ |
+| `ObservabilityPage.tsx` — Structured log generator: 8 service types, realistic messages, `{timestamp, service, level, message, traceId}` | ✅ |
+| `ObservabilityPage.tsx` — Live log tail panel with auto-scroll toggle, polling traces every 2s | ✅ |
+| `go build ./...` — PASSED (0 errors) | ✅ |
+| `go vet ./...` — PASSED (0 errors) | ✅ |
+| `go test -count=1 ./...` — ALL packages PASS (10/10) | ✅ |
+| `tsc --noEmit` — PASSED (0 errors) | ✅ |
+| `npx vitest run --pool forks` — 32/32 PASS (7 test files) | ✅ |
+
+## Phase R7 — Auto-Scaling & Queue Physics — 2026-05-25
+
+**Status: Phase R7 — Auto-scaling and queue physics complete**
+
+### Goal
+Implement realistic CPU-threshold auto-scaling with instance boot time delay, and the Killer Queue (Little's Law M/M/1) phenomenon where latency grows infinitely under queue saturation.
+
+### Auto-Scaling Logic (`backend/simulation/autoscaling.go`)
+
+#### CPU-Threshold Scaling
+- **Scale Up**: Triggered when `CPUPercent > TargetCPUPercent + 10` (e.g., CPU > 80% when target is 70%) AND instances < MaxInstances AND cooldown expired. Increments instances by 1.
+- **Scale Down**: Triggered when `CPUPercent < TargetCPUPercent - 20` (e.g., CPU < 50%) AND instances > MinInstances AND cooldown expired. Decrements instances by 1.
+- **Cooldown**: Computed from `CooldownSeconds` (default 60s → 600 ticks) or `CooldownTicks`. Prevents thrashing between scale events.
+
+#### Instance Boot Time
+- On scale-up, `BootTicksRemaining` is set to 300 ticks (30 seconds at 100ms tick rate).
+- During boot, the new instance does NOT contribute to `MaxRPS * Instances` capacity.
+- `Instances` is held at the old count (`DesiredInstances - 1`) until boot completes.
+- When `BootTicksRemaining` reaches 0, `Instances` is set to `DesiredInstances`.
+- This models real-world EC2/Azure VM provisioning latency.
+
+#### Runtime Fields Added
+| Field | Type | Purpose |
+|-------|------|---------|
+| `BootTicksRemaining` | `int` | Countdown ticks before new instance contributes to capacity |
+| `LastScaleDir` | `string` | "up" or "down" from last scale event |
+| `CooldownSeconds` | `int` | Cooldown in seconds (alternative to CooldownTicks) |
+
+### Killer Queue / Little's Law (`backend/simulation/propagator.go`)
+
+#### M/M/1 Queue Model
+The processing section for non-async nodes was replaced with a proper queue model:
+
+```
+if effectiveRPS > capacity:
+    overflow = effectiveRPS - capacity
+    QueueDepth += overflow * tickDurationSec
+    CurrentRPS = capacity
+    IsBottleneck = true
+elif QueueDepth > 0:
+    drainCapacity = capacity - effectiveRPS
+    drain = min(QueueDepth, drainCapacity * tickDurationSec)
+    QueueDepth -= drain
+    CurrentRPS = effectiveRPS + drain
+else:
+    CurrentRPS = effectiveRPS
+```
+
+#### Little's Law Application
+- **Average Queue Time** = `QueueDepth / (MaxRPS * Instances)` × 1000ms
+- Added to `P99LatencyMs` (capped at 10,000ms)
+- **Memory inflation**: Rises proportionally with queue depth ratio
+- **Extreme saturation**: When `QueueDepth > capacity × 10`:
+  - Latency pinned at 10,000ms (node fully unresponsive)
+  - `ErrorRate` increases by 1% per tick (requests start timing out)
+
+### Frontend Changes
+
+| File | Change |
+|------|--------|
+| `ObservabilityPage.tsx` | Added auto-scale event detection: watches `scalingEvent` on each node's tick metrics; logs `⬆️ AppServer scaling up (instances → 3)` or `⬇️ WebServer scaling down (instances → 1)` when direction changes |
+
+### Files Modified
+
+| File | Lines | Change |
+|------|-------|--------|
+| `backend/simulation/models.go` | 2 | Added `CooldownSeconds int` to `AutoScaling`; added `BootTicksRemaining int`, `LastScaleDir string` to `Node` |
+| `backend/simulation/autoscaling.go` | 97 (rewrite) | CPU-threshold scaling (+10% up, -20% down), boot time timer (300 ticks), cooldown from `CooldownSeconds`, scale event tracking |
+| `backend/simulation/propagator.go` | 44 | Replaced simple capacity overflow with full M/M/1 queue (Little's Law), queue depth accumulation, drain, latency explosion, memory inflation |
+| `backend/simulation/engine.go` | 2 | Reset `BootTicksRemaining` and `LastScaleDir` in `restoreNodes` |
+| `frontend/src/pages/ObservabilityPage.tsx` | 18 | Auto-scale event detection from tick metrics, logged with ⬆️/⬇️ arrows |
+
+### Build & Test Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` (backend) | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+| `go test -count=1 ./...` (backend) | ✅ All packages PASS (10/10) |
+| `tsc --noEmit` (frontend) | ✅ PASSED (0 errors) |
+| `npx vitest run --pool forks` (frontend) | ✅ 32/32 PASS (7 test files) |
+
+### Re-Verification: PASSED — 2026-05-25
+
+| Check | Result |
+|-------|--------|
+| `models.go` — `AutoScaling.Enabled`, `MinInstances`, `MaxInstances`, `TargetCPUPercent` | ✅ |
+| `models.go` — `CooldownSeconds int` (default 60) on `AutoScaling` | ✅ |
+| `models.go` — `BootTicksRemaining int`, `LastScaleDir string` on `Node` | ✅ |
+| `autoscaling.go` — Scale up: CPU > TargetCPUPercent + 10% AND instances < MaxInstances AND cooldown expired; increments by 1 | ✅ |
+| `autoscaling.go` — Scale down: CPU < TargetCPUPercent - 20% AND instances > MinInstances AND cooldown expired; decrements by 1 | ✅ |
+| `autoscaling.go` — Cooldown via `CooldownSeconds` (60s default → 600 ticks) or `CooldownTicks`; prevents thrashing | ✅ |
+| `autoscaling.go` — Boot time 300 ticks (30s at 100ms/tick). New instance does NOT contribute to capacity during boot | ✅ |
+| `autoscaling.go` — `BootTicksRemaining` countdown; `Instances = DesiredInstances - 1` until boot completes | ✅ |
+| `propagator.go` — M/M/1 queue: `QueueDepth += overflow * tickDurationSec` when effectiveRPS > capacity | ✅ |
+| `propagator.go` — Queue drain when under capacity: `drain = min(QueueDepth, drainCapacity * tickDurationSec)` | ✅ |
+| `propagator.go` — Little's Law: `avgQueueTimeMs = (QueueDepth / capacity) * 1000` added to P99LatencyMs (capped 10,000ms) | ✅ |
+| `propagator.go` — Memory increases proportionally with queue depth | ✅ |
+| `propagator.go` — Extreme saturation (QueueDepth > capacity × 10): latency pinned at 10,000ms, ErrorRate +1%/tick | ✅ |
+| `engine.go` — `BootTicksRemaining` and `LastScaleDir` reset in `restoreNodes` | ✅ |
+| `ObservabilityPage.tsx` — Auto-scale event detection from tick metrics: `⬆️/⬇️ label scaling up/down (instances → N)` | ✅ |
+| `go build ./...` — PASSED (0 errors) | ✅ |
+| `go vet ./...` — PASSED (0 errors) | ✅ |
+| `go test -count=1 ./...` — ALL packages PASS (10/10) | ✅ |
+| `tsc --noEmit` — PASSED (0 errors) | ✅ |
+| `npx vitest run --pool forks` — 32/32 PASS (7 test files) | ✅ |

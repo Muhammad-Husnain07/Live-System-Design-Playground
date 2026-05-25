@@ -7,18 +7,19 @@ import (
 )
 
 type Engine struct {
-	mu            sync.RWMutex
-	config        *Config
-	ctx           *PropagationContext
-	gen           *LoadGenerator
-	tickNum       int
-	running       bool
-	ticks         []Tick
-	onTick        func(tick Tick, tickNum int)
-	chaos         *ChaosManager
-	deployment    *DeploymentManager
-	RunID         string
-	originalNodes []Node
+	mu             sync.RWMutex
+	config         *Config
+	ctx            *PropagationContext
+	gen            *LoadGenerator
+	tickNum        int
+	running        bool
+	ticks          []Tick
+	onTick         func(tick Tick, tickNum int)
+	chaos          *ChaosManager
+	deployment     *DeploymentManager
+	RunID          string
+	originalNodes  []Node
+	TraceCollector *TraceCollector
 }
 
 func NewEngine(cfg *Config) *Engine {
@@ -29,12 +30,13 @@ func NewEngine(cfg *Config) *Engine {
 	ctx := NewPropagationContext(cfg)
 	ctx.DepManager = dep
 	return &Engine{
-		config:        cfg,
-		ctx:           ctx,
-		gen:           NewLoadGenerator(cfg.Pattern, cfg.TargetRPS),
-		tickNum:       0,
-		originalNodes: orig,
-		deployment:    dep,
+		config:         cfg,
+		ctx:            ctx,
+		gen:            NewLoadGenerator(cfg.Pattern, cfg.TargetRPS),
+		tickNum:        0,
+		originalNodes:  orig,
+		deployment:     dep,
+		TraceCollector: NewTraceCollector(50),
 	}
 }
 
@@ -74,6 +76,8 @@ func (e *Engine) restoreNodes() {
 			n.StaleReadCount = 0
 			n.DataInconsistency = 0
 			n.SpotInterrupted = false
+			n.BootTicksRemaining = 0
+			n.LastScaleDir = ""
 		}
 	}
 	// Sync deployment state from manager into node configs
@@ -221,6 +225,8 @@ func (e *Engine) RunTick() {
 	}
 
 	tick := SnapshotTick(tickNum, cfg.Nodes, cfg.Edges, e.deployment)
+
+	e.generateTraces(tick.Timestamp)
 
 	e.mu.Lock()
 	e.ticks = append(e.ticks, tick)

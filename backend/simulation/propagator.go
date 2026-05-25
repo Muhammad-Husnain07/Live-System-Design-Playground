@@ -426,6 +426,7 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64) {
 		}
 
 		if IsAsyncNodeType(n.NodeType) {
+			// ── Async Queue (MessageQueue / EventBus / PubSub) ──────────
 			n.QueueDepth += effectiveRPS * ctx.TickDurationSec
 			serveCapacity := float64(n.Instances) * n.MaxRPS * ctx.TickDurationSec
 			serveRPS := math.Min(n.QueueDepth, serveCapacity)
@@ -435,13 +436,47 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64) {
 				n.QueueDepth = 0
 			}
 		} else {
+			// ── Killer Queue / Little's Law (M/M/1) ────────────────────
 			capacity := float64(n.Instances) * n.MaxRPS
+
 			if effectiveRPS > capacity && capacity > 0 {
-				n.IsBottleneck = true
-				n.OverflowRPS = effectiveRPS - capacity
+				// Queue grows: Incoming RPS exceeds service capacity
+				overflow := effectiveRPS - capacity
+				n.QueueDepth += overflow * ctx.TickDurationSec
 				n.CurrentRPS = capacity
+				n.IsBottleneck = true
+				n.OverflowRPS = overflow
+			} else if n.QueueDepth > 0 {
+				// Drain queue: serve queued requests as fast as possible
+				drainCapacity := capacity - effectiveRPS
+				if drainCapacity > 0 {
+					drain := math.Min(n.QueueDepth, drainCapacity*ctx.TickDurationSec)
+					n.QueueDepth -= drain
+					n.CurrentRPS = effectiveRPS + drain
+				} else {
+					n.CurrentRPS = effectiveRPS
+				}
+				if n.QueueDepth < 0 {
+					n.QueueDepth = 0
+				}
 			} else {
 				n.CurrentRPS = effectiveRPS
+			}
+
+			// Little's Law: Average Queue Time = Queue Depth / Service Rate
+			if n.QueueDepth > 0 && capacity > 0 {
+				avgQueueTimeMs := (n.QueueDepth / capacity) * 1000.0
+				n.P99LatencyMs += math.Min(avgQueueTimeMs, 10000.0)
+
+				// Memory increases steadily with queue depth
+				memFromQueue := math.Min(n.QueueDepth/capacity*100, 100)
+				n.MemoryPercent = math.Min(n.MemoryPercent+memFromQueue, 100)
+
+				// At extreme queue depths, the node becomes virtually unresponsive
+				if n.QueueDepth > capacity*10 {
+					n.P99LatencyMs = 10000.0
+					n.ErrorRate = math.Min(n.ErrorRate+0.01, 0.5)
+				}
 			}
 		}
 

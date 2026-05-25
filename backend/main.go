@@ -97,6 +97,7 @@ func main() {
 	simGroup.Post("/start", sim.Start)
 	simGroup.Post("/:id/stop", sim.Stop)
 	simGroup.Get("/history/:projectId", sim.History)
+	simGroup.Get("/:id/traces", sim.GetTraces)
 
 	chaos := handlers.NewChaosHandler(sim)
 	chaosGroup := api.Group("/chaos", middleware.JWTAuth(cfg.JWTSecret))

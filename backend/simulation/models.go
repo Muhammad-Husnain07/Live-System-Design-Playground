@@ -70,6 +70,7 @@ type AutoScaling struct {
 	TargetCPUPercent float64 `json:"targetCPUPercent"`
 	TargetMemPercent float64 `json:"targetMemPercent"`
 	CooldownTicks    int     `json:"cooldownTicks"`
+	CooldownSeconds  int     `json:"cooldownSeconds"`
 	ScaleUpFactor    float64 `json:"scaleUpFactor"`
 	ScaleDownFactor  float64 `json:"scaleDownFactor"`
 }
@@ -121,6 +122,8 @@ type Node struct {
 	IsSplitBrain        bool    `json:"-"`
 	DataInconsistency   float64 `json:"-"`
 	SpotInterrupted     bool    `json:"-"`
+	BootTicksRemaining  int     `json:"-"`
+	LastScaleDir        string  `json:"-"`
 }
 
 type Edge struct {
