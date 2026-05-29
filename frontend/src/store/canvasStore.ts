@@ -2,10 +2,21 @@ import { create } from "zustand";
 import type { Node, Edge } from "reactflow";
 import type { NodeConfig, NodeMetrics, CanvasState } from "../types/canvas";
 
+export type RightTab = "config" | "simulate" | "deploy" | "security" | "finops";
+
 const MAX_UNDO = 50;
+const LS_KEY = "activeRightTab";
 
 function clone(nodes: Node[], edges: Edge[]): CanvasState {
   return JSON.parse(JSON.stringify({ nodes, edges, viewport: { x: 0, y: 0, zoom: 1 } }));
+}
+
+function loadTab(): RightTab {
+  try {
+    const v = localStorage.getItem(LS_KEY);
+    if (v === "config" || v === "simulate" || v === "deploy" || v === "security" || v === "finops") return v;
+  } catch { /* ignore */ }
+  return "config";
 }
 
 interface CanvasStore {
@@ -21,6 +32,8 @@ interface CanvasStore {
   futureStates: CanvasState[];
   collabConnected: boolean;
   exportMode: boolean;
+  activeRightTab: RightTab;
+  lastAutoTab: RightTab | null;
 
   setNodes: (nodes: Node[]) => void;
   setEdges: (edges: Edge[]) => void;
@@ -45,6 +58,9 @@ interface CanvasStore {
   setSimulationSpeed: (speed: number) => void;
   setCollabConnected: (connected: boolean) => void;
   setExportMode: (mode: boolean) => void;
+  setActiveRightTab: (tab: RightTab) => void;
+  setActiveRightTabManual: (tab: RightTab) => void;
+  clearAutoTab: () => void;
   clearSimulationMetrics: () => void;
 }
 
@@ -61,6 +77,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   futureStates: [],
   collabConnected: false,
   exportMode: false,
+  activeRightTab: loadTab(),
+  lastAutoTab: null,
 
   setNodes: (nodes) => set({ nodes, isDirty: true }),
 
@@ -235,6 +253,18 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   setCollabConnected: (connected) => set({ collabConnected: connected }),
 
   setExportMode: (mode) => set({ exportMode: mode }),
+
+  setActiveRightTab: (tab) => {
+    localStorage.setItem(LS_KEY, tab);
+    set({ activeRightTab: tab, lastAutoTab: tab });
+  },
+
+  setActiveRightTabManual: (tab) => {
+    localStorage.setItem(LS_KEY, tab);
+    set({ activeRightTab: tab, lastAutoTab: null });
+  },
+
+  clearAutoTab: () => set({ lastAutoTab: null }),
 
   clearSimulationMetrics: () => {
     set({
