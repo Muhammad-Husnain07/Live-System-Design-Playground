@@ -24,24 +24,22 @@ export default function SimulationPanel({ onStart, onStop }: SimulationPanelProp
   };
 
   return (
-    <Box component="aside" sx={{ width: 320, flexShrink: 0, backgroundColor: "#18181b", borderLeft: "1px solid #3f3f46", overflowY: "auto" }}>
-      <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2.5 }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Typography variant="body2" sx={{ fontWeight: 500, color: "text.primary", fontSize: "0.875rem" }}>Simulation</Typography>
-          <ConnectionBadge status={connectionStatus} />
-        </Box>
-
-        {isRunning && latestTick ? (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <LiveStats tick={latestTick} elapsed={elapsed} formatTime={formatTime} />
-            <Button variant="contained" color="error" onClick={onStop} startIcon={<Square size={14} />} sx={{ fontSize: "0.75rem" }}>
-              Stop Simulation
-            </Button>
-          </Box>
-        ) : (
-          <ConfigForm config={config} setConfig={setConfig} onStart={onStart} />
-        )}
+    <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="body2" sx={{ fontWeight: 500, color: "text.primary", fontSize: "0.875rem" }}>Simulation</Typography>
+        <ConnectionBadge status={connectionStatus} />
       </Box>
+
+      {isRunning && latestTick ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <LiveStats tick={latestTick} elapsed={elapsed} formatTime={formatTime} />
+          <Button variant="contained" color="error" onClick={onStop} startIcon={<Square size={14} />} sx={{ fontSize: "0.75rem" }}>
+            Stop Simulation
+          </Button>
+        </Box>
+      ) : (
+        <ConfigForm config={config} setConfig={setConfig} onStart={onStart} />
+      )}
     </Box>
   );
 }

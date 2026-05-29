@@ -226,7 +226,7 @@ export default function ChaosPanel() {
   }, []);
 
   return (
-    <Box sx={{ width: 320, flexShrink: 0, bgcolor: "#09090b", borderLeft: 1, borderColor: "#27272a", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <Box sx={{ display: "flex", flexDirection: "column" }}>
       <Box sx={{ px: 1.5, py: 1.25, borderBottom: 1, borderColor: "#27272a", display: "flex", alignItems: "center", gap: 1 }}>
         <Skull size={16} />
         <Typography variant="caption" sx={{ fontWeight: 600, color: "#f4f4f5", fontSize: "0.75rem" }}>Chaos Engineering</Typography>
@@ -237,41 +237,39 @@ export default function ChaosPanel() {
         )}
       </Box>
 
-      <Box sx={{ flex: 1, overflowY: "auto" }}>
-        <Box sx={{ px: 1.5, py: 1 }}>
-          <Alert severity="warning" sx={{ mb: 1.5, py: 0.5, fontSize: "0.7rem", "& .MuiAlert-icon": { fontSize: "1rem", py: 0 } }}>
-            <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "0.7rem" }}>Danger Zone</Typography>
-          </Alert>
+      <Box sx={{ px: 1.5, py: 1 }}>
+        <Alert severity="warning" sx={{ mb: 1.5, py: 0.5, fontSize: "0.7rem", "& .MuiAlert-icon": { fontSize: "1rem", py: 0 } }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "0.7rem" }}>Danger Zone</Typography>
+        </Alert>
 
+        <Typography variant="caption" sx={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, color: "#52525b", display: "block", mb: 1 }}>
+          Inject Fault
+        </Typography>
+        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.75 }}>
+          {CHAOS_TYPES.map((def) => (
+            <ChaosCard key={def.type} definition={def} />
+          ))}
+        </Box>
+      </Box>
+
+      {activeEvents.length > 0 && (
+        <Box sx={{ px: 1.5, py: 1, borderTop: 1, borderColor: "#27272a" }}>
           <Typography variant="caption" sx={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, color: "#52525b", display: "block", mb: 1 }}>
-            Inject Fault
+            Active Events ({activeEvents.length})
           </Typography>
-          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.75 }}>
-            {CHAOS_TYPES.map((def) => (
-              <ChaosCard key={def.type} definition={def} />
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+            {activeEvents.map((ev) => (
+              <ActiveEventRow key={ev.id} event={ev} onRemove={(id) => removeActiveEvent(id)} />
             ))}
           </Box>
         </Box>
+      )}
 
-        {activeEvents.length > 0 && (
-          <Box sx={{ px: 1.5, py: 1, borderTop: 1, borderColor: "#27272a" }}>
-            <Typography variant="caption" sx={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, color: "#52525b", display: "block", mb: 1 }}>
-              Active Events ({activeEvents.length})
-            </Typography>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
-              {activeEvents.map((ev) => (
-                <ActiveEventRow key={ev.id} event={ev} onRemove={(id) => removeActiveEvent(id)} />
-              ))}
-            </Box>
-          </Box>
-        )}
-
-        {activeEvents.length === 0 && (
-          <Box sx={{ px: 1.5, py: 1 }}>
-            <EmptyState icon="!" title="No active chaos events" description="Select a chaos type above and inject a fault into a node." />
-          </Box>
-        )}
-      </Box>
+      {activeEvents.length === 0 && (
+        <Box sx={{ px: 1.5, py: 1 }}>
+          <EmptyState icon="!" title="No active chaos events" description="Select a chaos type above and inject a fault into a node." />
+        </Box>
+      )}
     </Box>
   );
 }

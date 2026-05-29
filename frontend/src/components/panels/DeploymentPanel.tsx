@@ -193,7 +193,7 @@ export default function DeploymentPanel() {
 
   if (!isRunning) {
     return (
-      <Box sx={{ width: 320, flexShrink: 0, bgcolor: '#09090b', borderLeft: '1px solid', borderColor: '#3f3f46', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <Box sx={{ px: '12px', py: '10px', borderBottom: '1px solid', borderColor: '#3f3f46', display: 'flex', alignItems: 'center', gap: 1 }}>
           <Rocket size={16} />
           <Typography component="span" sx={{ fontSize: '12px', fontWeight: 600, color: '#f4f4f5' }}>Deployment</Typography>
@@ -208,7 +208,7 @@ export default function DeploymentPanel() {
   const activeGroup = depState?.activeGroup ?? deployCfg?.activeGroup ?? "";
 
   return (
-    <Box sx={{ width: 320, flexShrink: 0, bgcolor: '#09090b', borderLeft: '1px solid', borderColor: '#3f3f46', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'auto', height: '100%' }}>
       <Box sx={{ px: '12px', py: '10px', borderBottom: '1px solid', borderColor: '#3f3f46', display: 'flex', alignItems: 'center', gap: 1 }}>
         <Rocket size={16} />
         <Typography component="span" sx={{ fontSize: '12px', fontWeight: 600, color: '#f4f4f5' }}>Deployment</Typography>
