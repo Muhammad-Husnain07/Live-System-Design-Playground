@@ -247,3 +247,5 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
     defaultConfig: external({ instances: 0, maxRPS: 3000, latencyMs: 100 }),
   },
 };
+
+export const nodeRegistry = NODE_REGISTRY;

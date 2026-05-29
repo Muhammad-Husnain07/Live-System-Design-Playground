@@ -19,7 +19,7 @@ interface IaCTab {
 }
 
 export default function ExportModal() {
-  const { isOpen, closeExport } = useExportStore();
+  const { showModal, closeExport } = useExportStore();
   const [tabIndex, setTabIndex] = useState(0);
   const [copied, setCopied] = useState(false);
   const [iacError, setIacError] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export default function ExportModal() {
   };
 
   return (
-    <Dialog open={isOpen} onClose={closeExport} maxWidth="md" fullWidth slotProps={{ paper: { sx: { bgcolor: "#18181b", border: 1, borderColor: "#27272a" } } }}>
+    <Dialog open={showModal} onClose={closeExport} maxWidth="md" fullWidth slotProps={{ paper: { sx: { bgcolor: "#18181b", border: 1, borderColor: "#27272a" } } }}>
       <DialogTitle sx={{ color: "text.primary", borderBottom: 1, borderColor: "#27272a", px: 2, py: 1.5 }}>
         <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "0.95rem" }}>Export Infrastructure as Code</Typography>
       </DialogTitle>
