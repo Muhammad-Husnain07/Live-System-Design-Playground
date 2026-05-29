@@ -21,12 +21,7 @@ import { useCanvasStore } from "../store/canvasStore";
 import { nodeTypes, edgeTypes, getReactFlowType } from "../components/canvas/nodeTypes";
 import { NODE_REGISTRY } from "../utils/nodeRegistry";
 import NodePanel from "../components/sidebar/NodePanel";
-import NodeConfigPanel from "../components/panels/NodeConfigPanel";
-import SimulationPanel from "../components/panels/SimulationPanel";
-import ChaosPanel from "../components/panels/ChaosPanel";
-import DeploymentPanel from "../components/panels/DeploymentPanel";
-import SecurityPanel from "../components/panels/SecurityPanel";
-import FinOpsPanel from "../components/panels/FinOpsPanel";
+import UnifiedRightPanel from "../components/panels/UnifiedRightPanel";
 import DrillPanel from "../components/panels/DrillPanel";
 import TopToolbar from "../components/toolbar/TopToolbar";
 import ToastContainer from "../components/ui/Toast";
@@ -41,6 +36,15 @@ import { useSimulationStore } from "../store/simulationStore";
 import { useAuthStore } from "../store/authStore";
 import { useExportStore } from "../store/exportStore";
 import ExportModal from "../components/panels/ExportModal";
+import BottomDrawer from "../components/panels/BottomDrawer";
+import CommandPalette from "../components/ui/CommandPalette";
+import {
+  SIMULATION_ACTIONS, PANEL_ACTIONS, HISTORY_ACTIONS, EXPORT_ACTIONS,
+  type CommandAction,
+} from "../utils/commandActions";
+import { CHAOS_TYPES } from "../store/chaosStore";
+import { useToastStore } from "../store/toastStore";
+import api from "../utils/api";
 import type { NodeType, NodeMetrics, SimulationNodeState } from "../types/canvas";
 import { Box, Typography, Button } from "@mui/material";
 
@@ -246,6 +250,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     setNodes, setEdges, addNode, removeNode, removeEdge,
     selectNode, selectEdge, markDirty, markSaved,
     pushUndoState, undo, redo, addEdge,
+    setActiveRightTab,
   } = store;
 
   const nodesRef = useRef(nodes);
@@ -271,6 +276,9 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const showFinOpsPanel = useFinOpsStore((s) => s.showPanel);
   const setShowFinOpsPanel = useFinOpsStore((s) => s.setShowPanel);
   const [showDrillPanel, setShowDrillPanel] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const reactFlowRef = useRef<any>(null);
+  useEffect(() => { reactFlowRef.current = reactFlowInstance; }, [reactFlowInstance]);
   const activeChallenge = useChallengeStore((s) => s.activeChallenge);
   const submitting = useChallengeStore((s) => s.submitting);
   const scoreReport = useChallengeStore((s) => s.scoreReport);
@@ -279,7 +287,11 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const wsStatus = useSimulationStore((s) => s.connectionStatus);
   const prevDirty = useRef(isDirty);
 
-  const { start: simStart, stop: simStop } = useSimulation(projectId);
+  const { start: simStartBase, stop: simStop } = useSimulation(projectId);
+  const simStart = useCallback(() => {
+    setActiveRightTab("simulate");
+    simStartBase();
+  }, [simStartBase, setActiveRightTab]);
 
   const {
     connected: collabConnected,
@@ -398,13 +410,19 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   );
 
   const onNodeClick = useCallback(
-    (_: any, node: Node) => selectNode(node.id),
-    [selectNode],
+    (_: any, node: Node) => {
+      selectNode(node.id);
+      setActiveRightTab("config");
+    },
+    [selectNode, setActiveRightTab],
   );
 
   const onEdgeClick = useCallback(
-    (_: any, edge: Edge) => selectEdge(edge.id),
-    [selectEdge],
+    (_: any, edge: Edge) => {
+      selectEdge(edge.id);
+      setActiveRightTab("config");
+    },
+    [selectEdge, setActiveRightTab],
   );
 
   const onPaneClick = useCallback(() => {
@@ -468,6 +486,229 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     event.dataTransfer.dropEffect = "move";
   }, []);
 
+  const paletteActions = useMemo<CommandAction[]>(() => {
+    const nodeActions: CommandAction[] = Object.entries(NODE_REGISTRY).map(([nodeType, meta]) => ({
+      id: `add-node-${nodeType}`,
+      label: `Add Node: ${meta.label}`,
+      searchTerms: [meta.category, nodeType, ...meta.label.split(" ")],
+      category: "Nodes",
+    }));
+    const chaosActions: CommandAction[] = CHAOS_TYPES.map((ct) => ({
+      id: `inject-chaos-${ct.type}`,
+      label: `Inject Chaos: ${ct.label}`,
+      searchTerms: [ct.type, ct.label, "chaos", ...ct.label.split(" ")],
+      category: "Chaos",
+    }));
+    return [...nodeActions, ...SIMULATION_ACTIONS, ...chaosActions, ...PANEL_ACTIONS, ...HISTORY_ACTIONS, ...EXPORT_ACTIONS];
+  }, []);
+
+  const handlePaletteExecute = useCallback(
+    (actionId: string) => {
+      const toast = useToastStore.getState().addToast;
+      const cs = useCanvasStore.getState;
+      const sim = useSimulationStore.getState;
+
+      if (actionId.startsWith("add-node-")) {
+        const nodeType = actionId.replace("add-node-", "") as NodeType;
+        const meta = NODE_REGISTRY[nodeType];
+        if (!meta) return;
+        const wrapper = reactFlowWrapper.current;
+        const rf = reactFlowRef.current;
+        let x = 300, y = 200;
+        if (rf && wrapper) {
+          const center = rf.screenToFlowPosition({ x: wrapper.clientWidth / 2, y: wrapper.clientHeight / 3 });
+          x = center.x;
+          y = center.y;
+        }
+        const newNode: Node = {
+          id: `${nodeType}-${Date.now()}`,
+          type: getReactFlowType(nodeType),
+          position: { x, y },
+          style: { width: 220, height: 120 },
+          data: {
+            nodeType,
+            label: meta.label,
+            config: meta.defaultConfig,
+            simulationState: DEFAULT_SIM,
+            metrics: DEFAULT_METRICS,
+          },
+        };
+        cs().pushUndoState();
+        cs().addNode(newNode);
+        scheduleAutoSave();
+        debouncedSync();
+        toast({ type: "success", title: `✅ Node added`, message: meta.label, duration: 2500 });
+        return;
+      }
+
+      if (actionId === "start-simulation") {
+        simStart();
+        toast({ type: "info", title: "▶️ Simulation starting…", duration: 2000 });
+        return;
+      }
+      if (actionId === "stop-simulation") {
+        simStop();
+        toast({ type: "info", title: "■ Simulation stopped", duration: 2000 });
+        return;
+      }
+
+      if (actionId.startsWith("inject-chaos-")) {
+        const eventType = actionId.replace("inject-chaos-", "");
+        const label = CHAOS_TYPES.find((c) => c.type === eventType)?.label ?? eventType;
+        const runId = sim().runId;
+        const selectedNodeId = cs().selectedNodeId;
+        if (!runId) {
+          toast({ type: "warning", title: "Start a simulation first", duration: 3000 });
+          return;
+        }
+        if (!selectedNodeId) {
+          toast({ type: "warning", title: "Select a node to target", duration: 3000 });
+          return;
+        }
+        api.post("/simulations/chaos/inject", {
+          simulationRunId: runId,
+          nodeId: selectedNodeId,
+          eventType,
+          severity: 0.5,
+          durationSeconds: 30,
+        }).then(() => {
+          toast({ type: "success", title: `⚡ ${label} injected`, duration: 2500 });
+        }).catch(() => {
+          toast({ type: "error", title: `Failed to inject ${label}`, duration: 3000 });
+        });
+        return;
+      }
+
+      if (actionId === "toggle-chaos") {
+        const v = !useChaosStore.getState().showChaosPanel;
+        useChaosStore.getState().setShowChaosPanel(v);
+        cs().setActiveRightTab("simulate");
+        toast({ type: "info", title: v ? "Chaos panel opened" : "Chaos panel closed", duration: 2000 });
+        return;
+      }
+      if (actionId === "toggle-deploy") {
+        const v = !useDeployStore.getState().showDeployPanel;
+        useDeployStore.getState().setShowDeployPanel(v);
+        cs().setActiveRightTab("deploy");
+        toast({ type: "info", title: v ? "Deploy panel opened" : "Deploy panel closed", duration: 2000 });
+        return;
+      }
+      if (actionId === "toggle-security") {
+        const v = !useSecurityStore.getState().showSecurityPanel;
+        useSecurityStore.getState().setShowSecurityPanel(v);
+        cs().setActiveRightTab("security");
+        toast({ type: "info", title: v ? "Security panel opened" : "Security panel closed", duration: 2000 });
+        return;
+      }
+      if (actionId === "toggle-finops") {
+        const v = !useFinOpsStore.getState().showPanel;
+        useFinOpsStore.getState().setShowPanel(v);
+        cs().setActiveRightTab("finops");
+        toast({ type: "info", title: v ? "FinOps panel opened" : "FinOps panel closed", duration: 2000 });
+        return;
+      }
+      if (actionId === "toggle-drill") {
+        setShowDrillPanel((v) => !v);
+        toast({ type: "info", title: `Drill panel ${!showDrillPanel ? "opened" : "closed"}`, duration: 2000 });
+        return;
+      }
+      if (actionId === "open-export") {
+        useExportStore.getState().openExport();
+        toast({ type: "info", title: "Export modal opened", duration: 2000 });
+        return;
+      }
+
+      if (actionId === "undo") {
+        cs().undo();
+        toast({ type: "info", title: "↩️ Undo", duration: 1500 });
+        return;
+      }
+      if (actionId === "redo") {
+        cs().redo();
+        toast({ type: "info", title: "↪️ Redo", duration: 1500 });
+        return;
+      }
+
+      if (actionId === "export-terraform") {
+        const es = useExportStore.getState();
+        es.setFormat("terraform");
+        es.openExport();
+        toast({ type: "info", title: "📄 Export Terraform", duration: 2000 });
+        return;
+      }
+      if (actionId === "export-kubernetes") {
+        const es = useExportStore.getState();
+        es.setFormat("kubernetes");
+        es.openExport();
+        toast({ type: "info", title: "📄 Export Kubernetes", duration: 2000 });
+        return;
+      }
+      if (actionId === "export-cloudformation") {
+        const es = useExportStore.getState();
+        es.setFormat("cloudformation");
+        es.openExport();
+        toast({ type: "info", title: "📄 Export CloudFormation", duration: 2000 });
+        return;
+      }
+    },
+    [simStart, simStop, scheduleAutoSave, debouncedSync, showDrillPanel],
+  );
+
+  const allTemplates = useMemo(() => [
+    {
+      id: "simple-web-app", label: "Simple Web App", icon: "🌐",
+      desc: "WebBrowser → LB → AppServer → PostgreSQL",
+      build: (ox: number, oy: number) => {
+        const n = (t: NodeType, l: string, x: number, y: number) => ({ id: `${t}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: getReactFlowType(t), position: { x: ox + x, y: oy + y }, style: { width: 220, height: 120 }, data: { nodeType: t, label: l, config: NODE_REGISTRY[t].defaultConfig, simulationState: DEFAULT_SIM, metrics: DEFAULT_METRICS } } as Node);
+        return { nodes: [n("WebBrowser","Web Browser",0,0), n("LoadBalancer","Load Balancer",280,0), n("AppServer","App Server",560,0), n("PostgreSQLDB","PostgreSQL",560,200)] };
+      },
+    },
+    {
+      id: "microservices", label: "Microservices", icon: "🧩",
+      desc: "APIGateway → 3 Microservices → Redis + PostgreSQL",
+      build: (ox: number, oy: number) => {
+        const n = (t: NodeType, l: string, x: number, y: number) => ({ id: `${t}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: getReactFlowType(t), position: { x: ox + x, y: oy + y }, style: { width: 220, height: 120 }, data: { nodeType: t, label: l, config: NODE_REGISTRY[t].defaultConfig, simulationState: DEFAULT_SIM, metrics: DEFAULT_METRICS } } as Node);
+        return { nodes: [n("APIGateway","API Gateway",0,60), n("Microservice","Users Service",280,0), n("Microservice","Orders Service",280,120), n("Microservice","Inventory Service",280,240), n("Redis","Redis Cache",560,60), n("PostgreSQLDB","PostgreSQL",560,200)] };
+      },
+    },
+    {
+      id: "event-driven", label: "Event-Driven", icon: "📨",
+      desc: "WebServer → MessageQueue → WorkerService → MongoDB",
+      build: (ox: number, oy: number) => {
+        const n = (t: NodeType, l: string, x: number, y: number) => ({ id: `${t}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: getReactFlowType(t), position: { x: ox + x, y: oy + y }, style: { width: 220, height: 120 }, data: { nodeType: t, label: l, config: NODE_REGISTRY[t].defaultConfig, simulationState: DEFAULT_SIM, metrics: DEFAULT_METRICS } } as Node);
+        return { nodes: [n("WebServer","Web Server",0,0), n("MessageQueue","Event Queue",280,0), n("WorkerService","Worker Service",560,0), n("MongoDB","MongoDB",560,200)] };
+      },
+    },
+    {
+      id: "blue-green", label: "Blue/Green Deploy", icon: "🔄",
+      desc: "LB → AppServer v1 (80%) + AppServer v2 (20%) → PostgreSQL",
+      build: (ox: number, oy: number) => {
+        const n = (t: NodeType, l: string, x: number, y: number, overrides?: Record<string, any>) => ({ id: `${t}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: getReactFlowType(t), position: { x: ox + x, y: oy + y }, style: { width: 220, height: 120 }, data: { nodeType: t, label: l, config: { ...NODE_REGISTRY[t].defaultConfig, ...overrides }, simulationState: DEFAULT_SIM, metrics: DEFAULT_METRICS } } as Node);
+        return { nodes: [n("LoadBalancer","Load Balancer",0,120), n("AppServer","App Server v1",280,0,{deployment:{strategy:"blue_green",activeGroup:"blue",canaryVersion:"v1"}}), n("AppServer","App Server v2",280,240,{deployment:{strategy:"blue_green",activeGroup:"green",canaryVersion:"v2"}}), n("PostgreSQLDB","PostgreSQL",560,120)] };
+      },
+    },
+  ], []);
+
+  const applyTemplate = useCallback((templateId: string) => {
+    const tpl = allTemplates.find(t => t.id === templateId);
+    if (!tpl) return;
+    const wrapper = reactFlowWrapper.current;
+    const rf = reactFlowRef.current;
+    let ox = 100, oy = 100;
+    if (rf && wrapper) {
+      const center = rf.screenToFlowPosition({ x: wrapper.clientWidth / 2, y: wrapper.clientHeight / 3 });
+      ox = center.x - 380;
+      oy = center.y - 100;
+    }
+    const { nodes: tNodes } = tpl.build(ox, oy);
+    const cs = useCanvasStore.getState();
+    cs.pushUndoState();
+    tNodes.forEach(n => cs.addNode(n));
+    scheduleAutoSave();
+    debouncedSync();
+    useToastStore.getState().addToast({ type: "success", title: `Template applied`, message: tpl.label, duration: 2500 });
+  }, [allTemplates, scheduleAutoSave, debouncedSync]);
+
   const onKeyDown = useCallback(
     (event: KeyboardEvent) => {
       const isCtrl = event.ctrlKey || event.metaKey;
@@ -479,6 +720,11 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
       if (isCtrl && event.key === "s") {
         event.preventDefault();
         doAutoSave();
+        return;
+      }
+      if (isCtrl && event.key === "k") {
+        event.preventDefault();
+        setPaletteOpen(true);
         return;
       }
       if (isCtrl && event.shiftKey && (event.key === "r" || event.key === "R")) {
@@ -548,15 +794,15 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         onStart={simStart}
         onStop={simStop}
         showSimPanel={showSimPanel}
-        onToggleSimPanel={() => setShowSimPanel((v) => !v)}
+        onToggleSimPanel={() => { setActiveRightTab("simulate"); setShowSimPanel((v) => !v); }}
         showChaosPanel={showChaosPanel}
-        onToggleChaosPanel={() => setShowChaosPanel(!showChaosPanel)}
+        onToggleChaosPanel={() => { setActiveRightTab("simulate"); setShowChaosPanel(!showChaosPanel); }}
         showDeployPanel={showDeployPanel}
-        onToggleDeployPanel={() => setShowDeployPanel(!showDeployPanel)}
+        onToggleDeployPanel={() => { setActiveRightTab("deploy"); setShowDeployPanel(!showDeployPanel); }}
         showSecurityPanel={showSecurityPanel}
-        onToggleSecurityPanel={() => setShowSecurityPanel(!showSecurityPanel)}
+        onToggleSecurityPanel={() => { setActiveRightTab("security"); setShowSecurityPanel(!showSecurityPanel); }}
         showFinOpsPanel={showFinOpsPanel}
-        onToggleFinOpsPanel={() => setShowFinOpsPanel(!showFinOpsPanel)}
+        onToggleFinOpsPanel={() => { setActiveRightTab("finops"); setShowFinOpsPanel(!showFinOpsPanel); }}
         showDrillPanel={showDrillPanel}
         onToggleDrillPanel={() => setShowDrillPanel(!showDrillPanel)}
         collabConnected={collabConnected}
@@ -591,7 +837,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
       )}
 
       <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <NodePanel />
+        <NodePanel onApplyTemplate={applyTemplate} />
         <Box ref={reactFlowWrapper} sx={{ flex: 1, position: "relative" }} onDrop={onDrop} onDragOver={onDragOver} onMouseMove={handleMouseMove}>
           <ReactFlow
             nodes={nodes}
@@ -687,33 +933,50 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
           ))}
           {nodes.length === 0 && !isLoading && (
             <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Box sx={{ textAlign: "center" }}>
-                <Box sx={{ width: 56, height: 56, mx: "auto", mb: 1.5, borderRadius: "50%", bgcolor: "#27272a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Typography component="span" sx={{ fontSize: "20px", lineHeight: 1, color: "#71717a" }}>+</Typography>
+              <Box sx={{ textAlign: "center", maxWidth: 420 }}>
+                <Box sx={{ width: 64, height: 64, mx: "auto", mb: 2, borderRadius: "50%", bgcolor: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Typography component="span" sx={{ fontSize: "24px", lineHeight: 1, color: "#22c55e" }}>&#9678;</Typography>
                 </Box>
-                <Typography sx={{ fontSize: "14px", mb: 0.5, color: "#71717a" }}>Empty canvas</Typography>
-                <Typography sx={{ fontSize: "11px", color: "#52525b" }}>Drag nodes from the left panel to start designing</Typography>
+                <Typography variant="h5" sx={{ fontSize: "18px", fontWeight: 600, color: "#f4f4f5", mb: 0.5 }}>
+                  Start Designing Your System
+                </Typography>
+                <Typography variant="body1" sx={{ fontSize: "12px", color: "#71717a", mb: 2.5, lineHeight: 1.5 }}>
+                  Drag components from the left, or start with a template
+                </Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1, pointerEvents: "auto" }}>
+                  {allTemplates.map((tpl) => (
+                    <Button
+                      key={tpl.id}
+                      onClick={() => applyTemplate(tpl.id)}
+                      variant="outlined"
+                      sx={{
+                        textTransform: "none", justifyContent: "flex-start", gap: 1.5, px: 2, py: 1,
+                        borderColor: "#3f3f46", color: "#d4d4d8", fontSize: "0.75rem", fontWeight: 500,
+                        "&:hover": { borderColor: "#22c55e", bgcolor: "rgba(34,197,94,0.08)", color: "#22c55e" },
+                      }}
+                    >
+                      <Typography component="span" sx={{ fontSize: "16px", lineHeight: 1 }}>{tpl.icon}</Typography>
+                      <Box sx={{ textAlign: "left" }}>
+                        <Typography sx={{ fontSize: "0.75rem", fontWeight: 500, color: "inherit" }}>{tpl.label}</Typography>
+                        <Typography sx={{ fontSize: "0.6rem", color: "#71717a", mt: 0.25 }}>{tpl.desc}</Typography>
+                      </Box>
+                    </Button>
+                  ))}
+                </Box>
               </Box>
             </Box>
           )}
         </Box>
-        {showSecurityPanel ? (
-          <SecurityPanel />
-        ) : showFinOpsPanel ? (
-          <FinOpsPanel />
-        ) : showDeployPanel ? (
-          <DeploymentPanel />
-        ) : showChaosPanel ? (
-          <ChaosPanel />
-        ) : showDrillPanel ? (
-          <DrillPanel />
-        ) : showSimPanel ? (
-          <SimulationPanel onStart={simStart} onStop={simStop} />
-        ) : (
-          <NodeConfigPanel />
-        )}
+        {showDrillPanel ? <DrillPanel /> : <UnifiedRightPanel onSimStart={simStart} onSimStop={simStop} />}
       </Box>
 
+      <BottomDrawer projectId={projectId} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        actions={paletteActions}
+        onExecute={handlePaletteExecute}
+      />
       <ToastContainer />
       <ExportModal />
     </Box>
