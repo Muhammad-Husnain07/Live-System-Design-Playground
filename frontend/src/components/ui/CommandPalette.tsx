@@ -1,0 +1,212 @@
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import {
+  Dialog, TextField, List, ListItemButton, ListItemText, ListItemIcon,
+  Box, Typography, Divider,
+} from "@mui/material";
+import {
+  Plus, Play, Square, Bomb, PanelRight, Undo2, Redo2, FileDown,
+  type LucideIcon,
+} from "lucide-react";
+import type { CommandAction, CommandCategory } from "../../utils/commandActions";
+
+const CATEGORY_ICONS: Record<CommandCategory, LucideIcon> = {
+  Nodes: Plus,
+  Simulation: Play,
+  Chaos: Bomb,
+  Panels: PanelRight,
+  History: Undo2,
+  Export: FileDown,
+};
+
+interface CommandPaletteProps {
+  open: boolean;
+  onClose: () => void;
+  actions: CommandAction[];
+  onExecute: (actionId: string) => void;
+}
+
+export default function CommandPalette({ open, onClose, actions, onExecute }: CommandPaletteProps) {
+  const [query, setQuery] = useState("");
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setSelectedIdx(0);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [open]);
+
+  const grouped = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    const filtered = !q
+      ? actions
+      : actions.filter(
+          (a) =>
+            a.label.toLowerCase().includes(q) ||
+            a.searchTerms.some((t) => t.toLowerCase().includes(q)) ||
+            a.category.toLowerCase().includes(q),
+        );
+    const map = new Map<CommandCategory, CommandAction[]>();
+    for (const a of filtered) {
+      if (!map.has(a.category)) map.set(a.category, []);
+      map.get(a.category)!.push(a);
+    }
+    const order: CommandCategory[] = NodesFirst(a => map.has(a));
+    return { flat: filtered, groups: order.flatMap((c) => map.get(c) ?? []) };
+  }, [actions, query]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIdx((i) => Math.min(i + 1, grouped.groups.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIdx((i) => Math.max(i - 1, 0));
+      } else if (e.key === "Enter" && grouped.groups[selectedIdx]) {
+        e.preventDefault();
+        onExecute(grouped.groups[selectedIdx].id);
+        onClose();
+      }
+    },
+    [grouped, selectedIdx, onExecute, onClose],
+  );
+
+  const handleClick = useCallback(
+    (action: CommandAction) => {
+      onExecute(action.id);
+      onClose();
+    },
+    [onExecute, onClose],
+  );
+
+  const uniqueCategories = useMemo(() => {
+    const seen = new Set<string>();
+    const cats: CommandCategory[] = [];
+    for (const a of grouped.groups) {
+      if (!seen.has(a.category)) { seen.add(a.category); cats.push(a.category); }
+    }
+    return cats;
+  }, [grouped.groups]);
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      slotProps={{
+        backdrop: { sx: { bgcolor: "rgba(0,0,0,0.5)" } },
+        paper: {
+          sx: {
+            bgcolor: "#18181b", border: "1px solid #3f3f46", borderRadius: "10px",
+            boxShadow: "0 16px 48px rgba(0,0,0,0.4)", overflow: "hidden", mt: "-15vh",
+          },
+        },
+      }}
+    >
+      <TextField
+        inputRef={inputRef}
+        placeholder="Type a command…"
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setSelectedIdx(0); }}
+        onKeyDown={handleKeyDown}
+        variant="standard"
+        fullWidth
+        sx={{
+          px: 2, py: 1.5,
+          "& .MuiInput-root:before, & .MuiInput-root:after": { display: "none" },
+          "& input": {
+            fontSize: "0.85rem", color: "#f4f4f5", fontFamily: '"Inter", sans-serif',
+            "&::placeholder": { color: "#52525b", opacity: 1 },
+          },
+        }}
+      />
+      <Divider sx={{ borderColor: "#27272a" }} />
+      <Box sx={{ maxHeight: "50vh", overflow: "auto" }} ref={listRef}>
+        {grouped.groups.length === 0 ? (
+          <Typography variant="caption" sx={{ display: "block", textAlign: "center", py: 4, color: "#52525b", fontSize: "0.7rem" }}>
+            No matching commands
+          </Typography>
+        ) : (
+          <List dense disablePadding>
+            {(() => {
+              let catIdx = -1;
+              return grouped.groups.map((action, i) => {
+                const isFirstInCat = i === 0 || grouped.groups[i - 1].category !== action.category;
+                if (isFirstInCat) catIdx++;
+                return (
+                  <Box key={action.id}>
+                    {isFirstInCat && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: "block", px: 2, pt: catIdx === 0 ? 1 : 1.5, pb: 0.25,
+                          fontSize: "0.55rem", fontWeight: 600, color: "#71717a",
+                          textTransform: "uppercase", letterSpacing: "0.08em",
+                        }}
+                      >
+                        {action.category}
+                      </Typography>
+                    )}
+                    <ListItemButton
+                      selected={i === selectedIdx}
+                      onClick={() => handleClick(action)}
+                      sx={{
+                        px: 2, py: 0.5, mx: 0.5, borderRadius: "4px",
+                        "&.Mui-selected": { bgcolor: "rgba(59,130,246,0.12)" },
+                        "&.Mui-selected:hover": { bgcolor: "rgba(59,130,246,0.16)" },
+                        "&:hover": { bgcolor: "rgba(255,255,255,0.03)" },
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 24, mr: 1, color: "#71717a", "& svg": { width: 14, height: 14 } }}>
+                        {(() => { const Icon = CATEGORY_ICONS[action.category]; return <Icon />; })()}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={action.label}
+                        slotProps={{
+                          primary: { sx: { fontSize: "0.75rem", fontWeight: 500, color: "#f4f4f5" } },
+                        }}
+                      />
+                    </ListItemButton>
+                  </Box>
+                );
+              });
+            })()}
+          </List>
+        )}
+      </Box>
+      <Divider sx={{ borderColor: "#27272a" }} />
+      <Box sx={{ display: "flex", gap: 1.5, px: 2, py: 0.75, justifyContent: "flex-end" }}>
+        <KeyHint label="↵" desc="select" />
+        <KeyHint label="↑↓" desc="navigate" />
+        <KeyHint label="Esc" desc="close" />
+      </Box>
+    </Dialog>
+  );
+}
+
+function KeyHint({ label, desc }: { label: string; desc: string }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+      <Typography
+        variant="caption"
+        sx={{
+          fontSize: "0.55rem", fontFamily: "monospace", color: "#a1a1aa",
+          bgcolor: "#27272a", px: 0.4, py: 0.15, borderRadius: "2px", lineHeight: 1.3,
+        }}
+      >
+        {label}
+      </Typography>
+      <Typography variant="caption" sx={{ fontSize: "0.55rem", color: "#52525b" }}>{desc}</Typography>
+    </Box>
+  );
+}
+
+function NodesFirst(fn: (c: CommandCategory) => boolean): CommandCategory[] {
+  const order: CommandCategory[] = ["Nodes", "Simulation", "Chaos", "Panels", "History", "Export"];
+  return order.filter(fn);
+}
