@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Undo2, Redo2, Square, Play, Users, ChevronDown, Camera, FileText, Building2, Skull, Rocket, Shield, Zap, BarChart3, DollarSign } from "lucide-react";
+import { ArrowLeft, Play, Square, Share2, Shield, DollarSign, Download, ChevronDown, Camera, FileText, Building2, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useProjectStore } from "../../store/projectStore";
 import { useAuthStore } from "../../store/authStore";
 import { useExportStore } from "../../store/exportStore";
 import ImportModal from "../panels/ImportModal";
-import { AppBar, Toolbar, IconButton, Tooltip, Menu, MenuItem, Typography, Box, Divider } from "@mui/material";
+import {
+  AppBar, Toolbar, IconButton, Tooltip, Menu, MenuItem, Typography, Box, Divider,
+  ToggleButtonGroup, ToggleButton, Avatar, AvatarGroup, InputBase, Badge, Paper,
+} from "@mui/material";
 
 interface TopToolbarProps {
   projectId: string;
@@ -29,27 +32,33 @@ interface TopToolbarProps {
   remoteUsers: { clientId: number; name: string; color: string }[];
 }
 
-function PanelBtn({ active, color, onClick, icon, label }: { active: boolean; color: string; onClick: () => void; icon: React.ReactNode; label: string }) {
+const pulseKeyframes = {
+  "@keyframes pulse-dot": {
+    "0%, 100%": { opacity: 1 },
+    "50%": { opacity: 0.3 },
+  },
+};
+
+function SaveDot({ saving, isDirty }: { saving: boolean; isDirty: boolean }) {
+  const color = saving ? "#eab308" : isDirty ? "#fb923c" : "#22c55e";
   return (
-    <Tooltip title={label} arrow>
-      <IconButton onClick={onClick} size="small" sx={{ color: active ? color : "#a1a1aa", bgcolor: active ? `${color}33` : "action.hover", "&:hover": { bgcolor: active ? `${color}44` : "action.selected" }, borderRadius: 1 }}>
-        {icon}
-      </IconButton>
-    </Tooltip>
+    <Box
+      sx={{
+        width: 6, height: 6, borderRadius: "50%", bgcolor: color, flexShrink: 0,
+        animation: saving || isDirty ? "pulse-dot 1.2s ease-in-out infinite" : "none",
+        ...pulseKeyframes,
+      }}
+    />
   );
 }
 
-export default function TopToolbar({ projectId, saving, onStart, onStop, showSimPanel, onToggleSimPanel, showChaosPanel, onToggleChaosPanel, showDeployPanel, onToggleDeployPanel, showSecurityPanel, onToggleSecurityPanel, showFinOpsPanel, onToggleFinOpsPanel, showDrillPanel, onToggleDrillPanel, collabConnected, remoteUsers }: TopToolbarProps) {
+export default function TopToolbar({ projectId, saving, onStart, onStop, collabConnected, remoteUsers }: TopToolbarProps) {
   const navigate = useNavigate();
   const { currentProject, updateProject } = useProjectStore();
   const { user, logout } = useAuthStore();
 
   const isDirty = useCanvasStore((s) => s.isDirty);
   const lastSaved = useCanvasStore((s) => s.lastSaved);
-  const pastStates = useCanvasStore((s) => s.pastStates);
-  const futureStates = useCanvasStore((s) => s.futureStates);
-  const undo = useCanvasStore((s) => s.undo);
-  const redo = useCanvasStore((s) => s.redo);
   const isSimRunning = useCanvasStore((s) => s.isSimulationRunning);
   const simSpeed = useCanvasStore((s) => s.simulationSpeed);
   const setSimSpeed = useCanvasStore((s) => s.setSimulationSpeed);
@@ -92,9 +101,10 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
   }, [isSimRunning]);
 
   const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60);
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
     const s = sec % 60;
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
   const [showImport, setShowImport] = useState(false);
@@ -105,23 +115,22 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
   /* ---- user dropdown (MUI Menu) ---- */
   const [userAnchorEl, setUserAnchorEl] = useState<HTMLElement | null>(null);
 
-  const saveLabel = saving ? "Saving..." : isDirty ? "Unsaved changes" : lastSaved ? "Saved" : "";
-  const saveColor = saving ? "#eab308" : isDirty ? "#fb923c" : "#22c55e";
+  const saveLabel = saving ? "Saving" : isDirty ? "Unsaved" : lastSaved ? "Saved" : "";
 
   return (
     <AppBar position="static" color="transparent" elevation={0} sx={{ bgcolor: "#09090b", borderBottom: 1, borderColor: "#27272a" }}>
-      <Toolbar variant="dense" sx={{ minHeight: 52, px: 2, gap: 1 }}>
-        {/* ── Left section ── */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+      <Toolbar variant="dense" sx={{ minHeight: 48, px: 2, gap: 0, display: "flex", alignItems: "center" }}>
+        {/* ═══ Zone 1: Navigation & Context (flex:1) ═══ */}
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
           <Tooltip title="Back to Dashboard" arrow>
             <IconButton size="small" onClick={() => navigate("/dashboard")} sx={{ color: "#a1a1aa" }}>
-              <Undo2 size={16} />
+              <ArrowLeft size={18} />
             </IconButton>
           </Tooltip>
 
           {editingName ? (
-            <input
-              ref={nameInputRef}
+            <InputBase
+              inputRef={nameInputRef}
               value={nameDraft}
               onChange={(e) => setNameDraft(e.target.value)}
               onBlur={commitName}
@@ -129,97 +138,104 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
                 if (e.key === "Enter") commitName();
                 if (e.key === "Escape") setEditingName(false);
               }}
-              style={{
-                background: "#27272a", color: "#f4f4f5", border: "1px solid #52525b",
-                borderRadius: 4, padding: "2px 6px", fontSize: "0.875rem", fontWeight: 500,
-                width: 192, outline: "none",
+              sx={{
+                color: "#f4f4f5", fontSize: "0.875rem", fontWeight: 700, lineHeight: 1.2,
+                bgcolor: "#27272a", borderRadius: "4px", px: 1, py: 0.25,
+                "& .MuiInputBase-input": { p: 0 },
+                width: 200,
               }}
             />
           ) : (
-            <Typography
-              variant="body2"
-              onClick={startEditing}
-              sx={{ fontWeight: 500, color: "text.primary", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200, fontSize: "0.875rem" }}
-              title="Click to rename"
-            >
-              {currentProject?.name || "Project"}
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0, cursor: "pointer" }} onClick={startEditing} title="Click to rename">
+              <Typography variant="body2" sx={{ fontWeight: 700, color: "#f4f4f5", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220, lineHeight: 1.2 }}>
+                {currentProject?.name || "Project"}
+              </Typography>
+              {currentProject?.role && (
+                <Typography variant="caption" sx={{ color: "#71717a", bgcolor: "#18181b", px: 0.75, py: 0.25, borderRadius: "4px", fontSize: "0.6rem", fontWeight: 500, flexShrink: 0 }}>
+                  {currentProject.role}
+                </Typography>
+              )}
+            </Box>
           )}
 
-          {currentProject?.role && (
-            <Typography variant="caption" sx={{ color: "text.disabled", bgcolor: "action.hover", px: 0.75, py: 0.25, borderRadius: "4px", fontSize: "0.65rem" }}>
-              {currentProject.role}
+          {/* Auto-save status */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexShrink: 0 }}>
+            <SaveDot saving={saving} isDirty={isDirty} />
+            <Typography variant="caption" sx={{ color: "#71717a", fontSize: "0.6rem" }}>
+              {saveLabel}
             </Typography>
-          )}
-
-          <Typography variant="caption" sx={{ color: saveColor, fontSize: "0.65rem", flexShrink: 0 }}>
-            {saveLabel}
-          </Typography>
+          </Box>
         </Box>
 
-        {/* ── Center section ── */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", flex: 1, gap: 0.5 }}>
-          <Tooltip title="Undo (Ctrl+Z)" arrow>
-            <span><IconButton size="small" onClick={undo} disabled={pastStates.length === 0} sx={{ color: "text.secondary" }}><Undo2 size={16} /></IconButton></span>
-          </Tooltip>
-          <Tooltip title="Redo (Ctrl+Shift+Z)" arrow>
-            <span><IconButton size="small" onClick={redo} disabled={futureStates.length === 0} sx={{ color: "text.secondary" }}><Redo2 size={16} /></IconButton></span>
-          </Tooltip>
+        {/* ═══ Zone 2: Simulation Status & Controls (flex:0) ═══ */}
+        <Box sx={{ flex: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Paper sx={{ px: 1.5, py: 0.5, borderRadius: "20px", display: "flex", alignItems: "center", gap: 1, bgcolor: "#27272a" }}>
+            <Tooltip title={isSimRunning ? "Stop Simulation" : "Start Simulation"} arrow>
+              <IconButton
+                size="small"
+                onClick={() => (isSimRunning ? onStop() : onStart())}
+                sx={{
+                  color: isSimRunning ? "#ef4444" : "#22c55e", p: 0.5,
+                  bgcolor: isSimRunning ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.15)",
+                  "&:hover": { bgcolor: isSimRunning ? "rgba(239,68,68,0.25)" : "rgba(34,197,94,0.25)" },
+                }}
+              >
+                {isSimRunning ? <Square size={14} /> : <Play size={14} />}
+              </IconButton>
+            </Tooltip>
 
-          <Divider orientation="vertical" flexItem sx={{ borderColor: "#3f3f46", mx: 0.5 }} />
-
-          <Tooltip title={isSimRunning ? "Stop Simulation" : "Start Simulation"} arrow>
-            <IconButton
+            <ToggleButtonGroup
               size="small"
-              onClick={() => (isSimRunning ? onStop() : onStart())}
-              sx={{ color: isSimRunning ? "#ef4444" : "#22c55e", bgcolor: isSimRunning ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.15)", "&:hover": { bgcolor: isSimRunning ? "rgba(239,68,68,0.25)" : "rgba(34,197,94,0.25)" }, borderRadius: 1 }}
+              value={simSpeed}
+              exclusive
+              onChange={(_, v) => v !== null && setSimSpeed(v)}
+              sx={{
+                "& .MuiToggleButton-root": {
+                  border: "none", borderRadius: "6px !important", px: 1, py: 0.25,
+                  fontSize: "0.6rem", fontWeight: 600, color: "#71717a", lineHeight: 1.5,
+                  bgcolor: "transparent",
+                  "&.Mui-selected": {
+                    bgcolor: "rgba(34,197,94,0.15)", color: "#22c55e",
+                    "&:hover": { bgcolor: "rgba(34,197,94,0.2)" },
+                  },
+                  "&:hover": { bgcolor: "#3f3f46" },
+                },
+              }}
             >
-              {isSimRunning ? <Square size={16} /> : <Play size={16} />}
-            </IconButton>
-          </Tooltip>
+              <ToggleButton value={1}>1×</ToggleButton>
+              <ToggleButton value={2}>2×</ToggleButton>
+              <ToggleButton value={5}>5×</ToggleButton>
+            </ToggleButtonGroup>
 
-          <Box
-            component="select"
-            value={simSpeed}
-            onChange={(e) => setSimSpeed(Number(e.target.value))}
-            sx={{
-              bgcolor: "action.hover", color: "text.primary", fontSize: "0.65rem",
-              px: 0.75, py: 0.5, borderRadius: "4px", border: 1, borderColor: "#3f3f46",
-              outline: "none", cursor: "pointer",
-            }}
-          >
-            <option value={1}>1x</option>
-            <option value={2}>2x</option>
-            <option value={5}>5x</option>
-          </Box>
-
-          {isSimRunning && (
-            <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.secondary", fontSize: "0.7rem" }}>
+            <Typography variant="caption" sx={{ fontFamily: '"ui-monospace","SFMono-Regular",monospace', color: "#a1a1aa", fontSize: "0.7rem", minWidth: 56, textAlign: "center" }}>
               {formatTime(elapsed)}
             </Typography>
-          )}
+          </Paper>
         </Box>
 
-        {/* ── Right section ── */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-          <Tooltip title="Manage collaborators" arrow>
-            <IconButton size="small" sx={{ color: "#a1a1aa" }}><Users size={16} /></IconButton>
-          </Tooltip>
-
+        {/* ═══ Zone 3: Global Actions & User (flex:1) ═══ */}
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.5 }}>
           <Tooltip title="Share project" arrow>
-            <IconButton size="small" sx={{ color: "#a1a1aa" }}>S</IconButton>
-          </Tooltip>
-
-          <Tooltip title="Import IaC file" arrow>
-            <IconButton size="small" onClick={() => setShowImport(true)} sx={{ color: "#a1a1aa" }}>
-              Imp
+            <IconButton size="small" sx={{ color: "#a1a1aa" }}>
+              <Share2 size={16} />
             </IconButton>
           </Tooltip>
 
-          {/* Export dropdown */}
+          <Tooltip title="Security Audit" arrow>
+            <IconButton size="small" sx={{ color: "#60a5fa" }}>
+              <Shield size={16} />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Cost Estimation" arrow>
+            <IconButton size="small" sx={{ color: "#22c55e" }}>
+              <DollarSign size={16} />
+            </IconButton>
+          </Tooltip>
+
           <Tooltip title="Export" arrow>
             <IconButton size="small" onClick={(e) => setExportAnchorEl(e.currentTarget)} sx={{ color: "#a1a1aa" }}>
-              Export <ChevronDown size={14} />
+              <Download size={16} />
             </IconButton>
           </Tooltip>
           <Menu anchorEl={exportAnchorEl} open={Boolean(exportAnchorEl)} onClose={() => setExportAnchorEl(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
@@ -229,26 +245,23 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
             <MenuItem onClick={() => { setExportAnchorEl(null); openExport(); }} dense sx={{ color: "success.main" }}><Building2 size={14} style={{ marginRight: 8 }} /> IaC Export</MenuItem>
           </Menu>
 
-          <PanelBtn active={showSimPanel} color="#22c55e" onClick={onToggleSimPanel} icon={<Zap size={14} />} label="Simulation Panel" />
-          <PanelBtn active={showChaosPanel} color="#ef4444" onClick={onToggleChaosPanel} icon={<Skull size={14} />} label="Chaos Engineering Panel" />
-          <PanelBtn active={showDeployPanel} color="#c084fc" onClick={onToggleDeployPanel} icon={<Rocket size={14} />} label="Deployment Panel" />
-          <PanelBtn active={showSecurityPanel} color="#60a5fa" onClick={onToggleSecurityPanel} icon={<Shield size={14} />} label="Security Audit Panel" />
-          <PanelBtn active={showDrillPanel} color="#fb923c" onClick={onToggleDrillPanel} icon={<Zap size={14} />} label="DR Drill Panel" />
-          <PanelBtn active={showFinOpsPanel} color="#22c55e" onClick={onToggleFinOpsPanel} icon={<DollarSign size={14} />} label="Cost Estimation" />
+          <Tooltip title="Import IaC" arrow>
+            <IconButton size="small" onClick={() => setShowImport(true)} sx={{ color: "#a1a1aa" }}>
+              <FileText size={16} />
+            </IconButton>
+          </Tooltip>
 
           {collabConnected && remoteUsers.length > 0 && (
-            <Box sx={{ display: "flex", ml: 0.5 }}>
+            <AvatarGroup max={4} sx={{ "& .MuiAvatar-root": { width: 22, height: 22, fontSize: "0.5rem", fontWeight: 700, border: "2px solid #09090b", ml: -0.5 } }}>
               {remoteUsers.map((u) => (
                 <Tooltip key={u.clientId} title={u.name} arrow>
-                  <Box sx={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", fontWeight: 700, border: 2, borderColor: "#09090b", bgcolor: u.color, color: "#fff", ml: -0.75 }}>
-                    {u.name.charAt(0).toUpperCase()}
-                  </Box>
+                  <Avatar sx={{ bgcolor: u.color, color: "#fff" }}>{u.name.charAt(0).toUpperCase()}</Avatar>
                 </Tooltip>
               ))}
-            </Box>
+            </AvatarGroup>
           )}
 
-          <Divider orientation="vertical" flexItem sx={{ borderColor: "#3f3f46", mx: 0.25 }} />
+          <Divider orientation="vertical" flexItem sx={{ borderColor: "#3f3f46", mx: 0.5 }} />
 
           <Tooltip title="Observability" arrow>
             <IconButton size="small" onClick={() => navigate(`/project/${projectId}/observe`)} sx={{ color: "#a1a1aa" }}>
@@ -257,16 +270,16 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
           </Tooltip>
 
           {/* User dropdown */}
-          <IconButton size="small" onClick={(e) => setUserAnchorEl(e.currentTarget)} sx={{ color: "#a1a1aa", display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Box sx={{ width: 18, height: 18, borderRadius: "50%", bgcolor: "rgba(34,197,94,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", fontWeight: 500, color: "#22c55e" }}>
+          <IconButton size="small" onClick={(e) => setUserAnchorEl(e.currentTarget)} sx={{ color: "#a1a1aa", display: "flex", alignItems: "center", gap: 0.5, px: 0.5 }}>
+            <Box sx={{ width: 20, height: 20, borderRadius: "50%", bgcolor: "rgba(34,197,94,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", fontWeight: 600, color: "#22c55e" }}>
               {user?.username?.charAt(0).toUpperCase() ?? "?"}
             </Box>
-            <Typography variant="caption" sx={{ display: { xs: "none", sm: "inline" }, color: "text.secondary", maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <Typography variant="caption" sx={{ color: "#a1a1aa", maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.7rem" }}>
               {user?.username ?? "User"}
             </Typography>
           </IconButton>
           <Menu anchorEl={userAnchorEl} open={Boolean(userAnchorEl)} onClose={() => setUserAnchorEl(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
-            <MenuItem disabled dense><Typography variant="caption" sx={{ color: "text.disabled" }}>{user?.email ?? ""}</Typography></MenuItem>
+            <MenuItem disabled dense><Typography variant="caption" sx={{ color: "#71717a" }}>{user?.email ?? ""}</Typography></MenuItem>
             <MenuItem onClick={() => { setUserAnchorEl(null); navigate("/settings"); }} dense>Settings</MenuItem>
             <MenuItem onClick={() => { setUserAnchorEl(null); logout(); navigate("/login"); }} dense sx={{ color: "error.main" }}>Sign Out</MenuItem>
           </Menu>

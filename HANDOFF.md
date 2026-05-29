@@ -5100,6 +5100,76 @@ All 6 Phase UI-1 tasks verified. Builds and tests clean.
 
 ---
 
+## Phase UI-2 — Command Center NavBar — 2026-05-29
+
+### Objective
+Rebuild the TopToolbar into a sleek, 3-zone Command Center NavBar that clearly separates navigation, simulation state, and global actions — inspired by VS Code / Figma top bars.
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/components/toolbar/TopToolbar.tsx` | Full rewrite: MUI `<AppBar>` with strict 3-zone flexbox layout — Zone 1 (flex:1) for back arrow, inline-editable project name, and auto-save status; Zone 2 (flex:0) for simulation controls in a `<Paper>` pill; Zone 3 (flex:1, end-aligned) for global action buttons, collaborator `<AvatarGroup>`, and user menu. |
+
+### Implementation Details
+
+#### 1. Zone 1 — Navigation & Context
+- **Back arrow**: `<ArrowLeft>` icon button navigates to `/dashboard`.
+- **Inline-editable project name**: `<Typography>` with `fontWeight: 700` bold white text. Clicking switches to an `<InputBase>` for editing. Enter/blur saves via `updateProject()`. Escape cancels.
+- **Role badge**: Small `<Typography>` chip showing `currentProject.role` (e.g. "owner", "editor").
+- **Auto-save status**: `<SaveDot>` component — a 6px circle that's green (saved), yellow (saving), or orange (unsaved). Pulsing `@keyframes pulse-dot` animation when saving or unsaved. Text label next to dot reads "Saved" / "Saving" / "Unsaved".
+
+#### 2. Zone 2 — Simulation Control Panel
+- **Physical control panel aesthetic**: Everything wrapped in a `<Paper sx={{ borderRadius: "20px", bgcolor: "#27272a" }}>` pill.
+- **Play/Stop button**: `<IconButton>` with green play triangle (stopped) or red square (running). Colored background fill for visual state (`rgba(34,197,94,0.15)` / `rgba(239,68,68,0.15)`).
+- **Speed selector**: `<ToggleButtonGroup size="small" exclusive>` with three values: 1×, 2×, 5×. Selected value shows green tint. All borders removed, individual buttons have `borderRadius: 6px`.
+- **Simulation time**: Monospaced `<Typography>` showing `HH:MM:SS` format (e.g. `00:04:32`). Always visible (defaults to `00:00:00` when not running). 60fps timer via `setInterval`.
+
+#### 3. Zone 3 — Global Actions & User
+- **Action buttons**: `<Tooltip>`-wrapped `<IconButton>`s for Share (`<Share2>`), Security Audit (`<Shield>` blue), Cost Estimation (`<DollarSign>` green), Export (`<Download>` with dropdown menu).
+- **Import button**: `<FileText>` icon opens the existing `ImportModal`.
+- **Collaborator avatars**: `<AvatarGroup max={4}>` with MUI `<Avatar>` for each remote user. Colored by the user's assigned cursor color. Stacked with negative margin via `ml: -0.5`.
+- **Observability link**: `<BarChart3>` icon navigates to `/project/:id/observe`.
+- **User dropdown**: User initial in green circle + username as button. `<Menu>` with email (disabled), Settings link, and red Sign Out option.
+
+### Key Decisions
+- **3-zone flexbox layout**: Zone 1 `flex: 1` (left-aligned), Zone 2 `flex: 0` (centered), Zone 3 `flex: 1` (right-aligned). This keeps simulation controls tightly grouped in the middle while nav and actions stretch to fill available space.
+- **`borderRadius: "20px"` pill for controls**: Creates a distinct "hardware control panel" visual that separates simulation state from navigation/actions.
+- **`ToggleButtonGroup` over native `<select>`**: Matches the IDE-like aesthetic, provides clear visual state for the active speed, and avoids mixing native form controls with MUI components.
+- **SaveDot with inline `@keyframes`**: Avoids adding CSS to `index.css`; the animation is scoped entirely within the component via MUI's `sx` prop keyframe syntax.
+- **Backward-compatible interface**: The `TopToolbarProps` interface retains all original properties (panel toggles, etc.) so `ProjectPage.tsx` requires no changes. Only the rendering is updated.
+
+### Status
+
+**Phase UI-2 complete — Command Center NavBar implemented**
+
+| Task | Status |
+|------|--------|
+| 3-zone flexbox layout (AppBar, flex:1/0/1) | ✅ |
+| Zone 1: Back arrow, inline-editable bold project name, role badge | ✅ |
+| Zone 1: Auto-save pulsing dot (green/yellow/orange) | ✅ |
+| Zone 2: Simulation control Paper pill with Play/Stop | ✅ |
+| Zone 2: ToggleButtonGroup speed selector (1×/2×/5×) | ✅ |
+| Zone 2: Monospaced HH:MM:SS elapsed time | ✅ |
+| Zone 3: Share, Security, FinOps, Export action buttons | ✅ |
+| Zone 3: Collaborator AvatarGroup (max 4) | ✅ |
+| Zone 3: User avatar with Settings/Sign Out dropdown | ✅ |
+| Build verification | ✅ |
+
+### Build Results (Phase UI-2)
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ 0 errors |
+| `npx vite build` | ✅ built in 2.34s (3884 modules) |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
+
+### Verification: PASSED — 2026-05-29
+
+All 10 Phase UI-2 tasks verified. No regressions.
+
+---
+
 ### API Endpoints (38 total)
 | Category | Endpoints | Status |
 |---|---|---|
