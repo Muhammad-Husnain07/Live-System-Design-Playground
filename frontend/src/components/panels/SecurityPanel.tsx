@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, memo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Unlock, Database, Globe, DoorOpen, Shield, Lock, Cloud, Bug, Key, UserX, type LucideIcon } from "lucide-react";
 import { useSecurityStore, type SecurityViolation } from "../../store/securityStore";
 import { useCanvasStore } from "../../store/canvasStore";

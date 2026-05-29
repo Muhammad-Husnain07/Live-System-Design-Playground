@@ -42,9 +42,7 @@ import { useAuthStore } from "../store/authStore";
 import { useExportStore } from "../store/exportStore";
 import ExportModal from "../components/panels/ExportModal";
 import type { NodeType, NodeMetrics, SimulationNodeState } from "../types/canvas";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
+import { Box, Typography, Button } from "@mui/material";
 
 const VPC_COLORS = [
   "rgba(59,130,246,0.08)", "rgba(16,185,129,0.08)", "rgba(245,158,11,0.08)",
@@ -104,6 +102,10 @@ const DEFAULT_SIM: SimulationNodeState = {
 const DEFAULT_METRICS: NodeMetrics = {
   currentRPS: 0, cpuPercent: 0, memoryPercent: 0, queueDepth: 0,
   errorCount: 0, p99LatencyMs: 0, canaryRPS: 0, errorRate: 0,
+  retryCount: 0, droppedRequests: 0, cacheHitRatio: 0, connectionPoolMax: 100,
+  coldStartMs: 500, diskIOPSMax: 3000, isPrimaryDB: false, activeConnections: 0,
+  desiredInstances: 0, scalingEvent: "", staleReadCount: 0, isSplitBrain: false,
+  dataInconsistency: 0, spotInterrupted: false,
 };
 
 function enrichNode(node: Node): Node {
@@ -243,7 +245,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     nodes, edges, isDirty,
     setNodes, setEdges, addNode, removeNode, removeEdge,
     selectNode, selectEdge, markDirty, markSaved,
-    pushUndoState, undo, redo, addEdge, loadTemplate,
+    pushUndoState, undo, redo, addEdge,
   } = store;
 
   const nodesRef = useRef(nodes);
@@ -429,24 +431,6 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     collabProvider.awareness.setLocalStateField("color", CURSOR_COLORS[idx]);
   }, [collabProvider, collabConnected]);
 
-  const handleApplyTemplate = useCallback(
-    (templateNodes: Node[], templateEdges: Edge[]) => {
-      if (!reactFlowInstance) { loadTemplate(templateNodes, templateEdges); return; }
-      const viewport = reactFlowInstance.getViewport();
-      const wrapper = reactFlowWrapper.current;
-      const w = wrapper?.clientWidth ?? 800;
-      const h = wrapper?.clientHeight ?? 600;
-      const cx = (w / 2 - viewport.x) / viewport.zoom;
-      const cy = (h / 2 - viewport.y) / viewport.zoom;
-      const offset = { x: cx - 380, y: cy - 100 };
-      const { nodes: tn, edges: te } = { nodes: templateNodes, edges: templateEdges };
-      const moved = tn.map((n) => ({ ...n, position: { x: n.position.x + offset.x, y: n.position.y + offset.y } }));
-      loadTemplate(moved, te);
-      scheduleAutoSave();
-    },
-    [reactFlowInstance, loadTemplate, scheduleAutoSave],
-  );
-
   const onDrop = useCallback(
     (event: DragEvent) => {
       event.preventDefault();
@@ -607,7 +591,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
       )}
 
       <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <NodePanel onApplyTemplate={handleApplyTemplate} />
+        <NodePanel />
         <Box ref={reactFlowWrapper} sx={{ flex: 1, position: "relative" }} onDrop={onDrop} onDragOver={onDragOver} onMouseMove={handleMouseMove}>
           <ReactFlow
             nodes={nodes}

@@ -1,17 +1,9 @@
 import { useState, useMemo } from "react";
 import { Search } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useDraggable } from "@dnd-kit/core";
 import { nodeRegistry } from "../../utils/nodeRegistry";
-import Drawer from "@mui/material/Drawer";
-import TextField from "@mui/material/TextField";
-import InputAdornment from "@mui/material/InputAdornment";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemButton from "@mui/material/ListItemButton";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
+import { Drawer, TextField, InputAdornment, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography, Box } from "@mui/material";
 
 const DRAWER_WIDTH = 220;
 
@@ -54,7 +46,7 @@ function getCategory(type: string): Category {
   return "other";
 }
 
-function DraggableNode({ type, label, icon, category }: { type: string; label: string; icon: string; category: Category }) {
+function DraggableNode({ type, label, icon, category }: { type: string; label: string; icon: LucideIcon; category: Category }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `palette-${type}`,
     data: { type, label, icon, category },
@@ -63,6 +55,8 @@ function DraggableNode({ type, label, icon, category }: { type: string; label: s
   const style: React.CSSProperties | undefined = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 9999 }
     : undefined;
+
+  const IconComponent = icon;
 
   return (
     <ListItem disablePadding ref={setNodeRef} style={style} {...listeners} {...attributes}>
@@ -77,10 +71,10 @@ function DraggableNode({ type, label, icon, category }: { type: string; label: s
           "&:active": { cursor: "grabbing" },
         }}
       >
-        <ListItemIcon sx={{ minWidth: 28, "& .emoji-icon": { fontSize: "1rem" } }}>
-          <span className="emoji-icon">{icon}</span>
+        <ListItemIcon sx={{ minWidth: 28 }}>
+          <IconComponent size={16} />
         </ListItemIcon>
-        <ListItemText primary={label} slotProps={{ primary: { fontSize: "0.75rem", noWrap: true } }} />
+        <ListItemText primary={label} slotProps={{ primary: { sx: { fontSize: "0.75rem" }, noWrap: true } }} />
       </ListItemButton>
     </ListItem>
   );
@@ -91,15 +85,15 @@ export default function NodePanel() {
   const registry = useMemo(() => nodeRegistry, []);
 
   const grouped = useMemo(() => {
-    const g: Record<Category, { type: string; label: string; icon: string }[]> = {
+    const g: Record<Category, { type: string; label: string; icon: LucideIcon }[]> = {
       compute: [], storage: [], network: [], serverless: [],
       security: [], analytics: [], messaging: [], other: [],
     };
     const q = query.toLowerCase().trim();
-    for (const entry of registry) {
-      if (q && !entry.label.toLowerCase().includes(q) && !entry.type.toLowerCase().includes(q)) continue;
-      const cat = getCategory(entry.type);
-      g[cat].push(entry);
+    for (const [type, entry] of Object.entries(registry)) {
+      if (q && !entry.label.toLowerCase().includes(q) && !type.toLowerCase().includes(q)) continue;
+      const cat = getCategory(type);
+      g[cat].push({ type, label: entry.label, icon: entry.icon });
     }
     return g;
   }, [registry, query]);

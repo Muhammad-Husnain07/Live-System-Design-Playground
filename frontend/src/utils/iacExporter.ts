@@ -1,14 +1,8 @@
-import { NODE_REGISTRY } from "./nodeRegistry";
 import type { NodeType, NodeConfig } from "../types/canvas";
+import { useCanvasStore } from "../store/canvasStore";
 
 function getNodes() {
-  const { useCanvasStore } = require("../store/canvasStore");
   return useCanvasStore.getState().nodes;
-}
-
-function getEdges() {
-  const { useCanvasStore } = require("../store/canvasStore");
-  return useCanvasStore.getState().edges;
 }
 
 function resourceName(label: string): string {
@@ -160,7 +154,7 @@ function genTerraformNode(nt: NodeType, cfg: NodeConfig, label: string, name: st
   return "";
 }
 
-function genK8sNode(nt: NodeType, cfg: NodeConfig, label: string, name: string): string {
+function genK8sNode(nt: NodeType, cfg: NodeConfig, _label: string, name: string): string {
   if (nt === "LoadBalancer" || nt === "APIGateway") {
     return [
       "---",

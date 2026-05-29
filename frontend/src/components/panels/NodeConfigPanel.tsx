@@ -4,18 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCanvasStore } from "../../store/canvasStore";
 import { NODE_REGISTRY } from "../../utils/nodeRegistry";
 import type { NodeType, NodeConfig, NodeMetrics, EdgeRoutingConfig } from "../../types/canvas";
-import TextField from "@mui/material/TextField";
-import Slider from "@mui/material/Slider";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import Switch from "@mui/material/Switch";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Chip from "@mui/material/Chip";
-import Divider from "@mui/material/Divider";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
+import { TextField, Slider, FormControl, Select, MenuItem, Switch, FormControlLabel, Chip, Divider, Typography, Box } from "@mui/material";
 
 const REGIONS = ["us-east-1", "us-west-2", "eu-west-1", "eu-central-1", "ap-southeast-1", "ap-northeast-1", "sa-east-1"];
 
@@ -305,7 +294,6 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
             ) : (
               nodes.filter((n) => n.id !== node.id).map((n) => {
                 const checked = cfg.security.allowedInbound?.includes(n.id) ?? false;
-                const nm = NODE_REGISTRY[n.data?.nodeType as NodeType];
                 return (
                   <FormControlLabel key={n.id} control={<Switch size="small" checked={checked} onChange={() => {
                     const next = checked

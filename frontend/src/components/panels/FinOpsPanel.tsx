@@ -9,11 +9,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
-import ButtonGroup from "@mui/material/ButtonGroup";
-import Button from "@mui/material/Button";
+import { Paper, Typography, Box, ButtonGroup, Button } from "@mui/material";
 
 const USER_PRESETS = [
   { label: "1K", value: 1000 },
@@ -120,7 +116,7 @@ const EgressDonutChart = memo(function EgressDonutChart({ estimate }: { estimate
             </Pie>
             <Tooltip
               contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 11 }}
-              formatter={(value: number) => [formatCurrency(value), ""]}
+              formatter={(value: any) => { const v = typeof value === "number" ? value : Number(value ?? 0); return [formatCurrency(v), ""]; }}
             />
           </PieChart>
         </ResponsiveContainer>

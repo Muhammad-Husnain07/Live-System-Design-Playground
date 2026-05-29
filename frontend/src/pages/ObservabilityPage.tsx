@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useSimulationStore, type TickData, type NodeMetricsSnapshot } from "../store/simulationStore";
+import { useSimulationStore, type TickData } from "../store/simulationStore";
 import { useChaosStore } from "../store/chaosStore";
 import { useDeployStore } from "../store/deploymentStore";
 import { useSecurityStore } from "../store/securityStore";
@@ -11,18 +11,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import api from "../utils/api";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import Table from "@mui/material/Table";
-import TableHead from "@mui/material/TableHead";
-import TableBody from "@mui/material/TableBody";
-import TableRow from "@mui/material/TableRow";
-import TableCell from "@mui/material/TableCell";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
-import Button from "@mui/material/Button";
-import Checkbox from "@mui/material/Checkbox";
+import { Box, Typography, Table, TableHead, TableBody, TableRow, TableCell, List, ListItem, ListItemText, Button, Checkbox } from "@mui/material";
 
 const WS_BASE =
   (import.meta.env.VITE_API_URL ?? "http://localhost:8080/api")
@@ -196,7 +185,7 @@ function fillTemplate(msg: string): string {
     .replace(/\{code\}/g, String(Math.floor(Math.random() * 500) + 100));
 }
 
-function generateLogEntry(tick: TickData, traces: TraceData[]): LogEntry {
+function generateLogEntry(_tick: TickData, traces: TraceData[]): LogEntry {
   const svcTypes = Object.keys(logMessages);
   const svcType = svcTypes[Math.floor(Math.random() * svcTypes.length)];
   const msgs = logMessages[svcType] || logMessages.AppServer;

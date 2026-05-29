@@ -1,12 +1,7 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Project } from "../../store/projectStore";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardActions from "@mui/material/CardActions";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
+import { Card, CardContent, CardActions, Typography, Box, Button } from "@mui/material";
 
 interface ProjectCardProps {
   project: Project;
@@ -59,7 +54,7 @@ export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
           {project.is_public ? (
             <Typography
               variant="caption"
-              sx={{ color: "success.main", bgcolor: "success.main", bgcolor: "rgba(34,197,94,0.15)", px: 0.75, py: 0.25, borderRadius: "999px", border: 1, borderColor: "rgba(34,197,94,0.3)" }}
+              sx={{ color: "success.main", bgcolor: "rgba(34,197,94,0.15)", px: 0.75, py: 0.25, borderRadius: "999px", border: 1, borderColor: "rgba(34,197,94,0.3)" }}
             >
               public
             </Typography>
