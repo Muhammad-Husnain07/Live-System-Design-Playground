@@ -5079,6 +5079,25 @@ Overhaul the left sidebar (NodePanel) to behave like a professional IDE (VS Code
 | Check | Result |
 |-------|--------|
 | `tsc --noEmit` | ✅ 0 errors |
+| `npx vite build` | ✅ built in 2.46s (3884 modules) |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
+| `go build ./...` | ✅ 0 errors |
+
+### Verification: PASSED — 2026-05-29
+
+All 6 Phase UI-1 tasks verified. Builds and tests clean.
+
+| Task | Status |
+|------|--------|
+| Resizable sidebar with drag handle (200–400px, localStorage) | ✅ |
+| 5 MUI Accordion categories (Network, Compute, Databases, Messaging, External) | ✅ |
+| Accordion expanded state persisted in localStorage | ✅ |
+| Sticky search field filtering all categories | ✅ |
+| Native HTML5 drag with custom `setDragImage` ghost card | ✅ |
+| Crosshair cursor + green glow on canvas when dragging | ✅ |
+
+**Fix applied during verification**: Added `sidebarWidthRef` to avoid stale closure in the resize `onMouseUp` handler. The previous code captured `sidebarWidth` in the `useEffect` closure and re-registered listeners on every render, risking an outdated width on `localStorage` save on mouse release. Now `onMouseUp` reads `sidebarWidthRef.current` (kept in sync via a dedicated `useEffect`), and the resize listener `useEffect` depends only on `persistWidth` (stable). No re-registration on every `mousemove`.
+
 ---
 
 ### API Endpoints (38 total)

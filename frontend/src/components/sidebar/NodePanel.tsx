@@ -105,10 +105,13 @@ interface NodePanelProps {
 export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
   const [query, setQuery] = useState("");
   const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
+  const sidebarWidthRef = useRef(sidebarWidth);
   const [accordionExpanded, setAccordionExpanded] = useState<Record<string, boolean>>(loadAccordionState);
   const resizing = useRef(false);
   const startX = useRef(0);
   const startW = useRef(0);
+
+  useEffect(() => { sidebarWidthRef.current = sidebarWidth; }, [sidebarWidth]);
 
   const persistWidth = useCallback((w: number) => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, String(w));
@@ -132,7 +135,7 @@ export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
     const onMouseUp = () => {
       if (resizing.current) {
         resizing.current = false;
-        persistWidth(sidebarWidth);
+        persistWidth(sidebarWidthRef.current);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
       }
@@ -140,7 +143,7 @@ export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
     return () => { document.removeEventListener("mousemove", onMouseMove); document.removeEventListener("mouseup", onMouseUp); };
-  }, [sidebarWidth, persistWidth]);
+  }, [persistWidth]);
 
   const onHandleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
