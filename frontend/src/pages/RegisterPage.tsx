@@ -1,6 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
 
 export default function RegisterPage() {
   const { register, isAuthenticated, isLoading, error, clearError } = useAuthStore();
@@ -40,98 +45,79 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-950 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-surface-100">
+    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", px: 2 }}>
+      <Paper sx={{ p: 4, width: "100%", maxWidth: 400 }}>
+        <Box sx={{ textAlign: "center", mb: 3 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: "text.primary" }}>
             Create Account
-          </h1>
-          <p className="text-surface-400 text-sm mt-1">
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Join Live System Design Playground
-          </p>
-        </div>
+          </Typography>
+        </Box>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm text-surface-300 mb-1" htmlFor="reg-email">
-              Email
-            </label>
-            <input
-              id="reg-email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
-              placeholder="you@example.com"
-            />
-          </div>
+        <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <TextField
+            id="reg-email"
+            label="Email"
+            type="email"
+            required
+            fullWidth
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+          />
 
-          <div>
-            <label className="block text-sm text-surface-300 mb-1" htmlFor="reg-username">
-              Username
-            </label>
-            <input
-              id="reg-username"
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
-              placeholder="myuser"
-            />
-          </div>
+          <TextField
+            id="reg-username"
+            label="Username"
+            required
+            fullWidth
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="myuser"
+          />
 
-          <div>
-            <label className="block text-sm text-surface-300 mb-1" htmlFor="reg-password">
-              Password
-            </label>
-            <input
-              id="reg-password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
-              placeholder="••••••••"
-            />
-          </div>
+          <TextField
+            id="reg-password"
+            label="Password"
+            type="password"
+            required
+            fullWidth
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+          />
 
-          <div>
-            <label className="block text-sm text-surface-300 mb-1" htmlFor="reg-confirm">
-              Confirm password
-            </label>
-            <input
-              id="reg-confirm"
-              type="password"
-              required
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
-              placeholder="••••••••"
-            />
-          </div>
+          <TextField
+            id="reg-confirm"
+            label="Confirm password"
+            type="password"
+            required
+            fullWidth
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="••••••••"
+          />
 
           {(err || error) && (
-            <p className="text-red-400 text-sm">{err || error}</p>
+            <Typography variant="body2" sx={{ color: "error.main" }}>
+              {err || error}
+            </Typography>
           )}
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-surface-700 disabled:text-surface-500 text-white rounded-lg font-medium text-sm transition-colors"
-          >
+          <Button type="submit" variant="contained" fullWidth disabled={isLoading} sx={{ mt: 1 }}>
             {isLoading ? "Creating account…" : "Create account"}
-          </button>
-        </form>
+          </Button>
+        </Box>
 
-        <p className="text-center text-surface-400 text-sm mt-6">
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mt: 3 }}>
           Already have an account?{" "}
-          <Link to="/login" className="text-blue-400 hover:text-blue-300">
+          <Link to="/login" style={{ color: "#60a5fa", textDecoration: "none" }}>
             Sign in
           </Link>
-        </p>
-      </div>
-    </div>
+        </Typography>
+      </Paper>
+    </Box>
   );
 }

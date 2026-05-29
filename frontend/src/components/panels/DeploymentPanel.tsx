@@ -195,10 +195,10 @@ export default function DeploymentPanel() {
       <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col">
         <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
           <Rocket className="h-4 w-4" />
-          <span className="text-xs font-semibold text-surface-100">Deployment</span>
+          <span className="text-xs font-semibold" style={{ color: '#f4f4f5' }}>Deployment</span>
         </div>
         <div className="flex-1 flex items-center justify-center px-3">
-          <p className="text-[10px] text-surface-600 text-center">Start a simulation to control deployments</p>
+          <p className="text-[10px] text-center" style={{ color: '#52525b' }}>Start a simulation to control deployments</p>
         </div>
       </div>
     );
@@ -210,18 +210,19 @@ export default function DeploymentPanel() {
     <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col overflow-hidden">
       <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
         <Rocket className="h-4 w-4" />
-        <span className="text-xs font-semibold text-surface-100">Deployment</span>
+        <span className="text-xs font-semibold" style={{ color: '#f4f4f5' }}>Deployment</span>
         {isBlueGreen && activeGroup && (
           <span
             className={`ml-auto text-[9px] font-mono px-1.5 py-0.5 rounded-full ${
-              activeGroup === "blue" ? "bg-blue-500/20 text-blue-400" : "bg-green-500/20 text-green-400"
+              activeGroup === "blue" ? "bg-blue-500/20" : "bg-green-500/20"
             }`}
+            style={{ color: activeGroup === "blue" ? '#60a5fa' : '#22c55e' }}
           >
             {activeGroup}
           </span>
         )}
         {deployCfg?.isCanaryActive && (
-          <span className="ml-auto text-[9px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded-full font-mono">
+          <span className="ml-auto text-[9px] bg-purple-500/20 px-1.5 py-0.5 rounded-full font-mono" style={{ color: '#a78bfa' }}>
             active
           </span>
         )}
@@ -230,16 +231,17 @@ export default function DeploymentPanel() {
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-surface-800 p-3 space-y-4">
         {/* Node selector */}
         <div>
-          <label className="text-[9px] uppercase tracking-wider text-surface-500 font-medium mb-1.5 block">
+          <label className="text-[9px] uppercase tracking-wider font-medium mb-1.5 block" style={{ color: '#71717a' }}>
             Deploy Node
           </label>
           {deployNodes.length === 0 ? (
-            <p className="text-[10px] text-surface-600">No nodes with canary or blue/green strategy configured</p>
+            <p className="text-[10px]" style={{ color: '#52525b' }}>No nodes with canary or blue/green strategy configured</p>
           ) : (
             <select
               value={selectedNodeId}
               onChange={(e) => setSelectedNodeId(e.target.value)}
-              className="w-full bg-surface-800 text-surface-200 text-[11px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-purple-500"
+              className="w-full bg-surface-800 text-[11px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-purple-500"
+              style={{ color: '#f4f4f5' }}
             >
               <option value="">Select a node...</option>
               <optgroup label="Blue/Green">
@@ -264,13 +266,13 @@ export default function DeploymentPanel() {
           <>
             {/* Blue/Green status */}
             <div className="bg-surface-900 rounded-lg border border-surface-800 p-3 space-y-3">
-              <p className="text-[9px] uppercase tracking-wider text-surface-500 font-medium">Blue/Green Status</p>
+              <p className="text-[9px] uppercase tracking-wider font-medium" style={{ color: '#71717a' }}>Blue/Green Status</p>
 
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] text-surface-400">Group assignment</span>
-                    <span className="text-[11px] font-mono text-surface-200">{depState?.blueGreenGroup || deployCfg?.blueGreenGroup || "—"}</span>
+                    <span className="text-[10px]" style={{ color: '#a1a1aa' }}>Group assignment</span>
+                    <span className="text-[11px] font-mono" style={{ color: '#f4f4f5' }}>{depState?.blueGreenGroup || deployCfg?.blueGreenGroup || "—"}</span>
                   </div>
                   <div className="flex gap-1">
                     <button
@@ -278,9 +280,14 @@ export default function DeploymentPanel() {
                       disabled={shifting || depState?.blueGreenGroup === "blue"}
                       className={`flex-1 py-1.5 text-[10px] font-medium rounded transition-colors ${
                         depState?.blueGreenGroup === "blue" || deployCfg?.blueGreenGroup === "blue"
-                          ? "bg-blue-500/30 text-blue-300"
-                          : "bg-surface-800 text-surface-400 hover:bg-surface-700"
+                          ? "bg-blue-500/30"
+                          : "bg-surface-800 hover:bg-surface-700"
                       } disabled:opacity-50`}
+                      style={{
+                        color: depState?.blueGreenGroup === "blue" || deployCfg?.blueGreenGroup === "blue"
+                          ? '#93c5fd'
+                          : '#a1a1aa'
+                      }}
                     >
                       Blue
                     </button>
@@ -289,9 +296,14 @@ export default function DeploymentPanel() {
                       disabled={shifting || depState?.blueGreenGroup === "green"}
                       className={`flex-1 py-1.5 text-[10px] font-medium rounded transition-colors ${
                         depState?.blueGreenGroup === "green" || deployCfg?.blueGreenGroup === "green"
-                          ? "bg-green-500/30 text-green-300"
-                          : "bg-surface-800 text-surface-400 hover:bg-surface-700"
+                          ? "bg-green-500/30"
+                          : "bg-surface-800 hover:bg-surface-700"
                       } disabled:opacity-50`}
+                      style={{
+                        color: depState?.blueGreenGroup === "green" || deployCfg?.blueGreenGroup === "green"
+                          ? '#86efac'
+                          : '#a1a1aa'
+                      }}
                     >
                       Green
                     </button>
@@ -301,11 +313,12 @@ export default function DeploymentPanel() {
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-surface-400">Active group</span>
+                  <span className="text-[10px]" style={{ color: '#a1a1aa' }}>Active group</span>
                   <span
-                    className={`text-[11px] font-mono font-medium ${
-                      activeGroup === "blue" ? "text-blue-400" : activeGroup === "green" ? "text-green-400" : "text-surface-200"
-                    }`}
+                    className="text-[11px] font-mono font-medium"
+                    style={{
+                      color: activeGroup === "blue" ? '#60a5fa' : activeGroup === "green" ? '#22c55e' : '#f4f4f5'
+                    }}
                   >
                     {activeGroup || "blue (default)"}
                   </span>
@@ -322,14 +335,17 @@ export default function DeploymentPanel() {
             {/* Metrics */}
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-surface-900 rounded border border-surface-800 p-2">
-                <div className="text-[9px] text-surface-500 uppercase tracking-wider">Total RPS</div>
-                <div className="text-xs font-mono font-medium text-surface-200 tabular-nums mt-0.5">
+                <div className="text-[9px] uppercase tracking-wider" style={{ color: '#71717a' }}>Total RPS</div>
+                <div className="text-xs font-mono font-medium tabular-nums mt-0.5" style={{ color: '#f4f4f5' }}>
                   {Math.round(totalRPS).toLocaleString()}
                 </div>
               </div>
               <div className="bg-surface-900 rounded border border-surface-800 p-2">
-                <div className="text-[9px] text-surface-500 uppercase tracking-wider">Error Rate</div>
-                <div className={`text-xs font-mono font-medium tabular-nums mt-0.5 ${errorRate > 0.1 ? "text-red-400" : "text-surface-200"}`}>
+                <div className="text-[9px] uppercase tracking-wider" style={{ color: '#71717a' }}>Error Rate</div>
+                <div
+                  className="text-xs font-mono font-medium tabular-nums mt-0.5"
+                  style={{ color: errorRate > 0.1 ? '#ef4444' : '#f4f4f5' }}
+                >
                   {(errorRate * 100).toFixed(1)}%
                 </div>
               </div>
@@ -340,14 +356,16 @@ export default function DeploymentPanel() {
               <button
                 onClick={handlePromote}
                 disabled={shifting}
-                className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{ color: '#60a5fa' }}
               >
                 {shifting ? "Updating..." : <><ArrowUp className="h-3 w-3" /> Promote to {activeGroup === "blue" ? "Green" : "Blue"}</>}
               </button>
               <button
                 onClick={handleRollback}
                 disabled={shifting}
-                className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-surface-800 text-surface-400 hover:bg-surface-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-surface-800 hover:bg-surface-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{ color: '#a1a1aa' }}
               >
                 <RotateCcw className="h-3 w-3" /> Toggle (Rollback)
               </button>
@@ -359,15 +377,15 @@ export default function DeploymentPanel() {
           <>
             {/* Traffic split visual */}
             <div className="bg-surface-900 rounded-lg border border-surface-800 p-3 space-y-2">
-              <p className="text-[9px] uppercase tracking-wider text-surface-500 font-medium">
+              <p className="text-[9px] uppercase tracking-wider font-medium" style={{ color: '#71717a' }}>
                 Traffic Split
               </p>
               <div className="flex items-center gap-3 text-[11px]">
-                <span className="text-blue-400 font-medium">Stable v1</span>
-                <span className="text-surface-400">{stablePct}%</span>
-                <span className="text-surface-600">|</span>
-                <span className="text-purple-400 font-medium">Canary v2</span>
-                <span className="text-surface-400">{canaryPct}%</span>
+                <span className="font-medium" style={{ color: '#60a5fa' }}>Stable v1</span>
+                <span style={{ color: '#a1a1aa' }}>{stablePct}%</span>
+                <span style={{ color: '#52525b' }}>|</span>
+                <span className="font-medium" style={{ color: '#a78bfa' }}>Canary v2</span>
+                <span style={{ color: '#a1a1aa' }}>{canaryPct}%</span>
               </div>
 
               <div className="h-2.5 bg-surface-800 rounded-full overflow-hidden flex">
@@ -383,8 +401,8 @@ export default function DeploymentPanel() {
 
               <div className="pt-1">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[9px] text-surface-500">Canary traffic</span>
-                  <span className="text-[11px] font-mono text-surface-200 tabular-nums">
+                  <span className="text-[9px]" style={{ color: '#71717a' }}>Canary traffic</span>
+                  <span className="text-[11px] font-mono tabular-nums" style={{ color: '#f4f4f5' }}>
                     {sliderValue}%
                   </span>
                 </div>
@@ -398,7 +416,7 @@ export default function DeploymentPanel() {
                   disabled={shifting}
                   className="w-full accent-purple-500 h-1.5"
                 />
-                <div className="flex justify-between text-[8px] text-surface-600 mt-0.5">
+                <div className="flex justify-between text-[8px] mt-0.5" style={{ color: '#52525b' }}>
                   <span>0% (stable)</span>
                   <span>100% (canary)</span>
                 </div>
@@ -408,36 +426,35 @@ export default function DeploymentPanel() {
             {/* Metrics */}
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-surface-900 rounded border border-surface-800 p-2">
-                <div className="text-[9px] text-surface-500 uppercase tracking-wider">Stable RPS</div>
-                <div className="text-xs font-mono font-medium text-blue-400 tabular-nums mt-0.5">
+                <div className="text-[9px] uppercase tracking-wider" style={{ color: '#71717a' }}>Stable RPS</div>
+                <div className="text-xs font-mono font-medium tabular-nums mt-0.5" style={{ color: '#60a5fa' }}>
                   {Math.round(stableRPS).toLocaleString()}
                 </div>
               </div>
               <div className="bg-surface-900 rounded border border-surface-800 p-2">
-                <div className="text-[9px] text-surface-500 uppercase tracking-wider">Canary RPS</div>
-                <div className="text-xs font-mono font-medium text-purple-400 tabular-nums mt-0.5">
+                <div className="text-[9px] uppercase tracking-wider" style={{ color: '#71717a' }}>Canary RPS</div>
+                <div className="text-xs font-mono font-medium tabular-nums mt-0.5" style={{ color: '#a78bfa' }}>
                   {Math.round(canaryRPS).toLocaleString()}
                 </div>
               </div>
               <div className="bg-surface-900 rounded border border-surface-800 p-2">
-                <div className="text-[9px] text-surface-500 uppercase tracking-wider">Error Rate</div>
+                <div className="text-[9px] uppercase tracking-wider" style={{ color: '#71717a' }}>Error Rate</div>
                 <div
-                  className={`text-xs font-mono font-medium tabular-nums mt-0.5 ${
-                    isFailing ? "text-red-400" : errorRate > 0.1 ? "text-orange-400" : "text-surface-200"
-                  }`}
+                  className="text-xs font-mono font-medium tabular-nums mt-0.5" style={{ color: !isFailing && errorRate > 0.1 ? '#fb923c' : 'inherit' }}
+                  style={{ color: isFailing ? '#ef4444' : (errorRate > 0.1 ? undefined : '#f4f4f5') }}
                 >
                   {(errorRate * 100).toFixed(1)}%
                 </div>
               </div>
               <div className="bg-surface-900 rounded border border-surface-800 p-2">
-                <div className="text-[9px] text-surface-500 uppercase tracking-wider">Status</div>
+                <div className="text-[9px] uppercase tracking-wider" style={{ color: '#71717a' }}>Status</div>
                 <div className="text-xs font-mono font-medium mt-0.5">
                   {deployCfg.isCanaryActive ? (
-                    <span className="text-purple-400">Canary active</span>
+                    <span style={{ color: '#a78bfa' }}>Canary active</span>
                   ) : deployCfg.canaryFailed ? (
-                    <span className="text-red-400">Failed</span>
+                    <span style={{ color: '#ef4444' }}>Failed</span>
                   ) : (
-                    <span className="text-surface-400">Stable only</span>
+                    <span style={{ color: '#a1a1aa' }}>Stable only</span>
                   )}
                 </div>
               </div>
@@ -447,8 +464,8 @@ export default function DeploymentPanel() {
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
                 <div>
-                  <p className="text-[10px] font-medium text-red-400">Canary degrading</p>
-                  <p className="text-[9px] text-red-400/70">High error rate — auto-failover imminent</p>
+                  <p className="text-[10px] font-medium" style={{ color: '#ef4444' }}>Canary degrading</p>
+                  <p className="text-[9px]" style={{ color: '#ef4444', opacity: 0.7 }}>High error rate — auto-failover imminent</p>
                 </div>
               </div>
             )}
@@ -457,14 +474,15 @@ export default function DeploymentPanel() {
               <button
                 onClick={handlePromote}
                 disabled={shifting || !deployCfg.isCanaryActive}
-                className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-purple-500/20 hover:bg-purple-500/30 disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: '#a78bfa' }}
               >
                 {shifting ? "Updating..." : <><ArrowUp className="h-3 w-3" /> Promote Canary</>}
               </button>
               <button
                 onClick={handleRollback}
                 disabled={shifting}
-                className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-red-500/20 hover:bg-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{ color: '#ef4444' }}
               >
                 <ArrowDown className="h-3 w-3" /> Rollback
               </button>
@@ -474,7 +492,7 @@ export default function DeploymentPanel() {
 
         {!selectedNodeId && deployNodes.length > 0 && (
           <div className="py-8 text-center">
-            <p className="text-[10px] text-surface-600">Select a node above to control its deployment</p>
+            <p className="text-[10px]" style={{ color: '#52525b' }}>Select a node above to control its deployment</p>
           </div>
         )}
       </div>

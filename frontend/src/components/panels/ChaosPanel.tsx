@@ -54,14 +54,14 @@ function ChaosConfigPopover({
 
   return (
     <div className="absolute left-0 top-full mt-1 w-64 bg-surface-900 border border-surface-700 rounded-lg shadow-2xl z-50 p-3 space-y-3">
-      <p className="text-[10px] text-surface-400 leading-relaxed">{definition.description}</p>
+      <p className="text-[10px] leading-relaxed" style={{ color: '#a1a1aa' }}>{definition.description}</p>
 
       <div>
-        <label className="text-[9px] text-surface-500 block mb-1">Target Node</label>
+        <label className="text-[9px] block mb-1" style={{ color: '#71717a' }}>Target Node</label>
         <select
           value={selectedNodeId}
           onChange={(e) => setSelectedNodeId(e.target.value)}
-          className="w-full bg-surface-800 text-surface-200 text-[11px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-red-500"
+          className="w-full bg-surface-800 text-[11px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-red-500" style={{ color: '#f4f4f5' }}
         >
           <option value="">Select a node...</option>
           {nodes.map((n) => (
@@ -73,7 +73,7 @@ function ChaosConfigPopover({
       </div>
 
       <div>
-        <label className="text-[9px] text-surface-500 block mb-1">
+        <label className="text-[9px] block mb-1" style={{ color: '#71717a' }}>
           Severity: {Math.round(severity * 100)}%
         </label>
         <input
@@ -85,28 +85,28 @@ function ChaosConfigPopover({
           onChange={(e) => setSeverity(Number(e.target.value))}
           className="w-full accent-red-500"
         />
-        <div className="flex justify-between text-[8px] text-surface-600 mt-0.5">
+        <div className="flex justify-between text-[8px] mt-0.5" style={{ color: '#52525b' }}>
           <span>5%</span>
           <span>100%</span>
         </div>
       </div>
 
       <div>
-        <label className="text-[9px] text-surface-500 block mb-1">Duration (seconds)</label>
+        <label className="text-[9px] block mb-1" style={{ color: '#71717a' }}>Duration (seconds)</label>
         <input
           type="number"
           min={1}
           max={300}
           value={durationSec}
           onChange={(e) => setDurationSec(Math.max(1, Math.min(300, Number(e.target.value) || 1)))}
-          className="w-full bg-surface-800 text-surface-200 text-[11px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-red-500"
+          className="w-full bg-surface-800 text-[11px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-red-500" style={{ color: '#f4f4f5' }}
         />
       </div>
 
       <button
         onClick={handleInject}
         disabled={!selectedNodeId || injecting}
-        className="w-full py-1.5 text-[11px] font-medium rounded transition-colors bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
+        className="w-full py-1.5 text-[11px] font-medium rounded transition-colors bg-red-500/20 hover:bg-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: '#ef4444' }}
       >
         {injecting ? "Injecting..." : "Inject Chaos"}
       </button>
@@ -126,8 +126,8 @@ function ChaosCard({ definition }: { definition: (typeof CHAOS_TYPES)[number] })
         <div className="flex items-center gap-2">
           <definition.icon className="h-4 w-4" />
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-medium text-surface-200 truncate">{definition.label}</p>
-            <p className="text-[9px] text-surface-500 leading-tight mt-0.5 line-clamp-2">{definition.description}</p>
+            <p className="text-[11px] font-medium truncate" style={{ color: '#f4f4f5' }}>{definition.label}</p>
+            <p className="text-[9px] leading-tight mt-0.5 line-clamp-2" style={{ color: '#71717a' }}>{definition.description}</p>
           </div>
         </div>
       </button>
@@ -171,14 +171,14 @@ function ActiveEventRow({ event, onRemove }: { event: ChaosEventData; onRemove: 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 min-w-0">
           {def ? <def.icon className="h-4 w-4" /> : <span className="text-sm">?</span>}
-          <span className="text-[10px] font-medium text-surface-200 truncate">{def?.label ?? event.eventType}</span>
+          <span className="text-[10px] font-medium truncate" style={{ color: '#f4f4f5' }}>{def?.label ?? event.eventType}</span>
         </div>
         {totalSec > 0 && (
-          <span className="text-[10px] font-mono text-surface-400 shrink-0">{fmt(remaining)}</span>
+          <span className="text-[10px] font-mono shrink-0" style={{ color: '#a1a1aa' }}>{fmt(remaining)}</span>
         )}
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-[9px] text-surface-500 truncate">{nodeLabel}</span>
+        <span className="text-[9px] truncate" style={{ color: '#71717a' }}>{nodeLabel}</span>
         <div className="flex items-center gap-2">
           <div className="w-16 h-1.5 bg-surface-800 rounded-full overflow-hidden">
             <div
@@ -188,7 +188,7 @@ function ActiveEventRow({ event, onRemove }: { event: ChaosEventData; onRemove: 
           </div>
           <button
             onClick={() => onRemove(event.id)}
-            className="text-[9px] text-surface-600 hover:text-red-400 transition-colors shrink-0"
+            className="text-[9px] transition-colors shrink-0" style={{ color: '#52525b' }}
           >
             x
           </button>
@@ -232,9 +232,9 @@ export default function ChaosPanel() {
       {/* ── Header ── */}
       <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
         <Skull className="h-4 w-4" />
-        <span className="text-xs font-semibold text-surface-100">Chaos Engineering</span>
+        <span className="text-xs font-semibold" style={{ color: '#f4f4f5' }}>Chaos Engineering</span>
         {activeEvents.length > 0 && (
-          <span className="ml-auto text-[9px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full font-mono">
+          <span className="ml-auto text-[9px] bg-red-500/20 px-1.5 py-0.5 rounded-full font-mono" style={{ color: '#ef4444' }}>
             {activeEvents.length}
           </span>
         )}
@@ -243,7 +243,7 @@ export default function ChaosPanel() {
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-surface-800">
         {/* ── Inject Section ── */}
         <div className="px-3 py-2">
-          <p className="text-[9px] uppercase tracking-wider text-surface-600 font-medium mb-2">Inject Fault</p>
+          <p className="text-[9px] uppercase tracking-wider font-medium mb-2" style={{ color: '#52525b' }}>Inject Fault</p>
           <div className="grid grid-cols-2 gap-1.5">
             {CHAOS_TYPES.map((def) => (
               <ChaosCard key={def.type} definition={def} />
@@ -254,7 +254,7 @@ export default function ChaosPanel() {
         {/* ── Active Events ── */}
         {activeEvents.length > 0 && (
           <div className="px-3 py-2 border-t border-surface-800">
-            <p className="text-[9px] uppercase tracking-wider text-surface-600 font-medium mb-2">
+            <p className="text-[9px] uppercase tracking-wider font-medium mb-2" style={{ color: '#52525b' }}>
               Active Events ({activeEvents.length})
             </p>
             <div className="space-y-1.5">

@@ -1,10 +1,20 @@
 import { Square, Play, X, AlertTriangle, RefreshCw } from "lucide-react";
 import { useSimulationStore, type SimConfig } from "../../store/simulationStore";
+import TextField from "@mui/material/TextField";
+import MenuItem from "@mui/material/MenuItem";
+import ButtonGroup from "@mui/material/ButtonGroup";
+import Button from "@mui/material/Button";
+import Slider from "@mui/material/Slider";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
 
 interface SimulationPanelProps {
   onStart: (overrides?: Partial<SimConfig>) => void;
   onStop: () => void;
 }
+
+const SPEEDS = [1, 2, 5];
 
 export default function SimulationPanel({ onStart, onStop }: SimulationPanelProps) {
   const config = useSimulationStore((s) => s.config);
@@ -22,26 +32,23 @@ export default function SimulationPanel({ onStart, onStop }: SimulationPanelProp
 
   return (
     <aside className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 overflow-y-auto">
-      <div className="p-4 space-y-5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-surface-200">Simulation</h2>
+      <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Typography variant="body2" sx={{ fontWeight: 500, color: "text.primary", fontSize: "0.875rem" }}>Simulation</Typography>
           <ConnectionBadge status={connectionStatus} />
-        </div>
+        </Box>
 
         {isRunning && latestTick ? (
-          <div className="space-y-4">
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <LiveStats tick={latestTick} elapsed={elapsed} formatTime={formatTime} />
-            <button
-              onClick={onStop}
-              className="w-full py-2 text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
-            >
-              <Square className="h-3 w-3" /> Stop Simulation
-            </button>
-          </div>
+            <Button variant="contained" color="error" onClick={onStop} startIcon={<Square size={14} />} sx={{ fontSize: "0.75rem" }}>
+              Stop Simulation
+            </Button>
+          </Box>
         ) : (
           <ConfigForm config={config} setConfig={setConfig} onStart={onStart} />
         )}
-      </div>
+      </Box>
     </aside>
   );
 }
@@ -49,23 +56,27 @@ export default function SimulationPanel({ onStart, onStop }: SimulationPanelProp
 function ConnectionBadge({ status }: { status: string }) {
   const color =
     status === "connected"
-      ? "bg-green-500"
+      ? "success.main"
       : status === "connecting"
-        ? "bg-yellow-500"
+        ? "warning.main"
         : status === "error"
-          ? "bg-red-500"
-          : "bg-surface-600";
-  return <span className={`w-2 h-2 rounded-full ${color}`} title={status} />;
+          ? "error.main"
+          : "text.disabled";
+  return <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: color }} title={status} />;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div>
-      <label className="block text-[10px] text-surface-500 mb-1 uppercase tracking-wider">{label}</label>
+    <Box>
+      <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", mb: 0.5, fontSize: "0.65rem" }}>
+        {label}
+      </Typography>
       {children}
-    </div>
+    </Box>
   );
 }
+
+const sxSelect = { "& .MuiInputBase-root": { fontSize: "0.75rem" } };
 
 function ConfigForm({
   config,
@@ -77,65 +88,45 @@ function ConfigForm({
   onStart: () => void;
 }) {
   return (
-    <div className="space-y-4">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Field label="Traffic Pattern">
-        <select
-          value={config.trafficPattern}
-          onChange={(e) => setConfig({ trafficPattern: e.target.value })}
-          className="w-full bg-surface-800 text-surface-200 text-xs px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-blue-500"
-        >
-          <option value="steady">Steady</option>
-          <option value="ramp_up">Ramp Up</option>
-          <option value="spike">Spike</option>
-        </select>
+        <TextField select fullWidth size="small" value={config.trafficPattern} onChange={(e) => setConfig({ trafficPattern: e.target.value })} sx={sxSelect}>
+          <MenuItem value="steady">Steady</MenuItem>
+          <MenuItem value="ramp_up">Ramp Up</MenuItem>
+          <MenuItem value="spike">Spike</MenuItem>
+        </TextField>
       </Field>
 
       <Field label="Target RPS">
-        <div className="flex items-center gap-2">
-          <input
-            type="range"
-            min={1}
-            max={10000}
-            value={config.targetRPS}
-            onChange={(e) => setConfig({ targetRPS: Number(e.target.value) })}
-            className="flex-1 accent-green-500 h-1"
-          />
-          <span className="text-xs text-surface-300 w-16 text-right tabular-nums">
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Slider size="small" value={config.targetRPS} min={1} max={10000} onChange={(_, v) => setConfig({ targetRPS: v as number })} valueLabelDisplay="auto" sx={{ flex: 1 }} />
+          <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.secondary", width: 64, textAlign: "right" }}>
             {config.targetRPS.toLocaleString()}
-          </span>
-        </div>
+          </Typography>
+        </Box>
       </Field>
 
       <Field label="Duration (seconds)">
-        <input
-          type="number"
-          min={5}
-          max={3600}
-          value={config.durationSeconds}
+        <TextField type="number" fullWidth size="small" value={config.durationSeconds}
+          slotProps={{ htmlInput: { min: 5, max: 3600 } }}
           onChange={(e) => setConfig({ durationSeconds: Math.max(5, Number(e.target.value)) })}
-          className="w-full bg-surface-800 text-surface-200 text-xs px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-blue-500"
         />
       </Field>
 
       <Field label="Speed">
-        <select
-          value={config.speedMultiplier}
-          onChange={(e) => setConfig({ speedMultiplier: Number(e.target.value) })}
-          className="w-full bg-surface-800 text-surface-200 text-xs px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-blue-500"
-        >
-          <option value={1}>1x</option>
-          <option value={2}>2x</option>
-          <option value={5}>5x</option>
-        </select>
+        <ButtonGroup fullWidth size="small" sx={{ "& .MuiButton-root": { fontSize: "0.75rem" } }}>
+          {SPEEDS.map((s) => (
+            <Button key={s} variant={config.speedMultiplier === s ? "contained" : "outlined"} onClick={() => setConfig({ speedMultiplier: s })}>
+              {s}x
+            </Button>
+          ))}
+        </ButtonGroup>
       </Field>
 
-      <button
-        onClick={onStart}
-        className="w-full py-2 text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded transition-colors"
-      >
-        <Play className="h-3 w-3" /> Start Simulation
-      </button>
-    </div>
+      <Button variant="contained" color="success" onClick={onStart} startIcon={<Play size={14} />} sx={{ fontSize: "0.75rem" }}>
+        Start Simulation
+      </Button>
+    </Box>
   );
 }
 
@@ -156,41 +147,49 @@ function LiveStats({
   ];
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
         {stats.map((s) => (
-          <div key={s.label} className="bg-surface-900 rounded p-2.5 border border-surface-800">
-            <div className="text-[9px] text-surface-500 uppercase tracking-wider mb-0.5">{s.label}</div>
-            <div className="text-sm font-mono font-medium text-surface-100 tabular-nums">{s.value}</div>
-          </div>
+          <Paper key={s.label} variant="outlined" sx={{ p: 1.5, bgcolor: "action.hover" }}>
+            <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", mb: 0.25, fontSize: "0.6rem" }}>
+              {s.label}
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 500, color: "text.primary", fontSize: "0.875rem" }}>
+              {s.value}
+            </Typography>
+          </Paper>
         ))}
-      </div>
+      </Box>
 
-      <div className="border-t border-surface-800 pt-3">
-        <h3 className="text-[10px] text-surface-500 uppercase tracking-wider mb-2">Nodes</h3>
-        <div className="space-y-1 max-h-[300px] overflow-y-auto">
-          {tick.nodeMetrics.map((m) => (
-            <div
-              key={m.nodeId}
-              className={`flex items-center justify-between px-2 py-1 rounded text-[10px] ${
-                m.isFailed ? "bg-red-500/10" : m.isBottleneck ? "bg-orange-500/10" : "bg-surface-900"
-              }`}
-            >
-              <div className="flex items-center gap-1.5 min-w-0">
-                {m.isFailed && <X className="h-3 w-3 text-red-400 shrink-0" />}
-                {m.isBottleneck && !m.isFailed && <AlertTriangle className="h-3 w-3 text-orange-400 shrink-0" />}
-                {m.isAsync && !m.isBottleneck && !m.isFailed && (
-                  <RefreshCw className="h-3 w-3 text-cyan-400 shrink-0" />
-                )}
-                <span className="text-surface-300 truncate">{m.label}</span>
-              </div>
-              <span className="text-surface-400 tabular-nums ml-2 shrink-0">
-                {m.currentRPS.toLocaleString(undefined, { maximumFractionDigits: 0 })} RPS
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+      <DividerSlim />
+
+      <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "0.65rem" }}>
+        Nodes
+      </Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, maxHeight: 300, overflowY: "auto" }}>
+        {tick.nodeMetrics.map((m) => (
+          <Paper key={m.nodeId} variant="outlined" sx={{
+            display: "flex", alignItems: "center", justifyContent: "space-between", px: 1, py: 0.75,
+            bgcolor: m.isFailed ? "rgba(239,68,68,0.1)" : m.isBottleneck ? "rgba(251,146,60,0.1)" : "action.hover",
+          }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}>
+              {m.isFailed && <X size={12} style={{ color: "#ef4444", flexShrink: 0 }} />}
+              {m.isBottleneck && !m.isFailed && <AlertTriangle size={12} style={{ color: "#fb923c", flexShrink: 0 }} />}
+              {m.isAsync && !m.isBottleneck && !m.isFailed && <RefreshCw size={12} style={{ color: "#22d3ee", flexShrink: 0 }} />}
+              <Typography variant="caption" sx={{ color: "text.secondary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.65rem" }}>
+                {m.label}
+              </Typography>
+            </Box>
+            <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.secondary", ml: 1, flexShrink: 0, fontSize: "0.65rem" }}>
+              {m.currentRPS.toLocaleString(undefined, { maximumFractionDigits: 0 })} RPS
+            </Typography>
+          </Paper>
+        ))}
+      </Box>
+    </Box>
   );
+}
+
+function DividerSlim() {
+  return <Box sx={{ borderTop: 1, borderColor: "divider" }} />;
 }

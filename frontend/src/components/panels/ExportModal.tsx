@@ -1,193 +1,105 @@
-import { useCallback, useState, useEffect } from "react";
-import Editor, { loader } from "@monaco-editor/react";
-import api from "../../utils/api";
-import { useExportStore, EXPORT_FORMATS, NODE_COMPAT } from "../../store/exportStore";
-import { useCanvasStore } from "../../store/canvasStore";
-import { useToastStore } from "../../store/toastStore";
-import { X, Download } from "lucide-react";
+import { useState } from "react";
+import Editor from "@monaco-editor/react";
+import { useExportStore } from "../../store/exportStore";
+import { exportTerraform, exportKubernetes, exportCloudFormation } from "../../utils/iacExporter";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 
-loader.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs" } });
+interface IaCTab {
+  id: string;
+  label: string;
+  generator: () => string;
+}
 
 export default function ExportModal() {
-  const {
-    showModal, content, format, loading, error, filename,
-    closeExport, setContent, setFormat, setLoading, setError, setFilename,
-  } = useExportStore();
-  const nodes = useCanvasStore((s) => s.nodes);
-  const addToast = useToastStore((s) => s.addToast);
-  const [generated, setGenerated] = useState(false);
+  const { isOpen, closeExport } = useExportStore();
+  const [tabIndex, setTabIndex] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const [iacError, setIacError] = useState<string | null>(null);
 
-  const supportedCount = nodes.filter((n) => NODE_COMPAT[n.data.nodeType] === "supported").length;
-  const skippedCount = nodes.filter((n) => NODE_COMPAT[n.data.nodeType] === "skipped").length;
+  const tabs: IaCTab[] = [
+    { id: "terraform", label: "Terraform", generator: exportTerraform },
+    { id: "kubernetes", label: "Kubernetes", generator: exportKubernetes },
+    { id: "cloudformation", label: "CloudFormation", generator: exportCloudFormation },
+  ];
 
-  const fmt = EXPORT_FORMATS.find((f) => f.value === format)!;
+  const currentTab = tabs[tabIndex];
 
-  const generate = useCallback(async () => {
-    const pid = new URLSearchParams(window.location.search).get("projectId")
-      || window.location.pathname.split("/").pop();
-    if (!pid) { setError("No project ID"); return; }
-
-    setLoading(true);
-    setError(null);
-    setGenerated(false);
+  const getCode = (): string => {
+    if (iacError) return iacError;
     try {
-      const res = await api.post("/export", { projectId: pid, format });
-      setContent(res.data.content);
-      setFilename(res.data.filename);
-      setGenerated(true);
-      addToast({ type: "success", title: "Export generated", duration: 3000 });
+      return currentTab.generator();
     } catch (err: any) {
-      const msg = err?.response?.data?.error ?? "Failed to generate export";
-      setError(msg);
-      addToast({ type: "error", title: "Export failed", message: msg, duration: 5000 });
-    } finally {
-      setLoading(false);
+      const msg = err?.message ?? String(err);
+      setIacError(msg);
+      return `// Error generating ${currentTab.label} configuration:\n// ${msg}`;
     }
-  }, [format, addToast, setContent, setError, setFilename, setLoading]);
+  };
 
-  useEffect(() => {
-    if (showModal) generate();
-  }, [showModal, format]);
-
-  const copyContent = useCallback(async () => {
+  const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(content);
-      addToast({ type: "success", title: "Copied to clipboard", duration: 2000 });
+      await navigator.clipboard.writeText(getCode());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
-      addToast({ type: "error", title: "Failed to copy", duration: 3000 });
+      // fallback
     }
-  }, [content, addToast]);
+  };
 
-  const downloadContent = useCallback(() => {
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename || `infrastructure.${fmt.ext}`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [content, filename, fmt.ext]);
-
-  if (!showModal) return null;
+  const handleTabChange = (_: React.SyntheticEvent, v: number) => {
+    setTabIndex(v);
+    setIacError(null);
+  };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) closeExport(); }}
-    >
-      <div className="flex w-[90vw] max-w-6xl h-[80vh] bg-surface-900 border border-surface-700 rounded-xl shadow-2xl overflow-hidden">
-        <aside className="w-72 bg-surface-950 border-r border-surface-800 flex flex-col p-4 gap-3 shrink-0">
-          <h2 className="text-sm font-semibold text-surface-100">Export Infrastructure</h2>
-
-          <div className="text-[10px] text-surface-400 leading-tight">
-            Generate IaC from your canvas. Only AWS resources are supported.
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-surface-500 uppercase tracking-wider">Format</span>
-            {EXPORT_FORMATS.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setFormat(f.value)}
-                className={`text-left px-3 py-1.5 rounded text-[11px] transition-colors ${
-                  format === f.value
-                    ? "bg-green-900/30 text-green-400 border border-green-500/30"
-                    : "text-surface-300 hover:bg-surface-800 hover:text-surface-100 border border-transparent"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-surface-500 uppercase tracking-wider">
-              Resources ({nodes.length})
-            </span>
-            <div className="flex flex-col gap-0.5 text-[11px]">
-              <span className="text-green-400">{supportedCount} supported</span>
-              {skippedCount > 0 && <span className="text-red-400">{skippedCount} skipped</span>}
-            </div>
-          </div>
-
-          {generated && (
-            <div className="flex flex-col gap-2 mt-auto">
-              <button
-                onClick={generate}
-                disabled={loading}
-                className="w-full px-3 py-2 rounded text-[11px] font-medium bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
-              >
-                {loading ? "Generating..." : "Regenerate"}
-              </button>
-              <button
-                onClick={copyContent}
-                className="w-full px-3 py-2 rounded text-[11px] font-medium bg-surface-800 hover:bg-surface-700 text-surface-200 transition-colors"
-              >
-                Copy
-              </button>
-              <button
-                onClick={downloadContent}
-                className="w-full px-3 py-2 rounded text-[11px] font-medium bg-surface-800 hover:bg-surface-700 text-surface-200 transition-colors"
-              >
-                <Download className="h-4 w-4 mr-1.5 inline-block" /> Download
-              </button>
-            </div>
-          )}
-
-          {!generated && loading && (
-            <div className="flex items-center gap-2 mt-auto text-[11px] text-surface-400">
-              <span className="w-3 h-3 border-2 border-surface-500 border-t-transparent rounded-full animate-spin" />
-              Generating...
-            </div>
-          )}
-
-          {error && (
-            <div className="mt-auto text-[10px] text-red-400 bg-red-950/30 border border-red-500/20 rounded px-2 py-1.5">
-              {error}
-              <button onClick={generate} className="block mt-1 underline hover:text-red-300">Retry</button>
-            </div>
-          )}
-        </aside>
-
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-surface-800 bg-surface-950/50">
-            <span className="text-[11px] text-surface-400">
-              {filename || `infrastructure.${fmt.ext}`}
-            </span>
-            <div className="flex items-center gap-2">
-              {generated && (
-                <span className="text-[10px] text-green-500 bg-green-950/30 px-2 py-0.5 rounded">
-                  {content.length.toLocaleString()} bytes
-                </span>
-              )}
-              <button
-                onClick={closeExport}
-                className="text-surface-500 hover:text-surface-300 text-sm leading-none px-1"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 min-h-0">
-            <Editor
-              key={format}
-              language={fmt.lang}
-              theme="vs-dark"
-              value={content || "// Click Generate to create infrastructure code"}
-              options={{
-                readOnly: true,
-                minimap: { enabled: false },
-                fontSize: 12,
-                lineNumbers: "on",
-                scrollBeyondLastLine: false,
-                wordWrap: "on",
-                automaticLayout: true,
-                padding: { top: 8 },
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+    <Dialog open={isOpen} onClose={closeExport} maxWidth="md" fullWidth slotProps={{ paper: { sx: { bgcolor: "#18181b", border: 1, borderColor: "#27272a" } } }}>
+      <DialogTitle sx={{ color: "text.primary", borderBottom: 1, borderColor: "#27272a", px: 2, py: 1.5 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "0.95rem" }}>Export Infrastructure as Code</Typography>
+      </DialogTitle>
+      <DialogContent sx={{ px: 0, pt: 0 }}>
+        <Tabs
+          value={tabIndex}
+          onChange={handleTabChange}
+          variant="fullWidth"
+          sx={{
+            borderBottom: 1, borderColor: "#27272a",
+            "& .MuiTab-root": { color: "#a1a1aa", textTransform: "none", fontWeight: 500, fontSize: "0.8rem", minHeight: 40 },
+            "& .Mui-selected": { color: "#22c55e !important" },
+            "& .MuiTabs-indicator": { bgcolor: "#22c55e" },
+          }}
+        >
+          {tabs.map((t) => <Tab key={t.id} label={t.label} />)}
+        </Tabs>
+        <Box sx={{ height: 400, borderBottom: 1, borderColor: "#27272a" }}>
+          <Editor
+            key={`${currentTab.id}-${iacError ?? "ok"}`}
+            language={currentTab.id === "kubernetes" ? "yaml" : "hcl"}
+            theme="vs-dark"
+            value={getCode()}
+            options={{ readOnly: true, minimap: { enabled: false }, fontSize: 12, lineNumbers: "on", scrollBeyondLastLine: false, wordWrap: "on" }}
+          />
+        </Box>
+        {iacError && (
+          <Box sx={{ px: 2, py: 1, bgcolor: "rgba(239,68,68,0.1)", borderBottom: 1, borderColor: "#27272a" }}>
+            <Typography variant="caption" sx={{ color: "#ef4444" }}>
+              {iacError}
+            </Typography>
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ px: 2, py: 1, borderTop: 1, borderColor: "#27272a" }}>
+        <Button onClick={closeExport} size="small" sx={{ color: "#a1a1aa", textTransform: "none" }}>Close</Button>
+        <Button onClick={handleCopy} size="small" variant="contained" sx={{ bgcolor: "#22c55e", color: "#09090b", textTransform: "none", "&:hover": { bgcolor: "#16a34a" } }}>
+          {copied ? "Copied!" : "Copy to Clipboard"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

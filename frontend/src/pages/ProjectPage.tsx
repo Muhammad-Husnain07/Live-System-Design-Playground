@@ -150,7 +150,7 @@ function ChallengeTimerBar({ challenge, onSubmit, submitting }: { challenge: Non
   return (
     <div className={`h-10 shrink-0 flex items-center justify-between px-4 border-b ${isUrgent ? "bg-red-500/10 border-red-500/30" : "bg-surface-900 border-surface-800"}`}>
       <div className="flex items-center gap-3">
-        <span className="text-[10px] text-surface-500 font-medium uppercase tracking-wider">
+        <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: '#71717a' }}>
           <Sword className="h-4 w-4" /> {challenge.title}
         </span>
       </div>
@@ -162,14 +162,15 @@ function ChallengeTimerBar({ challenge, onSubmit, submitting }: { challenge: Non
               style={{ width: `${progress}%` }}
             />
           </div>
-          <span className={`text-xs font-mono tabular-nums font-medium ${isUrgent ? "text-red-400 animate-pulse" : "text-surface-200"}`}>
+          <span className={`text-xs font-mono tabular-nums font-medium${isUrgent ? " animate-pulse" : ""}`} style={{ color: isUrgent ? '#ef4444' : '#f4f4f5' }}>
             {timeStr}
           </span>
         </div>
         <button
           onClick={onSubmit}
           disabled={submitting}
-          className={`px-3 py-1 text-[11px] font-medium rounded transition-colors disabled:opacity-50 ${submitting ? "bg-surface-700 text-surface-400" : "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"}`}
+          className={`px-3 py-1 text-[11px] font-medium rounded transition-colors disabled:opacity-50 ${submitting ? "bg-surface-700" : "bg-blue-500/20 hover:bg-blue-500/30"}`}
+          style={{ color: submitting ? '#a1a1aa' : '#60a5fa' }}
         >
           {submitting ? (
             <span className="flex items-center gap-1.5">
@@ -197,17 +198,17 @@ function ScoreReportModal({ report, onClose }: { report: { cost: number; reliabi
       <div className="bg-surface-900 border border-surface-700 rounded-xl p-6 w-80 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="text-center mb-4">
           <span className="text-3xl">{report.passed ? <Trophy className="h-4 w-4" /> : <Frown className="h-4 w-4" />}</span>
-          <h3 className={`text-lg font-bold mt-2 ${report.passed ? "text-green-400" : "text-red-400"}`}>
+          <h3 className="text-lg font-bold mt-2" style={{ color: report.passed ? '#22c55e' : '#ef4444' }}>
             {report.passed ? "Challenge Passed!" : "Challenge Failed"}
           </h3>
-          <p className="text-[11px] text-surface-500 mt-0.5">Total Score: <span className="text-surface-200 font-mono font-semibold">{report.total.toFixed(1)}</span></p>
+          <p className="text-[11px] mt-0.5" style={{ color: '#71717a' }}>Total Score: <span className="font-mono font-semibold" style={{ color: '#f4f4f5' }}>{report.total.toFixed(1)}</span></p>
         </div>
 
         <div className="flex justify-center gap-4 mb-4">
           {items.map((item) => (
             <div key={item.label} className="flex flex-col items-center gap-1">
               <ProgressRing value={item.value} color={item.color} size={56} strokeWidth={5} />
-              <span className="text-[9px] uppercase tracking-wider text-surface-500 font-medium">{item.label}</span>
+              <span className="text-[9px] uppercase tracking-wider font-medium" style={{ color: '#71717a' }}>{item.label}</span>
               <span className="text-xs font-mono font-semibold" style={{ color: item.color }}>{item.value.toFixed(1)}</span>
             </div>
           ))}
@@ -215,7 +216,8 @@ function ScoreReportModal({ report, onClose }: { report: { cost: number; reliabi
 
         <button
           onClick={onClose}
-          className="w-full py-2 text-[11px] font-medium bg-surface-800 hover:bg-surface-700 text-surface-200 rounded transition-colors"
+          className="w-full py-2 text-[11px] font-medium bg-surface-800 hover:bg-surface-700 rounded transition-colors"
+          style={{ color: '#f4f4f5' }}
         >
           Back to Dashboard
         </button>
@@ -544,8 +546,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     return (
       <div className="h-screen bg-surface-950 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-400 text-sm mb-2">{error}</p>
-          <button onClick={() => navigate("/dashboard")} className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
+          <p className="text-sm mb-2" style={{ color: '#ef4444' }}>{error}</p>
+          <button onClick={() => navigate("/dashboard")} className="text-sm transition-colors" style={{ color: '#60a5fa' }}>
             Back to Dashboard
           </button>
         </div>
@@ -554,7 +556,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   }
 
   return (
-    <div className="h-screen bg-surface-950 text-surface-100 flex flex-col">
+    <div className="h-screen bg-surface-950 flex flex-col" style={{ color: '#f4f4f5' }}>
       <TopToolbar
         projectId={projectId}
         saving={saving}
@@ -589,12 +591,12 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
       {wsStatus === "disconnected" && useSimulationStore.getState().isRunning && (
         <div className="h-8 shrink-0 flex items-center justify-center bg-orange-500/10 border-b border-orange-500/30 gap-2">
           <span className="animate-spin h-3 w-3 border border-orange-400 border-t-transparent rounded-full" />
-          <span className="text-[10px] text-orange-400 font-medium">Connection lost. Reconnecting...</span>
+          <span className="text-[10px] font-medium" style={{ color: '#fb923c' }}>Connection lost. Reconnecting...</span>
         </div>
       )}
       {wsStatus === "error" && !useSimulationStore.getState().isRunning && (
         <div className="h-8 shrink-0 flex items-center justify-center bg-red-500/10 border-b border-red-500/30">
-          <span className="text-[10px] text-red-400 font-medium">WebSocket connection failed</span>
+          <span className="text-[10px] font-medium" style={{ color: '#ef4444' }}>WebSocket connection failed</span>
         </div>
       )}
 
@@ -644,7 +646,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
           >
             <VpcBoundaries nodes={nodes} />
             <Background color="#27272a" gap={20} />
-            <Controls className="[&>button]:!bg-surface-800 [&>button]:!border-surface-700 [&>button]:!text-surface-400 hover:[&>button]:!bg-surface-700 [&>button]:!shadow-none !bg-transparent !border-0 !shadow-none !flex-col-reverse" />
+            <Controls className="[&>button]:!bg-surface-800 [&>button]:!border-surface-700 hover:[&>button]:!bg-surface-700 [&>button]:!shadow-none !bg-transparent !border-0 !shadow-none !flex-col-reverse" />
             <MiniMap
               className="!border !border-surface-700 !rounded-lg overflow-hidden"
               style={{ background: "#09090b" }}
@@ -657,9 +659,9 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
               nodeStrokeWidth={2}
             />
             <Panel position="bottom-left">
-              <div className="flex items-center gap-2 text-[10px] text-surface-600 font-mono bg-surface-950/80 backdrop-blur-sm px-2.5 py-1 rounded border border-surface-800 pointer-events-auto">
+              <div className="flex items-center gap-2 text-[10px] font-mono bg-surface-950/80 backdrop-blur-sm px-2.5 py-1 rounded border border-surface-800 pointer-events-auto" style={{ color: '#52525b' }}>
                 <span>Nodes: {nodes.length}</span>
-                <span className="text-surface-700">|</span>
+                <span style={{ color: '#3f3f46' }}>|</span>
                 <span>Edges: {edges.length}</span>
               </div>
             </Panel>
@@ -685,10 +687,10 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
               <div className="text-center">
                 <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-surface-800 flex items-center justify-center">
-                  <span className="text-surface-500 text-xl">+</span>
+                  <span className="text-xl" style={{ color: '#71717a' }}>+</span>
                 </div>
-                <p className="text-sm text-surface-500 mb-1">Empty canvas</p>
-                <p className="text-[11px] text-surface-600">Drag nodes from the left panel to start designing</p>
+                <p className="text-sm mb-1" style={{ color: '#71717a' }}>Empty canvas</p>
+                <p className="text-[11px]" style={{ color: '#52525b' }}>Drag nodes from the left panel to start designing</p>
               </div>
             </div>
           )}

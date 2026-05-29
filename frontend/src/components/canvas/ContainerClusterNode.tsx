@@ -3,6 +3,9 @@ import { type NodeProps } from "reactflow";
 import { Container, Zap } from "lucide-react";
 import BaseNode from "./BaseNode";
 import type { BaseNodeData } from "./BaseNode";
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 
 const TOTAL_PODS = 12;
 
@@ -13,28 +16,39 @@ function ContainerClusterNode(props: NodeProps<BaseNodeData>) {
 
   return (
     <BaseNode {...props}>
-      <div className="mt-1 space-y-1">
-        <div className="grid grid-cols-4 gap-1 py-0.5">
+      <Box sx={{ mt: 0.5 }}>
+        <Box
+          sx={{
+            display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 0.25, py: 0.25,
+            justifyItems: "center",
+          }}
+        >
           {Array.from({ length: TOTAL_PODS }).map((_, i) => {
             const isHealthy = i < healthyCount;
             return (
-              <div
+              <Box
                 key={i}
-                className={`w-4 h-4 rounded-sm border transition-all duration-300 ${
-                  isHealthy
-                    ? "border-green-600/50 bg-green-500/20 shadow-[inset_0_0_6px_rgba(34,197,94,0.15)]"
-                    : "border-surface-700/50 bg-surface-800/50"
-                }`}
+                sx={{
+                  width: 16, height: 16, borderRadius: "2px", border: 1,
+                  transition: "all 0.3s",
+                  bgcolor: isHealthy ? "rgba(34,197,94,0.2)" : "rgba(39,39,42,0.5)",
+                  borderColor: isHealthy ? "rgba(34,197,94,0.5)" : "rgba(63,63,70,0.5)",
+                  boxShadow: isHealthy ? "inset 0 0 6px rgba(34,197,94,0.15)" : "none",
+                }}
                 title={isHealthy ? `Pod ${i + 1}: Running` : `Pod ${i + 1}: Idle`}
               />
             );
           })}
-        </div>
-        <div className="flex items-center gap-3 text-[9px] text-surface-500">
-          <span className="flex items-center gap-1"><Container className="h-3 w-3" /> {healthyCount}/{TOTAL_PODS} pods</span>
-          <span className="flex items-center gap-1"><Zap className="h-3 w-3" /> {props.data?.config?.maxRPS ?? 0} max RPS</span>
-        </div>
-      </div>
+        </Box>
+        <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center" sx={{ fontSize: 9, color: "#71717a" }}>
+          <Typography variant="caption" sx={{ fontSize: 9, color: "#71717a", display: "flex", alignItems: "center", gap: 0.25 }}>
+            <Container size={12} /> {healthyCount}/{TOTAL_PODS} pods
+          </Typography>
+          <Typography variant="caption" sx={{ fontSize: 9, color: "#71717a", display: "flex", alignItems: "center", gap: 0.25 }}>
+            <Zap size={12} /> {props.data?.config?.maxRPS ?? 0} max RPS
+          </Typography>
+        </Stack>
+      </Box>
     </BaseNode>
   );
 }

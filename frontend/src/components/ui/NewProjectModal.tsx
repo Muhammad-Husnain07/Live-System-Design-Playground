@@ -1,4 +1,14 @@
 import { useState } from "react";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
+import Box from "@mui/material/Box";
 
 interface NewProjectModalProps {
   isOpen: boolean;
@@ -13,8 +23,6 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
-
-  if (!isOpen) return null;
 
   const validate = (): boolean => {
     if (!name.trim()) { setNameError("Project name is required"); return false; }
@@ -41,70 +49,67 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-surface-900 border border-surface-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
-        <h3 className="text-lg font-medium mb-4 text-surface-100">New Project</h3>
+  const handleClose = () => {
+    onClose();
+    setError(null);
+  };
 
+  return (
+    <Dialog open={isOpen} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>New Project</DialogTitle>
+      <DialogContent>
         {error && (
-          <div className="mb-3 p-2.5 bg-red-900/30 border border-red-800 rounded-lg text-xs text-red-300">
+          <Typography variant="caption" sx={{ color: "error.main", mb: 1.5, display: "block", p: 1, bgcolor: "rgba(239,68,68,0.1)", borderRadius: 1, border: 1, borderColor: "rgba(239,68,68,0.3)" }}>
             {error}
-          </div>
+          </Typography>
         )}
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs text-surface-400 mb-1.5">Project name</label>
-            <input
-              value={name}
-              onChange={(e) => { setName(e.target.value); setNameError(null); }}
-              placeholder="My System Design"
-              className={`w-full bg-surface-800 border rounded-lg px-3 py-2 text-sm text-surface-100 placeholder-surface-500 focus:outline-none transition-colors ${
-                nameError ? "border-red-500 focus:border-red-500" : "border-surface-700 focus:border-green-500"
-              }`}
-              autoFocus
-            />
-            {nameError && <p className="text-[10px] text-red-400 mt-1">{nameError}</p>}
-          </div>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+          <TextField
+            label="Project name"
+            value={name}
+            onChange={(e) => { setName(e.target.value); setNameError(null); }}
+            placeholder="My System Design"
+            fullWidth
+            autoFocus
+            error={!!nameError}
+            helperText={nameError}
+          />
 
-          <div>
-            <label className="block text-xs text-surface-400 mb-1.5">Description (optional)</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What does this system do?"
-              rows={3}
-              className="w-full bg-surface-800 border border-surface-700 rounded-lg px-3 py-2 text-sm text-surface-100 placeholder-surface-500 focus:outline-none focus:border-green-500 transition-colors resize-none"
-            />
-          </div>
+          <TextField
+            label="Description (optional)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What does this system do?"
+            multiline
+            rows={3}
+            fullWidth
+          />
 
-          <label className="flex items-center gap-2.5 cursor-pointer py-1">
-            <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
-              className="accent-green-500 w-4 h-4"
-            />
-            <span className="text-sm text-surface-300">Make project public</span>
-          </label>
-        </div>
-
-        <div className="flex justify-end gap-3 mt-6">
-          <button
-            onClick={() => { onClose(); setError(null); }}
-            className="px-4 py-2 text-sm text-surface-400 hover:text-surface-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || !name.trim()}
-            className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 rounded-lg text-sm font-medium text-white transition-colors"
-          >
-            {submitting ? "Creating..." : "Create Project"}
-          </button>
-        </div>
-      </div>
-    </div>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+                sx={{ color: "primary.main", "&.Mui-checked": { color: "primary.main" } }}
+              />
+            }
+            label={<Typography variant="body2" color="text.secondary">Make project public</Typography>}
+          />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} color="inherit">
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          disabled={submitting || !name.trim()}
+        >
+          {submitting ? "Creating..." : "Create Project"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

@@ -6,6 +6,15 @@ import { useProjectStore } from "../../store/projectStore";
 import { useAuthStore } from "../../store/authStore";
 import { useExportStore } from "../../store/exportStore";
 import ImportModal from "../panels/ImportModal";
+import AppBar from "@mui/material/AppBar";
+import Toolbar from "@mui/material/Toolbar";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
 
 interface TopToolbarProps {
   projectId: string;
@@ -28,12 +37,21 @@ interface TopToolbarProps {
   remoteUsers: { clientId: number; name: string; color: string }[];
 }
 
+function PanelBtn({ active, color, onClick, icon, label }: { active: boolean; color: string; onClick: () => void; icon: React.ReactNode; label: string }) {
+  return (
+    <Tooltip title={label} arrow>
+      <IconButton onClick={onClick} size="small" sx={{ color: active ? color : "#a1a1aa", bgcolor: active ? `${color}33` : "action.hover", "&:hover": { bgcolor: active ? `${color}44` : "action.selected" }, borderRadius: 1 }}>
+        {icon}
+      </IconButton>
+    </Tooltip>
+  );
+}
+
 export default function TopToolbar({ projectId, saving, onStart, onStop, showSimPanel, onToggleSimPanel, showChaosPanel, onToggleChaosPanel, showDeployPanel, onToggleDeployPanel, showSecurityPanel, onToggleSecurityPanel, showFinOpsPanel, onToggleFinOpsPanel, showDrillPanel, onToggleDrillPanel, collabConnected, remoteUsers }: TopToolbarProps) {
   const navigate = useNavigate();
   const { currentProject, updateProject } = useProjectStore();
   const { user, logout } = useAuthStore();
 
-  /* ---- canvas store ---- */
   const isDirty = useCanvasStore((s) => s.isDirty);
   const lastSaved = useCanvasStore((s) => s.lastSaved);
   const pastStates = useCanvasStore((s) => s.pastStates);
@@ -44,10 +62,8 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
   const simSpeed = useCanvasStore((s) => s.simulationSpeed);
   const setSimSpeed = useCanvasStore((s) => s.setSimulationSpeed);
 
-  /* ---- export ---- */
   const openExport = useExportStore((s) => s.openExport);
 
-  /* ---- inline name edit ---- */
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -69,7 +85,6 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
     if (editingName) nameInputRef.current?.focus();
   }, [editingName]);
 
-  /* ---- simulation timer ---- */
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -90,334 +105,183 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, showSim
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
-  /* ---- import modal ---- */
   const [showImport, setShowImport] = useState(false);
 
-  /* ---- export dropdown ---- */
-  const [showExport, setShowExport] = useState(false);
-  const exportRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (exportRef.current && !exportRef.current.contains(e.target as Node)) setShowExport(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  /* ---- export dropdown (MUI Menu) ---- */
+  const [exportAnchorEl, setExportAnchorEl] = useState<HTMLElement | null>(null);
 
-  /* ---- user dropdown ---- */
-  const [showUser, setShowUser] = useState(false);
-  const userRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (userRef.current && !userRef.current.contains(e.target as Node)) setShowUser(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  /* ---- user dropdown (MUI Menu) ---- */
+  const [userAnchorEl, setUserAnchorEl] = useState<HTMLElement | null>(null);
 
-  /* ---- save indicator ---- */
   const saveLabel = saving ? "Saving..." : isDirty ? "Unsaved changes" : lastSaved ? "Saved" : "";
-  const saveColor = saving ? "text-yellow-400" : isDirty ? "text-orange-400" : "text-green-500";
+  const saveColor = saving ? "#eab308" : isDirty ? "#fb923c" : "#22c55e";
 
   return (
-    <header className="h-[52px] shrink-0 bg-surface-950 border-b border-surface-800 flex items-center px-4 gap-2 select-none">
-      {/* ── Left section ── */}
-      <div className="flex items-center gap-3 min-w-0">
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="text-sm text-surface-400 hover:text-surface-200 transition-colors shrink-0"
-          title="Back to Dashboard"
-        >
-          &larr;
-        </button>
+    <AppBar position="static" color="transparent" elevation={0} sx={{ bgcolor: "#09090b", borderBottom: 1, borderColor: "#27272a" }}>
+      <Toolbar variant="dense" sx={{ minHeight: 52, px: 2, gap: 1 }}>
+        {/* ── Left section ── */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+          <Tooltip title="Back to Dashboard" arrow>
+            <IconButton size="small" onClick={() => navigate("/dashboard")} sx={{ color: "#a1a1aa" }}>
+              <Undo2 size={16} />
+            </IconButton>
+          </Tooltip>
 
-        {/* Inline editable project name */}
-        {editingName ? (
-          <input
-            ref={nameInputRef}
-            value={nameDraft}
-            onChange={(e) => setNameDraft(e.target.value)}
-            onBlur={commitName}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commitName();
-              if (e.key === "Escape") setEditingName(false);
-            }}
-            className="bg-surface-800 text-surface-100 text-sm font-medium px-1.5 py-0.5 rounded border border-surface-600 outline-none w-48"
-          />
-        ) : (
-          <button
-            onClick={startEditing}
-            className="text-sm font-medium text-surface-100 hover:text-blue-400 transition-colors truncate max-w-[200px]"
-            title="Click to rename"
-          >
-            {currentProject?.name || "Project"}
-          </button>
-        )}
+          {editingName ? (
+            <input
+              ref={nameInputRef}
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={commitName}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitName();
+                if (e.key === "Escape") setEditingName(false);
+              }}
+              style={{
+                background: "#27272a", color: "#f4f4f5", border: "1px solid #52525b",
+                borderRadius: 4, padding: "2px 6px", fontSize: "0.875rem", fontWeight: 500,
+                width: 192, outline: "none",
+              }}
+            />
+          ) : (
+            <Typography
+              variant="body2"
+              onClick={startEditing}
+              sx={{ fontWeight: 500, color: "text.primary", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200, fontSize: "0.875rem" }}
+              title="Click to rename"
+            >
+              {currentProject?.name || "Project"}
+            </Typography>
+          )}
 
-        {/* Role badge */}
-        {currentProject?.role && (
-          <span className="text-[10px] text-surface-500 bg-surface-800 px-1.5 py-0.5 rounded shrink-0">
-            {currentProject.role}
-          </span>
-        )}
+          {currentProject?.role && (
+            <Typography variant="caption" sx={{ color: "text.disabled", bgcolor: "action.hover", px: 0.75, py: 0.25, borderRadius: "4px", fontSize: "0.65rem" }}>
+              {currentProject.role}
+            </Typography>
+          )}
 
-        {/* Save indicator */}
-        <span className={`text-[10px] ${saveColor} shrink-0`}>{saveLabel}</span>
-      </div>
+          <Typography variant="caption" sx={{ color: saveColor, fontSize: "0.65rem", flexShrink: 0 }}>
+            {saveLabel}
+          </Typography>
+        </Box>
 
-      {/* ── Center section ── */}
-      <div className="flex items-center justify-center flex-1 gap-2">
-        {/* Undo / Redo */}
-        <button
-          onClick={undo}
-          disabled={pastStates.length === 0}
-          title="Undo (Ctrl+Z)"
-          className="px-2 py-1 text-xs bg-surface-800 hover:bg-surface-700 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
-        >
-          <Undo2 className="h-4 w-4" />
-        </button>
-        <button
-          onClick={redo}
-          disabled={futureStates.length === 0}
-          title="Redo (Ctrl+Shift+Z)"
-          className="px-2 py-1 text-xs bg-surface-800 hover:bg-surface-700 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
-        >
-          <Redo2 className="h-4 w-4" />
-        </button>
+        {/* ── Center section ── */}
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", flex: 1, gap: 0.5 }}>
+          <Tooltip title="Undo (Ctrl+Z)" arrow>
+            <span><IconButton size="small" onClick={undo} disabled={pastStates.length === 0} sx={{ color: "text.secondary" }}><Undo2 size={16} /></IconButton></span>
+          </Tooltip>
+          <Tooltip title="Redo (Ctrl+Shift+Z)" arrow>
+            <span><IconButton size="small" onClick={redo} disabled={futureStates.length === 0} sx={{ color: "text.secondary" }}><Redo2 size={16} /></IconButton></span>
+          </Tooltip>
 
-        <div className="w-px h-4 bg-surface-700 mx-1" />
+          <Divider orientation="vertical" flexItem sx={{ borderColor: "#3f3f46", mx: 0.5 }} />
 
-        {/* Run / Stop */}
-        <button
-          onClick={() => (isSimRunning ? onStop() : onStart())}
-          className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-            isSimRunning
-              ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-              : "bg-green-500/20 text-green-400 hover:bg-green-500/30"
-          }`}
-        >
-          {isSimRunning ? <><Square className="h-4 w-4" /> Stop</> : <><Play className="h-4 w-4" /> Run</>}
-        </button>
+          <Tooltip title={isSimRunning ? "Stop Simulation" : "Start Simulation"} arrow>
+            <IconButton
+              size="small"
+              onClick={() => (isSimRunning ? onStop() : onStart())}
+              sx={{ color: isSimRunning ? "#ef4444" : "#22c55e", bgcolor: isSimRunning ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.15)", "&:hover": { bgcolor: isSimRunning ? "rgba(239,68,68,0.25)" : "rgba(34,197,94,0.25)" }, borderRadius: 1 }}
+            >
+              {isSimRunning ? <Square size={16} /> : <Play size={16} />}
+            </IconButton>
+          </Tooltip>
 
-        {/* Speed selector */}
-          <select
+          <Box
+            component="select"
             value={simSpeed}
             onChange={(e) => setSimSpeed(Number(e.target.value))}
-            className="bg-surface-800 text-surface-200 text-[10px] px-1.5 py-1 rounded border border-surface-700 focus:outline-none focus:border-blue-500"
+            sx={{
+              bgcolor: "action.hover", color: "text.primary", fontSize: "0.65rem",
+              px: 0.75, py: 0.5, borderRadius: "4px", border: 1, borderColor: "#3f3f46",
+              outline: "none", cursor: "pointer",
+            }}
           >
             <option value={1}>1x</option>
             <option value={2}>2x</option>
             <option value={5}>5x</option>
-          </select>
+          </Box>
 
-        {/* Timer */}
-        {isSimRunning && (
-          <span className="text-[11px] font-mono text-surface-400 tabular-nums">
-            {formatTime(elapsed)}
-          </span>
-        )}
-      </div>
-
-      {/* ── Right section ── */}
-      <div className="flex items-center gap-2">
-        {/* Collaborators */}
-        <button
-          className="px-2 py-1 text-[10px] bg-surface-800 hover:bg-surface-700 rounded transition-colors text-surface-300"
-          title="Manage collaborators"
-        >
-          <Users className="h-4 w-4" />
-        </button>
-
-        {/* Share */}
-        <button
-          className="px-2 py-1 text-[10px] bg-surface-800 hover:bg-surface-700 rounded transition-colors text-surface-300"
-          title="Share project"
-        >
-          Share
-        </button>
-
-        {/* Import */}
-        <button
-          onClick={() => setShowImport(true)}
-          className="px-2 py-1 text-[10px] bg-surface-800 hover:bg-surface-700 rounded transition-colors text-surface-300"
-          title="Import IaC file"
-        >
-          Import
-        </button>
-
-        {/* Export dropdown */}
-        <div className="relative" ref={exportRef}>
-          <button
-            onClick={() => setShowExport((v) => !v)}
-            className="px-2 py-1 text-[10px] bg-surface-800 hover:bg-surface-700 rounded transition-colors text-surface-300"
-          >
-            Export <ChevronDown className="h-4 w-4" />
-          </button>
-          {showExport && (
-            <div className="absolute right-0 top-full mt-1 w-36 bg-surface-900 border border-surface-700 rounded-lg shadow-xl z-50 py-1">
-              <button
-                onClick={() => { setShowExport(false); }}
-                className="w-full text-left px-3 py-1.5 text-[11px] text-surface-300 hover:bg-surface-800 hover:text-surface-100 transition-colors"
-              >
-                <Camera className="h-4 w-4 mr-2" /> Export as PNG
-              </button>
-              <button
-                onClick={() => { setShowExport(false); }}
-                className="w-full text-left px-3 py-1.5 text-[11px] text-surface-300 hover:bg-surface-800 hover:text-surface-100 transition-colors"
-              >
-                <FileText className="h-4 w-4 mr-2" /> Export as JSON
-              </button>
-              <div className="border-t border-surface-700 my-1" />
-              <button
-                onClick={() => { setShowExport(false); openExport(); }}
-                className="w-full text-left px-3 py-1.5 text-[11px] text-green-400 hover:bg-green-900/20 transition-colors"
-              >
-                <Building2 className="h-4 w-4 mr-2" /> IaC Export
-              </button>
-            </div>
+          {isSimRunning && (
+            <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.secondary", fontSize: "0.7rem" }}>
+              {formatTime(elapsed)}
+            </Typography>
           )}
-        </div>
+        </Box>
 
-        {/* Simulation panel toggle */}
-        <button
-          onClick={onToggleSimPanel}
-          className={`px-2 py-1 text-[10px] rounded transition-colors ${
-            showSimPanel
-              ? "bg-green-500/20 text-green-400"
-              : "bg-surface-800 hover:bg-surface-700 text-surface-300"
-          }`}
-          title="Simulation Panel"
-        >
-          Sim
-        </button>
+        {/* ── Right section ── */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Tooltip title="Manage collaborators" arrow>
+            <IconButton size="small" sx={{ color: "#a1a1aa" }}><Users size={16} /></IconButton>
+          </Tooltip>
 
-        {/* Chaos Engineering toggle */}
-        <button
-          onClick={onToggleChaosPanel}
-          className={`px-2 py-1 text-[10px] rounded transition-colors ${
-            showChaosPanel
-              ? "bg-red-500/20 text-red-400"
-              : "bg-surface-800 hover:bg-surface-700 text-surface-300"
-          }`}
-          title="Chaos Engineering Panel"
-        >
-          <Skull className="h-4 w-4" />
-        </button>
+          <Tooltip title="Share project" arrow>
+            <IconButton size="small" sx={{ color: "#a1a1aa" }}>S</IconButton>
+          </Tooltip>
 
-        {/* Deployment toggle */}
-        <button
-          onClick={onToggleDeployPanel}
-          className={`px-2 py-1 text-[10px] rounded transition-colors ${
-            showDeployPanel
-              ? "bg-purple-500/20 text-purple-400"
-              : "bg-surface-800 hover:bg-surface-700 text-surface-300"
-          }`}
-          title="Deployment Panel"
-        >
-          <Rocket className="h-4 w-4" />
-        </button>
+          <Tooltip title="Import IaC file" arrow>
+            <IconButton size="small" onClick={() => setShowImport(true)} sx={{ color: "#a1a1aa" }}>
+              Imp
+            </IconButton>
+          </Tooltip>
 
-        {/* Security toggle */}
-        <button
-          onClick={onToggleSecurityPanel}
-          className={`px-2 py-1 text-[10px] rounded transition-colors ${
-            showSecurityPanel
-              ? "bg-blue-500/20 text-blue-400"
-              : "bg-surface-800 hover:bg-surface-700 text-surface-300"
-          }`}
-          title="Security Audit Panel"
-        >
-          <Shield className="h-4 w-4" />
-        </button>
+          {/* Export dropdown */}
+          <Tooltip title="Export" arrow>
+            <IconButton size="small" onClick={(e) => setExportAnchorEl(e.currentTarget)} sx={{ color: "#a1a1aa" }}>
+              Export <ChevronDown size={14} />
+            </IconButton>
+          </Tooltip>
+          <Menu anchorEl={exportAnchorEl} open={Boolean(exportAnchorEl)} onClose={() => setExportAnchorEl(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
+            <MenuItem onClick={() => setExportAnchorEl(null)} dense><Camera size={14} style={{ marginRight: 8 }} /> Export as PNG</MenuItem>
+            <MenuItem onClick={() => setExportAnchorEl(null)} dense><FileText size={14} style={{ marginRight: 8 }} /> Export as JSON</MenuItem>
+            <Divider />
+            <MenuItem onClick={() => { setExportAnchorEl(null); openExport(); }} dense sx={{ color: "success.main" }}><Building2 size={14} style={{ marginRight: 8 }} /> IaC Export</MenuItem>
+          </Menu>
 
-        {/* Drill toggle */}
-        <button
-          onClick={onToggleDrillPanel}
-          className={`px-2 py-1 text-[10px] rounded transition-colors ${
-            showDrillPanel
-              ? "bg-orange-500/20 text-orange-400"
-              : "bg-surface-800 hover:bg-surface-700 text-surface-300"
-          }`}
-          title="DR Drill Panel"
-        >
-          <Zap className="h-4 w-4" />
-        </button>
+          <PanelBtn active={showSimPanel} color="#22c55e" onClick={onToggleSimPanel} icon={<Zap size={14} />} label="Simulation Panel" />
+          <PanelBtn active={showChaosPanel} color="#ef4444" onClick={onToggleChaosPanel} icon={<Skull size={14} />} label="Chaos Engineering Panel" />
+          <PanelBtn active={showDeployPanel} color="#c084fc" onClick={onToggleDeployPanel} icon={<Rocket size={14} />} label="Deployment Panel" />
+          <PanelBtn active={showSecurityPanel} color="#60a5fa" onClick={onToggleSecurityPanel} icon={<Shield size={14} />} label="Security Audit Panel" />
+          <PanelBtn active={showDrillPanel} color="#fb923c" onClick={onToggleDrillPanel} icon={<Zap size={14} />} label="DR Drill Panel" />
+          <PanelBtn active={showFinOpsPanel} color="#22c55e" onClick={onToggleFinOpsPanel} icon={<DollarSign size={14} />} label="Cost Estimation" />
 
-        {/* FinOps toggle */}
-        <button
-          onClick={onToggleFinOpsPanel}
-          className={`px-2 py-1 text-[10px] rounded transition-colors ${
-            showFinOpsPanel
-              ? "bg-green-500/20 text-green-400"
-              : "bg-surface-800 hover:bg-surface-700 text-surface-300"
-          }`}
-          title="Cost Estimation"
-        >
-          <DollarSign className="h-4 w-4" />
-        </button>
+          {collabConnected && remoteUsers.length > 0 && (
+            <Box sx={{ display: "flex", ml: 0.5 }}>
+              {remoteUsers.map((u) => (
+                <Tooltip key={u.clientId} title={u.name} arrow>
+                  <Box sx={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", fontWeight: 700, border: 2, borderColor: "#09090b", bgcolor: u.color, color: "#fff", ml: -0.75 }}>
+                    {u.name.charAt(0).toUpperCase()}
+                  </Box>
+                </Tooltip>
+              ))}
+            </Box>
+          )}
 
-        {/* Remote users */}
-        {collabConnected && remoteUsers.length > 0 && (
-          <div className="flex items-center -space-x-1.5">
-            {remoteUsers.map((u) => (
-              <div
-                key={u.clientId}
-                className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border border-surface-950"
-                style={{ background: u.color }}
-                title={u.name}
-              >
-                {u.name.charAt(0).toUpperCase()}
-              </div>
-            ))}
-          </div>
-        )}
+          <Divider orientation="vertical" flexItem sx={{ borderColor: "#3f3f46", mx: 0.25 }} />
 
-        <div className="w-px h-4 bg-surface-700 mx-0.5" />
+          <Tooltip title="Observability" arrow>
+            <IconButton size="small" onClick={() => navigate(`/project/${projectId}/observe`)} sx={{ color: "#a1a1aa" }}>
+              <BarChart3 size={16} />
+            </IconButton>
+          </Tooltip>
 
-        {/* Observability */}
-        <button
-          onClick={() => navigate(`/project/${projectId}/observe`)}
-          className="px-2 py-1 text-[10px] bg-surface-800 hover:bg-surface-700 rounded transition-colors text-surface-300"
-        >
-          <BarChart3 className="h-4 w-4" />
-        </button>
-
-        {/* User dropdown */}
-        <div className="relative" ref={userRef}>
-          <button
-            onClick={() => setShowUser((v) => !v)}
-            className="flex items-center gap-1.5 px-2 py-1 text-[11px] bg-surface-800 hover:bg-surface-700 rounded transition-colors text-surface-300"
-          >
-            <span className="w-4 h-4 rounded-full bg-green-500/20 text-green-400 text-[9px] flex items-center justify-center font-medium">
+          {/* User dropdown */}
+          <IconButton size="small" onClick={(e) => setUserAnchorEl(e.currentTarget)} sx={{ color: "#a1a1aa", display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Box sx={{ width: 18, height: 18, borderRadius: "50%", bgcolor: "rgba(34,197,94,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", fontWeight: 500, color: "#22c55e" }}>
               {user?.username?.charAt(0).toUpperCase() ?? "?"}
-            </span>
-            <span className="hidden sm:inline max-w-[80px] truncate">{user?.username ?? "User"}</span>
-          </button>
-          {showUser && (
-            <div className="absolute right-0 top-full mt-1 w-40 bg-surface-900 border border-surface-700 rounded-lg shadow-xl z-50 py-1">
-              <div className="px-3 py-1.5 text-[10px] text-surface-500 border-b border-surface-800 truncate">
-                {user?.email ?? ""}
-              </div>
-              <button
-                onClick={() => { setShowUser(false); navigate("/settings"); }}
-                className="w-full text-left px-3 py-1.5 text-[11px] text-surface-300 hover:bg-surface-800 hover:text-surface-100 transition-colors"
-              >
-                Settings
-              </button>
-              <button
-                onClick={() => { setShowUser(false); logout(); navigate("/login"); }}
-                className="w-full text-left px-3 py-1.5 text-[11px] text-red-400 hover:bg-surface-800 transition-colors"
-              >
-                Sign Out
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-      <ImportModal
-        isOpen={showImport}
-        onClose={() => setShowImport(false)}
-      />
-    </header>
+            </Box>
+            <Typography variant="caption" sx={{ display: { xs: "none", sm: "inline" }, color: "text.secondary", maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {user?.username ?? "User"}
+            </Typography>
+          </IconButton>
+          <Menu anchorEl={userAnchorEl} open={Boolean(userAnchorEl)} onClose={() => setUserAnchorEl(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
+            <MenuItem disabled dense><Typography variant="caption" sx={{ color: "text.disabled" }}>{user?.email ?? ""}</Typography></MenuItem>
+            <MenuItem onClick={() => { setUserAnchorEl(null); navigate("/settings"); }} dense>Settings</MenuItem>
+            <MenuItem onClick={() => { setUserAnchorEl(null); logout(); navigate("/login"); }} dense sx={{ color: "error.main" }}>Sign Out</MenuItem>
+          </Menu>
+        </Box>
+
+        <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} />
+      </Toolbar>
+    </AppBar>
   );
 }

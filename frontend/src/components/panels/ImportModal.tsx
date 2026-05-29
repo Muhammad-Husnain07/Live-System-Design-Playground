@@ -138,10 +138,11 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
       <div className="flex flex-col w-[90vw] max-w-lg max-h-[85vh] bg-surface-900 border border-surface-700 rounded-xl shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-surface-800 shrink-0">
-          <h2 className="text-sm font-medium text-surface-100">Import Infrastructure</h2>
+          <h2 className="text-sm font-medium" style={{ color: '#f4f4f5' }}>Import Infrastructure</h2>
           <button
             onClick={handleClose}
-            className="text-surface-500 hover:text-surface-300 transition-colors text-sm px-1"
+            className="text-sm px-1 transition-colors"
+            style={{ color: '#71717a' }}
           >
             <X className="h-4 w-4" />
           </button>
@@ -149,7 +150,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          <p className="text-[11px] text-surface-400 leading-relaxed">
+          <p className="text-[11px] leading-relaxed" style={{ color: '#a1a1aa' }}>
             Import an existing infrastructure-as-code file to create a new project with an auto-generated canvas.
           </p>
 
@@ -177,26 +178,27 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
 
             {file ? (
               <div className="space-y-1">
-                <FileText className="h-8 w-8 text-blue-400" />
-                <p className="text-sm font-medium text-surface-200">{file.name}</p>
-                <p className="text-[10px] text-surface-500">{(file.size / 1024).toFixed(1)} KB</p>
+                <FileText className="h-8 w-8" style={{ color: '#60a5fa' }} />
+                <p className="text-sm font-medium" style={{ color: '#f4f4f5' }}>{file.name}</p>
+                <p className="text-[10px]" style={{ color: '#71717a' }}>{(file.size / 1024).toFixed(1)} KB</p>
                 <button
                   onClick={(e) => { e.stopPropagation(); reset(); }}
-                  className="text-[10px] text-red-400 hover:text-red-300 underline mt-1"
+                  className="text-[10px] underline mt-1 transition-colors"
+                  style={{ color: '#ef4444' }}
                 >
                   Remove
                 </button>
               </div>
             ) : (
               <div className="space-y-2">
-                <Upload className="h-8 w-8 text-surface-400" />
-                <p className="text-sm text-surface-300">
+                <Upload className="h-8 w-8" style={{ color: '#a1a1aa' }} />
+                <p className="text-sm" style={{ color: '#a1a1aa' }}>
                   Drop your IaC file here
                 </p>
-                <p className="text-[10px] text-surface-500">
+                <p className="text-[10px]" style={{ color: '#71717a' }}>
                   or click to browse
                 </p>
-                <div className="flex gap-2 justify-center text-[9px] text-surface-500 mt-2">
+                <div className="flex gap-2 justify-center text-[9px] mt-2" style={{ color: '#71717a' }}>
                   <span className="bg-surface-800 px-1.5 py-0.5 rounded">.tf</span>
                   <span className="bg-surface-800 px-1.5 py-0.5 rounded">.yaml</span>
                   <span className="bg-surface-800 px-1.5 py-0.5 rounded">.json</span>
@@ -207,13 +209,14 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
 
           {/* Format selector */}
           <div>
-            <label className="block text-[10px] text-surface-500 uppercase tracking-wider font-medium mb-1.5">
-              Format {format && <span className="text-green-400 lowercase normal-case">(auto-detected)</span>}
+            <label className="block text-[10px] uppercase tracking-wider font-medium mb-1.5" style={{ color: '#71717a' }}>
+              Format {format && <span className="lowercase normal-case" style={{ color: '#22c55e' }}>(auto-detected)</span>}
             </label>
             <select
               value={format}
               onChange={(e) => setFormat(e.target.value)}
-              className="w-full bg-surface-800 text-surface-200 text-[11px] px-2.5 py-2 rounded-lg border border-surface-700 focus:outline-none focus:border-blue-500 transition-colors"
+              className="w-full bg-surface-800 text-[11px] px-2.5 py-2 rounded-lg border border-surface-700 focus:outline-none focus:border-blue-500 transition-colors"
+              style={{ color: '#f4f4f5' }}
             >
               <option value="">Select format...</option>
               {Object.entries(FORMAT_LABELS).map(([value, label]) => (
@@ -228,8 +231,8 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
               <div className="flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-[10px] font-medium text-red-400">Import failed</p>
-                  <p className="text-[9px] text-red-400/70 mt-0.5">{error}</p>
+                  <p className="text-[10px] font-medium" style={{ color: '#ef4444' }}>Import failed</p>
+                  <p className="text-[9px] mt-0.5" style={{ color: 'rgba(239, 68, 68, 0.7)' }}>{error}</p>
                 </div>
               </div>
             </div>
@@ -241,12 +244,12 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
               <div className="flex items-center gap-3">
                 <div className="animate-spin h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full shrink-0" />
                 <div>
-                  <p className="text-[11px] font-medium text-blue-400">
+                  <p className="text-[11px] font-medium" style={{ color: '#60a5fa' }}>
                     {phase === "uploading" && "Uploading file..."}
                     {phase === "parsing" && "Parsing infrastructure..."}
                     {phase === "creating" && "Creating project..."}
                   </p>
-                  <p className="text-[9px] text-blue-400/60 mt-0.5">
+                  <p className="text-[9px] mt-0.5" style={{ color: 'rgba(96, 165, 250, 0.6)' }}>
                     {file?.name}
                   </p>
                 </div>
@@ -260,14 +263,16 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
           <button
             onClick={handleClose}
             disabled={loading}
-            className="px-3 py-1.5 text-[11px] text-surface-400 hover:text-surface-200 disabled:opacity-40 transition-colors"
+            className="px-3 py-1.5 text-[11px] disabled:opacity-40 transition-colors"
+            style={{ color: '#a1a1aa' }}
           >
             Cancel
           </button>
           <button
             onClick={handleImport}
             disabled={loading || !file || !format}
-            className="px-4 py-1.5 text-[11px] font-medium rounded-lg bg-green-600 hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
+            className="px-4 py-1.5 text-[11px] font-medium rounded-lg bg-green-600 hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            style={{ color: '#ffffff' }}
           >
             {loading ? "Importing..." : "Import & Create Project"}
           </button>

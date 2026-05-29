@@ -1,6 +1,12 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Project } from "../../store/projectStore";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import CardActions from "@mui/material/CardActions";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 
 interface ProjectCardProps {
   project: Project;
@@ -26,43 +32,61 @@ export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
   );
 
   return (
-    <div
+    <Card
       onClick={() => navigate(`/project/${project.id}`)}
-      className="group relative border border-surface-800 rounded-lg p-4 hover:border-green-600 cursor-pointer transition-all bg-surface-900/50 hover:bg-surface-900"
+      sx={{
+        cursor: "pointer",
+        transition: "all 0.15s ease",
+        border: 1,
+        borderColor: "divider",
+        "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" },
+      }}
     >
-      <div className="flex items-start justify-between">
-        <h3 className="font-medium text-sm truncate text-surface-100">{project.name}</h3>
-        <button
+      <CardContent sx={{ pb: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <Typography variant="body2" sx={{ fontWeight: 500, color: "text.primary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {project.name}
+          </Typography>
+        </Box>
+
+        {project.description && (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block", overflow: "hidden", textOverflow: "ellipsis", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+            {project.description}
+          </Typography>
+        )}
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1.5 }}>
+          {project.is_public ? (
+            <Typography
+              variant="caption"
+              sx={{ color: "success.main", bgcolor: "success.main", bgcolor: "rgba(34,197,94,0.15)", px: 0.75, py: 0.25, borderRadius: "999px", border: 1, borderColor: "rgba(34,197,94,0.3)" }}
+            >
+              public
+            </Typography>
+          ) : (
+            <Typography
+              variant="caption"
+              sx={{ color: "text.disabled", bgcolor: "action.hover", px: 0.75, py: 0.25, borderRadius: "999px" }}
+            >
+              private
+            </Typography>
+          )}
+          <Typography variant="caption" color="text.disabled">
+            {new Date(project.updated_at).toLocaleDateString()}
+          </Typography>
+        </Box>
+      </CardContent>
+
+      <CardActions sx={{ justifyContent: "flex-end", pt: 0 }}>
+        <Button
+          size="small"
           onClick={handleDelete}
-          className={`shrink-0 ml-2 text-xs px-2 py-0.5 rounded transition-all ${
-            confirming
-              ? "bg-red-700 text-white"
-              : "opacity-0 group-hover:opacity-100 text-surface-500 hover:text-red-400"
-          }`}
-          title="Delete project"
+          color={confirming ? "error" : "inherit"}
+          sx={{ fontSize: "0.65rem", minWidth: 0, opacity: confirming ? 1 : 0, transition: "opacity 0.15s ease", "&:hover": confirming ? {} : { opacity: 1 } }}
         >
           {confirming ? "Confirm?" : "delete"}
-        </button>
-      </div>
-
-      {project.description && (
-        <p className="text-xs text-surface-400 mt-1.5 line-clamp-2">{project.description}</p>
-      )}
-
-      <div className="flex items-center gap-2 mt-3">
-        {project.is_public ? (
-          <span className="text-[10px] text-green-400 bg-green-900/30 px-1.5 py-0.5 rounded-full border border-green-800/40">
-            public
-          </span>
-        ) : (
-          <span className="text-[10px] text-surface-500 bg-surface-800 px-1.5 py-0.5 rounded-full">
-            private
-          </span>
-        )}
-        <span className="text-[10px] text-surface-500">
-          {new Date(project.updated_at).toLocaleDateString()}
-        </span>
-      </div>
-    </div>
+        </Button>
+      </CardActions>
+    </Card>
   );
 }

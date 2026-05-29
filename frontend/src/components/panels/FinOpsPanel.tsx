@@ -9,6 +9,11 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import ButtonGroup from "@mui/material/ButtonGroup";
+import Button from "@mui/material/Button";
 
 const USER_PRESETS = [
   { label: "1K", value: 1000 },
@@ -17,54 +22,16 @@ const USER_PRESETS = [
   { label: "1M", value: 1_000_000 },
 ];
 
-const EFFORT_COLORS: Record<string, string> = {
-  low: "text-green-400 bg-green-500/10",
-  medium: "text-yellow-400 bg-yellow-500/10",
-  high: "text-red-400 bg-red-500/10",
+const EFFORT_COLORS: Record<string, { color: string; bgClass: string }> = {
+  low: { color: "#22c55e", bgClass: "bg-green-500/10" },
+  medium: { color: "#facc15", bgClass: "bg-yellow-500/10" },
+  high: { color: "#ef4444", bgClass: "bg-red-500/10" },
 };
 
 function formatCurrency(v: number): string {
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
   if (v >= 1_000) return `$${(v / 1_000).toFixed(1)}K`;
   return `$${v.toFixed(2)}`;
-}
-
-function CategoryRow({ cat }: { cat: CostCategory }) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <div className="bg-surface-900 rounded border border-surface-800">
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between px-3 py-2 text-left"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-medium text-surface-200">{cat.category}</span>
-          <span className="text-[9px] text-surface-500">{cat.items.length} item(s)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono font-medium text-green-400 tabular-nums">
-            {formatCurrency(cat.subtotal)}
-          </span>
-          {expanded ? <ChevronUp className="h-4 w-4 text-surface-600" /> : <ChevronDown className="h-4 w-4 text-surface-600" />}
-        </div>
-      </button>
-      {expanded && (
-        <div className="border-t border-surface-800 divide-y divide-surface-800">
-          {cat.items.map((item, i) => (
-            <div key={i} className="flex items-center justify-between px-3 py-1.5">
-              <div className="min-w-0 flex-1">
-                <p className="text-[9px] text-surface-300 truncate">{item.service}</p>
-                <p className="text-[8px] text-surface-600">{item.quantity} × {formatCurrency(item.unitPrice)}</p>
-              </div>
-              <span className="text-[10px] font-mono text-surface-200 tabular-nums ml-2 shrink-0">
-                {formatCurrency(item.monthlyCost)}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 const CHART_GRID = { strokeDasharray: "3 3", stroke: "#27272a" };
@@ -74,6 +41,49 @@ const CHART_TOOLTIP_LABEL = { color: "#e4e4e7" };
 const CHART_DOT = { fill: "#22c55e", r: 3 };
 
 const DONUT_COLORS = ["#f97316", "#22c55e", "#3b82f6", "#a855f7", "#06b6d4", "#eab308"];
+
+function CategoryRow({ cat }: { cat: CostCategory }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <Paper variant="outlined" sx={{ bgcolor: "action.hover" }}>
+      <Button
+        onClick={() => setExpanded((v) => !v)}
+        fullWidth
+        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, py: 1, textTransform: "none", borderRadius: 0 }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="caption" sx={{ color: "text.primary", fontWeight: 500, fontSize: "0.65rem" }}>{cat.category}</Typography>
+          <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.6rem" }}>{cat.items.length} item(s)</Typography>
+        </Box>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="caption" sx={{ fontFamily: "monospace", fontWeight: 500, color: "success.main", fontSize: "0.7rem" }}>
+            {formatCurrency(cat.subtotal)}
+          </Typography>
+          {expanded ? <ChevronUp size={16} style={{ color: "#52525b" }} /> : <ChevronDown size={16} style={{ color: "#52525b" }} />}
+        </Box>
+      </Button>
+      {expanded && (
+        <Box sx={{ borderTop: 1, borderColor: "divider" }}>
+          {cat.items.map((item, i) => (
+            <Box key={i} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, py: 0.75 }}>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.6rem", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {item.service}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.55rem" }}>
+                  {item.quantity} x {formatCurrency(item.unitPrice)}
+                </Typography>
+              </Box>
+              <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.primary", ml: 1, flexShrink: 0, fontSize: "0.65rem" }}>
+                {formatCurrency(item.monthlyCost)}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      )}
+    </Paper>
+  );
+}
 
 const EgressDonutChart = memo(function EgressDonutChart({ estimate }: { estimate: CostReport["currentEstimate"] }) {
   const chartData = useMemo(() => {
@@ -87,11 +97,11 @@ const EgressDonutChart = memo(function EgressDonutChart({ estimate }: { estimate
   if ((estimate.dataEgressTotal ?? 0) <= 0) return null;
 
   return (
-    <div className="bg-surface-900 rounded border border-surface-800 p-3">
-      <p className="text-[9px] uppercase tracking-wider text-surface-500 font-medium mb-2">
+    <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "action.hover" }}>
+      <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, display: "block", mb: 1, fontSize: "0.6rem" }}>
         Data Egress
-      </p>
-      <div className="flex items-center gap-3">
+      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
         <ResponsiveContainer width={120} height={120}>
           <PieChart>
             <Pie
@@ -114,17 +124,17 @@ const EgressDonutChart = memo(function EgressDonutChart({ estimate }: { estimate
             />
           </PieChart>
         </ResponsiveContainer>
-        <div className="space-y-1.5">
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
           {chartData.map((d, i) => (
-            <div key={d.name} className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: DONUT_COLORS[i] }} />
-              <span className="text-[9px] text-surface-400">{d.name}</span>
-              <span className="text-[10px] font-mono text-surface-200 ml-auto">{formatCurrency(d.value)}</span>
-            </div>
+            <Box key={d.name} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, bgcolor: DONUT_COLORS[i] }} />
+              <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.6rem" }}>{d.name}</Typography>
+              <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.primary", ml: "auto", fontSize: "0.65rem" }}>{formatCurrency(d.value)}</Typography>
+            </Box>
           ))}
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Paper>
   );
 });
 
@@ -138,10 +148,10 @@ const ChartCard = memo(function ChartCard({ projections }: { projections: CostRe
   const tooltipFormatter = useCallback((value: number) => [formatCurrency(Number(value)), "Monthly Cost"], []);
 
   return (
-    <div className="bg-surface-900 rounded border border-surface-800 p-3">
-      <p className="text-[9px] uppercase tracking-wider text-surface-500 font-medium mb-2">
+    <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "action.hover" }}>
+      <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, display: "block", mb: 1, fontSize: "0.6rem" }}>
         Scaling Projection
-      </p>
+      </Typography>
       <ResponsiveContainer width="100%" height={160}>
         <LineChart data={chartData}>
           <CartesianGrid {...CHART_GRID} />
@@ -151,36 +161,41 @@ const ChartCard = memo(function ChartCard({ projections }: { projections: CostRe
           <Line type="monotone" dataKey="monthlyCost" stroke="#22c55e" strokeWidth={2} dot={CHART_DOT} />
         </LineChart>
       </ResponsiveContainer>
-    </div>
+    </Paper>
   );
 });
 
 function RecommCard({ rec, index }: { rec: CostReport["recommendations"][0]; index: number }) {
+  const effortColor = EFFORT_COLORS[rec.effort];
   return (
-    <div className="bg-surface-900 rounded border border-surface-800 p-2.5 space-y-1.5">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[10px] text-surface-500 shrink-0">#{index + 1}</span>
-          <p className="text-[10px] font-medium text-surface-200 truncate">{rec.title}</p>
-        </div>
+    <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "action.hover", display: "flex", flexDirection: "column", gap: 0.75 }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}>
+          <Typography variant="caption" sx={{ color: "text.disabled", flexShrink: 0, fontSize: "0.65rem" }}>#{index + 1}</Typography>
+          <Typography variant="caption" sx={{ color: "text.primary", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.65rem" }}>
+            {rec.title}
+          </Typography>
+        </Box>
         {rec.effort && (
-          <span className={`text-[8px] px-1 py-0.5 rounded shrink-0 font-medium ${EFFORT_COLORS[rec.effort] ?? "text-surface-500 bg-surface-800"}`}>
-            {rec.effort}
-          </span>
+          <Box sx={{ px: 0.5, py: 0.25, borderRadius: "4px", flexShrink: 0, bgcolor: effortColor?.bgClass ?? "action.hover" }}>
+            <Typography variant="caption" sx={{ fontSize: "0.55rem", fontWeight: 500, color: effortColor?.color ?? "text.disabled" }}>
+              {rec.effort}
+            </Typography>
+          </Box>
         )}
-      </div>
-      <p className="text-[9px] text-surface-400 leading-relaxed">{rec.description}</p>
+      </Box>
+      <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.6rem", lineHeight: 1.4 }}>{rec.description}</Typography>
       {rec.potentialSavings > 0 && (
-        <div className="flex items-center gap-3 text-[9px]">
-          <span className="text-green-400 font-medium">
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Typography variant="caption" sx={{ color: "success.main", fontWeight: 500, fontSize: "0.6rem" }}>
             Save {formatCurrency(rec.potentialSavings)}/mo
-          </span>
-          <span className="text-surface-600">
+          </Typography>
+          <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.6rem" }}>
             {formatCurrency(rec.annualSavings)}/yr
-          </span>
-        </div>
+          </Typography>
+        </Box>
       )}
-    </div>
+    </Paper>
   );
 }
 
@@ -243,59 +258,52 @@ export default function FinOpsPanel() {
   const hasResults = estimate !== null;
 
   return (
-    <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col overflow-hidden">
-      <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
-        <DollarSign className="h-4 w-4 text-green-400" />
-        <span className="text-xs font-semibold text-surface-100">Cost Estimation</span>
+    <Box className="w-80 shrink-0 bg-surface-950 border-l border-surface-800" sx={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Box sx={{ px: 1.5, py: 1.25, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "center", gap: 1 }}>
+        <DollarSign size={16} style={{ color: "#22c55e" }} />
+        <Typography variant="caption" sx={{ color: "text.primary", fontWeight: 600, fontSize: "0.75rem" }}>Cost Estimation</Typography>
         {hasResults && (
-          <span className="ml-auto text-[9px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full font-mono">
-            {formatCurrency(estimate!.currentEstimate.totalMonthlyCost)}/mo
-          </span>
+          <Box sx={{ ml: "auto", px: 0.75, py: 0.25, borderRadius: "999px", bgcolor: "rgba(34,197,94,0.15)" }}>
+            <Typography variant="caption" sx={{ fontFamily: "monospace", color: "success.main", fontSize: "0.6rem" }}>
+              {formatCurrency(estimate!.currentEstimate.totalMonthlyCost)}/mo
+            </Typography>
+          </Box>
         )}
-      </div>
+      </Box>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-surface-800">
-        <div className="px-3 py-2 space-y-3">
-          <div>
-            <p className="text-[9px] uppercase tracking-wider text-surface-500 font-medium mb-1.5">
+      <Box className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-surface-800">
+        <Box sx={{ px: 1.5, py: 1, display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <Box>
+            <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, display: "block", mb: 0.75, fontSize: "0.6rem" }}>
               Monthly Users
-            </p>
-            <div className="flex gap-1">
+            </Typography>
+            <ButtonGroup fullWidth size="small" sx={{ "& .MuiButton-root": { fontSize: "0.65rem" } }}>
               {USER_PRESETS.map((preset) => (
-                <button
+                <Button
                   key={preset.value}
+                  variant={monthlyUsers === preset.value ? "contained" : "outlined"}
                   onClick={() => setMonthlyUsers(preset.value)}
-                  className={`flex-1 py-1.5 text-[10px] font-medium rounded transition-colors ${
-                    monthlyUsers === preset.value
-                      ? "bg-green-500/30 text-green-300 border border-green-500/40"
-                      : "bg-surface-800 text-surface-400 hover:bg-surface-700 border border-transparent"
-                  }`}
                 >
                   {preset.label}
-                </button>
+                </Button>
               ))}
-            </div>
-          </div>
+            </ButtonGroup>
+          </Box>
 
-          <button
+          <Button
+            variant="contained"
+            color="success"
             onClick={handleCalculate}
             disabled={loading}
-            className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-green-500/20 text-green-400 hover:bg-green-500/30 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+            sx={{ fontSize: "0.7rem" }}
           >
-            {loading ? (
-              <>
-                <span className="inline-block w-3 h-3 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
-                Calculating...
-              </>
-            ) : (
-              "Calculate"
-            )}
-          </button>
+            {loading ? "Calculating..." : "Calculate"}
+          </Button>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-              <p className="text-[10px] text-red-400">{error}</p>
-            </div>
+            <Paper variant="outlined" sx={{ p: 1, bgcolor: "rgba(239,68,68,0.1)", borderColor: "rgba(239,68,68,0.3)" }}>
+              <Typography variant="caption" sx={{ color: "error.main", fontSize: "0.65rem" }}>{error}</Typography>
+            </Paper>
           )}
 
           {!hasResults && !error && (
@@ -307,52 +315,52 @@ export default function FinOpsPanel() {
           )}
 
           {hasResults && (
-            <div className="space-y-3 pb-3">
-              <div className="bg-green-950/30 border border-green-500/20 rounded-lg p-3 text-center">
-                <p className="text-[9px] uppercase tracking-wider text-green-500/70 font-medium mb-1">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, pb: 1.5 }}>
+              <Paper variant="outlined" sx={{ p: 1.5, textAlign: "center", bgcolor: "rgba(0,100,0,0.1)", borderColor: "rgba(34,197,94,0.3)" }}>
+                <Typography variant="caption" sx={{ color: "success.main", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, display: "block", mb: 0.5, fontSize: "0.6rem", opacity: 0.7 }}>
                   Estimated Monthly Cost
-                </p>
-                <p className="text-2xl font-bold font-mono text-green-400 tabular-nums">
+                </Typography>
+                <Typography variant="h6" sx={{ fontFamily: "monospace", fontWeight: 700, color: "success.main", fontSize: "1.5rem" }}>
                   {formatCurrency(estimate!.currentEstimate.totalMonthlyCost)}
-                </p>
-                <p className="text-[9px] text-green-500/50 mt-1">
+                </Typography>
+                <Typography variant="caption" sx={{ color: "success.main", display: "block", mt: 0.5, fontSize: "0.6rem", opacity: 0.5 }}>
                   for {estimate!.monthlyUsers.toLocaleString()} users
-                </p>
-              </div>
+                </Typography>
+              </Paper>
 
               <EgressDonutChart estimate={estimate!.currentEstimate} />
 
-              <div>
-                <p className="text-[9px] uppercase tracking-wider text-surface-500 font-medium mb-1.5">
+              <Box>
+                <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, display: "block", mb: 0.75, fontSize: "0.6rem" }}>
                   Breakdown by Category
-                </p>
-                <div className="space-y-1">
+                </Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                   {estimate!.currentEstimate.breakdown.map((cat, i) => (
                     <CategoryRow key={i} cat={cat} />
                   ))}
-                </div>
-              </div>
+                </Box>
+              </Box>
 
               {estimate!.scalingProjections.length > 0 && (
                 <ChartCard projections={estimate!.scalingProjections} />
               )}
 
               {estimate!.recommendations.length > 0 && (
-                <div>
-                  <p className="text-[9px] uppercase tracking-wider text-surface-500 font-medium mb-1.5">
+                <Box>
+                  <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, display: "block", mb: 0.75, fontSize: "0.6rem" }}>
                     Recommendations ({estimate!.recommendations.length})
-                  </p>
-                  <div className="space-y-1.5">
+                  </Typography>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
                     {estimate!.recommendations.map((rec, i) => (
                       <RecommCard key={i} rec={rec} index={i} />
                     ))}
-                  </div>
-                </div>
+                  </Box>
+                </Box>
               )}
-            </div>
+            </Box>
           )}
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }

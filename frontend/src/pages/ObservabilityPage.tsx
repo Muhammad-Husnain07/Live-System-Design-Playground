@@ -75,11 +75,11 @@ function computeRedMetrics(ticks: TickData[], label: string): RedDatum[] {
 
 const RedChart = memo(function RedChart({ data, label }: { data: RedDatum[]; label: string }) {
   if (data.length <= 1) {
-    return <div className="h-[140px] flex items-center justify-center text-[10px] text-surface-600">Waiting for data…</div>;
+    return <div className="h-[140px] flex items-center justify-center text-[10px]" style={{ color: '#52525b' }}>Waiting for data…</div>;
   }
   return (
     <div className="bg-surface-900 rounded-lg border border-surface-800 p-3">
-      <p className="text-[10px] font-medium text-surface-300 mb-2">{label}</p>
+      <p className="text-[10px] font-medium mb-2" style={{ color: '#a1a1aa' }}>{label}</p>
       <ResponsiveContainer width="100%" height={130}>
         <LineChart data={data}>
           <CartesianGrid {...CHART_GRID} />
@@ -133,11 +133,11 @@ const TraceRow = memo(function TraceRow({ trace, onSelect, selected }: { trace: 
       onClick={onSelect}
     >
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${trace.status === "ERROR" ? "bg-red-400" : "bg-green-400"}`} />
-      <span className="font-mono text-surface-300 w-28 truncate">{trace.traceId.slice(0, 8)}…</span>
-      <span className="text-surface-500 w-20 truncate">{trace.rootNodeLabel}</span>
-      <span className="font-mono text-surface-400 w-16 text-right">{ms(trace.totalDurationMs)}</span>
-      <span className={`w-14 text-right ${trace.status === "ERROR" ? "text-red-400" : "text-green-400"}`}>{trace.status}</span>
-      <span className="text-surface-600 text-[9px] ml-auto">{trace.spans.length} spans</span>
+      <span className="font-mono w-28 truncate" style={{ color: '#a1a1aa' }}>{trace.traceId.slice(0, 8)}…</span>
+      <span className="w-20 truncate" style={{ color: '#71717a' }}>{trace.rootNodeLabel}</span>
+      <span className="font-mono w-16 text-right" style={{ color: '#a1a1aa' }}>{ms(trace.totalDurationMs)}</span>
+      <span className="w-14 text-right" style={{ color: trace.status === "ERROR" ? '#ef4444' : '#22c55e' }}>{trace.status}</span>
+      <span className="text-[9px] ml-auto" style={{ color: '#52525b' }}>{trace.spans.length} spans</span>
     </div>
   );
 });
@@ -146,15 +146,15 @@ function WaterfallChart({ trace }: { trace: TraceData }) {
   const maxDur = Math.max(...trace.spans.map((s) => s.durationMs), 1);
   return (
     <div className="space-y-1 text-[11px] mt-2">
-      <p className="text-[10px] font-medium text-surface-400 mb-2">
-        Trace <span className="font-mono text-surface-200">{trace.traceId.slice(0, 12)}…</span>
+      <p className="text-[10px] font-medium mb-2" style={{ color: '#a1a1aa' }}>
+        Trace <span className="font-mono" style={{ color: '#f4f4f5' }}>{trace.traceId.slice(0, 12)}…</span>
         {" · "}
         {trace.spans.length} spans · {ms(trace.totalDurationMs)} total
-        {trace.hasError && <span className="text-red-400 ml-2">⛔ Has Errors</span>}
+        {trace.hasError && <span className="ml-2" style={{ color: '#ef4444' }}>⛔ Has Errors</span>}
       </p>
       <div className="border border-surface-800 rounded overflow-hidden">
         {/* header */}
-        <div className="flex bg-surface-800 text-[9px] text-surface-500 font-medium px-3 py-1.5">
+        <div className="flex bg-surface-800 text-[9px] font-medium px-3 py-1.5" style={{ color: '#71717a' }}>
           <span className="w-40 shrink-0">Service</span>
           <span className="w-14 shrink-0 text-right">Duration</span>
           <div className="flex-1 ml-2 relative h-4">
@@ -179,14 +179,14 @@ function WaterfallChart({ trace }: { trace: TraceData }) {
                 isError ? "bg-red-500/5" : ""
               }`}
             >
-              <span className="w-40 shrink-0 text-surface-200 truncate flex items-center gap-1">
-                {isCache && <span className="text-[9px] text-green-400">●</span>}
-                {isAsync && <span className="text-[9px] text-amber-400">◉</span>}
-                {isError && <span className="text-[9px] text-red-400">⛔</span>}
+              <span className="w-40 shrink-0 truncate flex items-center gap-1" style={{ color: '#f4f4f5' }}>
+                {isCache && <span className="text-[9px]" style={{ color: '#22c55e' }}>●</span>}
+                {isAsync && <span className="text-[9px]" style={{ color: '#f97316' }}>◉</span>}
+                {isError && <span className="text-[9px]" style={{ color: '#ef4444' }}>⛔</span>}
                 {span.nodeLabel}
-                <span className="text-surface-500 text-[9px] ml-1">{span.nodeType}</span>
+                <span className="text-[9px] ml-1" style={{ color: '#71717a' }}>{span.nodeType}</span>
               </span>
-              <span className="w-14 shrink-0 text-right font-mono text-surface-400">{ms(span.durationMs)}</span>
+              <span className="w-14 shrink-0 text-right font-mono" style={{ color: '#a1a1aa' }}>{ms(span.durationMs)}</span>
               <div className="flex-1 ml-2 relative h-4">
                 <div
                   className="absolute top-0.5 h-3 rounded-full opacity-80"
@@ -499,30 +499,30 @@ export default function ObservabilityPage() {
 
   /* ── Render ── */
   return (
-    <div className="h-screen bg-surface-950 text-surface-100 flex flex-col overflow-hidden">
+    <div className="h-screen bg-surface-950 flex flex-col overflow-hidden" style={{ color: '#f4f4f5' }}>
       <header className="shrink-0 border-b border-surface-800 px-6 py-3 flex items-center justify-between bg-surface-950/90 backdrop-blur-sm z-10">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate(`/project/${projectId}`)} className="text-sm text-surface-400 hover:text-surface-200 transition-colors" title="Back to Project">
+          <button onClick={() => navigate(`/project/${projectId}`)} className="text-sm hover:text-surface-200 transition-colors" style={{ color: '#a1a1aa' }} title="Back to Project">
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <h1 className="text-lg font-semibold text-surface-100">Observability</h1>
-          <span className="text-xs text-surface-500 bg-surface-800 px-2 py-0.5 rounded">{currentProject?.name ?? projectId}</span>
+          <h1 className="text-lg font-semibold" style={{ color: '#f4f4f5' }}>Observability</h1>
+          <span className="text-xs bg-surface-800 px-2 py-0.5 rounded" style={{ color: '#71717a' }}>{currentProject?.name ?? projectId}</span>
         </div>
         <div className="flex items-center gap-3">
           {isRunning && (
-            <span className="text-[10px] font-mono text-green-400 flex items-center gap-1.5">
+            <span className="text-[10px] font-mono flex items-center gap-1.5" style={{ color: '#22c55e' }}>
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
               Live {formatTime(elapsed)}
             </span>
           )}
           {!isRunning && (
-            <span className="text-[10px] text-surface-500 flex items-center gap-1.5">
+            <span className="text-[10px] flex items-center gap-1.5" style={{ color: '#71717a' }}>
               <span className="w-1.5 h-1.5 rounded-full bg-surface-600" />
               Idle
             </span>
           )}
           <button onClick={handleScreenshot} disabled={screenshotting}
-            className="px-3 py-1.5 text-[11px] font-medium bg-surface-800 hover:bg-surface-700 text-surface-300 rounded transition-colors disabled:opacity-40 flex items-center gap-1.5"
+            className="px-3 py-1.5 text-[11px] font-medium bg-surface-800 hover:bg-surface-700 rounded transition-colors disabled:opacity-40 flex items-center gap-1.5" style={{ color: '#a1a1aa' }}
           >{screenshotting ? "Capturing…" : <><Camera className="h-4 w-4" /> Screenshot</>}</button>
         </div>
       </header>
@@ -531,29 +531,29 @@ export default function ObservabilityPage() {
         <div className="p-6 space-y-6">
           {/* ── KPI Cards ── */}
           <div className="grid grid-cols-4 gap-4">
-            <KpiCard label="Total RPS" value={fmt(latestTick?.totalRPS ?? 0)} color="text-blue-400" bg="bg-blue-500/10" border="border-blue-500/20" />
+            <KpiCard label="Total RPS" value={fmt(latestTick?.totalRPS ?? 0)} color="#60a5fa" bg="bg-blue-500/10" border="border-blue-500/20" />
             <KpiCard label="Error Rate" value={latestTick ? pct(latestTick.globalErrorRate) : "0%"}
-              color={latestTick && latestTick.globalErrorRate > 0.05 ? "text-red-400" : "text-surface-200"}
+              color={latestTick && latestTick.globalErrorRate > 0.05 ? '#ef4444' : '#f4f4f5'}
               bg={latestTick && latestTick.globalErrorRate > 0.05 ? "bg-red-500/10" : "bg-surface-800"}
               border={latestTick && latestTick.globalErrorRate > 0.05 ? "border-red-500/20" : "border-surface-700"} />
             <KpiCard label="p99 Latency" value={ms(p99Latency)}
-              color={p99Latency > 500 ? "text-orange-400" : "text-purple-400"}
+              color={p99Latency > 500 ? '#fb923c' : '#a78bfa'}
               bg={p99Latency > 500 ? "bg-orange-500/10" : "bg-purple-500/10"}
               border={p99Latency > 500 ? "border-orange-500/20" : "border-purple-500/20"} />
-            <KpiCard label="Active Requests" value={fmt(latestTick?.activeRequests ?? 0)} color="text-cyan-400" bg="bg-cyan-500/10" border="border-cyan-500/20" />
+            <KpiCard label="Active Requests" value={fmt(latestTick?.activeRequests ?? 0)} color="#22d3ee" bg="bg-cyan-500/10" border="border-cyan-500/20" />
           </div>
 
           {/* ── RED Metrics per Service ── */}
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-surface-500 font-medium mb-3">
-              RED Metrics <span className="text-surface-600 normal-case">(Rate · Errors · Duration p50/p90/p99)</span>
+            <p className="text-[10px] uppercase tracking-wider font-medium mb-3" style={{ color: '#71717a' }}>
+              RED Metrics <span className="normal-case" style={{ color: '#52525b' }}>(Rate · Errors · Duration p50/p90/p99)</span>
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {serviceLabels.slice(0, 9).map((label) => (
                 <RedChart key={label} data={redMap[label] || []} label={label} />
               ))}
               {serviceLabels.length === 0 && (
-                <div className="col-span-full h-[80px] bg-surface-900 rounded-lg border border-surface-800 flex items-center justify-center text-[10px] text-surface-600">
+                <div className="col-span-full h-[80px] bg-surface-900 rounded-lg border border-surface-800 flex items-center justify-center text-[10px]" style={{ color: '#52525b' }}>
                   No service metrics yet — start a simulation
                 </div>
               )}
@@ -562,14 +562,14 @@ export default function ObservabilityPage() {
 
           {/* ── Trace Explorer + Waterfall ── */}
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-surface-500 font-medium mb-3 flex items-center gap-2">
+            <p className="text-[10px] uppercase tracking-wider font-medium mb-3 flex items-center gap-2" style={{ color: '#71717a' }}>
               <Search className="h-3 w-3" /> Trace Explorer
-              <span className="text-surface-600 normal-case font-normal">(last {traces.length} traces)</span>
+              <span className="normal-case font-normal" style={{ color: '#52525b' }}>(last {traces.length} traces)</span>
             </p>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Trace Table */}
               <div className="bg-surface-900 rounded-lg border border-surface-800 p-3 max-h-[320px] overflow-y-auto scrollbar-thin scrollbar-thumb-surface-800">
-                <div className="flex items-center text-[9px] text-surface-500 font-medium px-3 pb-1.5 border-b border-surface-800">
+                <div className="flex items-center text-[9px] font-medium px-3 pb-1.5 border-b border-surface-800" style={{ color: '#71717a' }}>
                   <span className="w-28" />
                   <span className="w-20">Service</span>
                   <span className="w-16 text-right">Duration</span>
@@ -577,7 +577,7 @@ export default function ObservabilityPage() {
                   <span className="flex-1 text-right">Spans</span>
                 </div>
                 {traces.length === 0 ? (
-                  <p className="text-[10px] text-surface-600 text-center py-8">No traces yet — 1 in 100 requests are sampled</p>
+                  <p className="text-[10px] text-center py-8" style={{ color: '#52525b' }}>No traces yet — 1 in 100 requests are sampled</p>
                 ) : (
                   traces.slice().reverse().map((t) => (
                     <TraceRow key={t.traceId} trace={t} onSelect={() => setSelectedTrace(trace => trace?.traceId === t.traceId ? null : t)} selected={selectedTrace?.traceId === t.traceId} />
@@ -589,7 +589,7 @@ export default function ObservabilityPage() {
                 {selectedTrace ? (
                   <WaterfallChart trace={selectedTrace} />
                 ) : (
-                  <div className="h-[240px] flex items-center justify-center text-[10px] text-surface-600">
+                  <div className="h-[240px] flex items-center justify-center text-[10px]" style={{ color: '#52525b' }}>
                     Select a trace to view waterfall chart
                   </div>
                 )}
@@ -602,29 +602,25 @@ export default function ObservabilityPage() {
             {/* Structured Log Tail */}
             <div className="bg-surface-900 rounded-lg border border-surface-800 p-4 flex flex-col max-h-[320px]">
               <div className="flex items-center justify-between mb-2 shrink-0">
-                <p className="text-[10px] uppercase tracking-wider text-surface-500 font-medium flex items-center gap-1.5">
+                <p className="text-[10px] uppercase tracking-wider font-medium flex items-center gap-1.5" style={{ color: '#71717a' }}>
                   <Terminal className="h-3 w-3" /> Structured Logs
                 </p>
-                <label className="flex items-center gap-1.5 text-[9px] text-surface-500">
+                <label className="flex items-center gap-1.5 text-[9px]" style={{ color: '#71717a' }}>
                   <input type="checkbox" checked={autoScroll} onChange={() => setAutoScroll(!autoScroll)} className="accent-blue-500 w-2.5 h-2.5" />
                   Auto-scroll
                 </label>
               </div>
               <div ref={logTailRef} className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-surface-800 font-mono text-[10px] leading-relaxed space-y-0.5 min-h-0">
                 {logs.length === 0 ? (
-                  <p className="text-surface-600 text-center py-8">Waiting for log output…</p>
+                  <p className="text-center py-8" style={{ color: '#52525b' }}>Waiting for log output…</p>
                 ) : (
                   logs.map((log, i) => (
                     <div key={i} className="flex items-start gap-2 px-1 py-0.5 rounded hover:bg-surface-800/50">
-                      <span className={`shrink-0 w-10 text-right ${
-                        log.level === "ERROR" ? "text-red-400" : log.level === "WARN" ? "text-amber-400" : "text-surface-500"
-                      }`}>{log.level}</span>
-                      <span className="text-surface-500 w-16 shrink-0">{new Date(log.timestamp).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
-                      <span className="text-cyan-400 w-24 shrink-0 truncate">{log.service}</span>
-                      <span className={`flex-1 truncate ${
-                        log.level === "ERROR" ? "text-red-300" : log.level === "WARN" ? "text-amber-300" : "text-surface-300"
-                      }`}>{log.message}</span>
-                      <span className="text-surface-600 w-12 shrink-0 text-right truncate" title={log.traceId}>{log.traceId.slice(0, 6)}…</span>
+                      <span className="shrink-0 w-10 text-right" style={{ color: log.level === "ERROR" ? '#ef4444' : log.level === "WARN" ? '#f97316' : '#71717a' }}>{log.level}</span>
+                      <span className="w-16 shrink-0" style={{ color: '#71717a' }}>{new Date(log.timestamp).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+                      <span className="w-24 shrink-0 truncate" style={{ color: '#22d3ee' }}>{log.service}</span>
+                      <span className="flex-1 truncate" style={{ color: log.level === "ERROR" ? '#ef4444' : log.level === "WARN" ? '#f97316' : '#a1a1aa' }}>{log.message}</span>
+                      <span className="w-12 shrink-0 text-right truncate" style={{ color: '#52525b' }} title={log.traceId}>{log.traceId.slice(0, 6)}…</span>
                     </div>
                   ))
                 )}
@@ -633,20 +629,20 @@ export default function ObservabilityPage() {
 
             {/* Event Log */}
             <div className="bg-surface-900 rounded-lg border border-surface-800 p-4 flex flex-col max-h-[320px]">
-              <p className="text-[10px] uppercase tracking-wider text-surface-500 font-medium mb-2 shrink-0">Event Log</p>
+              <p className="text-[10px] uppercase tracking-wider font-medium mb-2 shrink-0" style={{ color: '#71717a' }}>Event Log</p>
               <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-surface-800 space-y-1 min-h-0">
                 {events.length === 0 ? (
-                  <p className="text-[10px] text-surface-600 text-center py-4">No events yet</p>
+                  <p className="text-[10px] text-center py-4" style={{ color: '#52525b' }}>No events yet</p>
                 ) : (
                   events.map((ev) => (
                     <div key={ev.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-surface-800 transition-colors">
                       <span className="text-xs shrink-0 mt-0.5">{ev.icon}</span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] font-medium text-surface-200 truncate">{ev.message}</span>
-                          <span className="text-[8px] text-surface-600 shrink-0 ml-auto">{ev.time}</span>
+                          <span className="text-[9px] font-medium truncate" style={{ color: '#f4f4f5' }}>{ev.message}</span>
+                          <span className="text-[8px] shrink-0 ml-auto" style={{ color: '#52525b' }}>{ev.time}</span>
                         </div>
-                        {ev.detail && <p className="text-[8px] text-surface-500 truncate">{ev.detail}</p>}
+                        {ev.detail && <p className="text-[8px] truncate" style={{ color: '#71717a' }}>{ev.detail}</p>}
                       </div>
                     </div>
                   ))
@@ -663,8 +659,8 @@ export default function ObservabilityPage() {
 function KpiCard({ label, value, color, bg, border }: { label: string; value: string; color: string; bg: string; border: string }) {
   return (
     <div className={`${bg} ${border} rounded-lg border p-4`}>
-      <p className="text-[9px] uppercase tracking-wider text-surface-500 font-medium mb-1">{label}</p>
-      <p className={`text-xl font-bold font-mono tabular-nums ${color}`}>{value}</p>
+      <p className="text-[9px] uppercase tracking-wider font-medium mb-1" style={{ color: '#71717a' }}>{label}</p>
+      <p className="text-xl font-bold font-mono tabular-nums" style={{ color }}>{value}</p>
     </div>
   );
 }

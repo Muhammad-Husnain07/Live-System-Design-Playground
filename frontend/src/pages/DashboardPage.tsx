@@ -8,6 +8,13 @@ import ImportModal from "../components/panels/ImportModal";
 import { Plus } from "lucide-react";
 import { SkeletonCard } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
+import Grid from "@mui/material/Grid";
+import Avatar from "@mui/material/Avatar";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 
 const PAGE_SIZE = 20;
 
@@ -17,23 +24,12 @@ export default function DashboardPage() {
   const { projects, totalProjects, currentPage, isLoading, error, fetchProjects, createProject, deleteProject } = useProjectStore();
   const [showNewModal, setShowNewModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
     fetchProjects(page);
   }, [fetchProjects, page]);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowUserMenu(false);
-      }
-    };
-    if (showUserMenu) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showUserMenu]);
 
   const handleCreate = useCallback(async (name: string, description: string | undefined, isPublic: boolean) => {
     const p = await createProject(name, description, isPublic);
@@ -49,122 +45,138 @@ export default function DashboardPage() {
   const totalPages = Math.ceil(totalProjects / PAGE_SIZE);
 
   return (
-    <div className="min-h-screen bg-surface-950 text-surface-100 flex flex-col">
-      <header className="border-b border-surface-800 px-6 py-3 flex items-center justify-between shrink-0">
-        <div
+    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <Box
+        component="header"
+        sx={{
+          borderBottom: 1,
+          borderColor: "divider",
+          px: 3,
+          py: 1.5,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexShrink: 0,
+        }}
+      >
+        <Typography
           onClick={() => navigate("/dashboard")}
-          className="text-lg font-bold tracking-tight text-green-400 cursor-pointer select-none"
+          variant="h6"
+          sx={{ fontWeight: 700, letterSpacing: "-0.02em", color: "primary.main", cursor: "pointer", userSelect: "none" }}
         >
           LSDP
-        </div>
+        </Typography>
 
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 text-sm text-surface-300 hover:text-surface-100 transition-colors"
+        <Box>
+          <Button
+            onClick={(e) => setAnchorEl(e.currentTarget)}
+            sx={{ color: "text.secondary", textTransform: "none", display: "flex", alignItems: "center", gap: 1 }}
           >
-            <span className="w-7 h-7 rounded-full bg-surface-700 flex items-center justify-center text-xs font-medium text-surface-300">
+            <Avatar sx={{ width: 28, height: 28, fontSize: "0.75rem", fontWeight: 500, bgcolor: "action.hover", color: "text.secondary" }}>
               {user?.username?.charAt(0).toUpperCase() || "U"}
-            </span>
-            <span className="hidden sm:inline">{user?.username}</span>
-          </button>
+            </Avatar>
+            <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", sm: "inline" } }}>
+              {user?.username}
+            </Typography>
+          </Button>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => setAnchorEl(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+          >
+            <MenuItem onClick={() => { setAnchorEl(null); navigate("/settings"); }}>
+              Profile
+            </MenuItem>
+            <MenuItem onClick={() => { setAnchorEl(null); logout(); }} sx={{ "&:hover": { color: "error.main" } }}>
+              Logout
+            </MenuItem>
+          </Menu>
+        </Box>
+      </Box>
 
-          {showUserMenu && (
-            <div className="absolute right-0 top-full mt-1 w-40 bg-surface-800 border border-surface-700 rounded-lg shadow-xl py-1 z-50">
-              <button
-                onClick={() => { setShowUserMenu(false); navigate("/settings"); }}
-                className="w-full text-left px-3 py-2 text-sm text-surface-300 hover:text-surface-100 hover:bg-surface-700 transition-colors"
-              >
-                Profile
-              </button>
-              <button
-                onClick={() => { setShowUserMenu(false); logout(); }}
-                className="w-full text-left px-3 py-2 text-sm text-surface-300 hover:text-red-400 hover:bg-surface-700 transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
-
-      <main className="flex-1 p-6 max-w-5xl mx-auto w-full">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-medium text-surface-100">Projects</h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white transition-colors"
-            >
+      <Box component="main" sx={{ flex: 1, px: 3, py: 3, maxWidth: 1024, mx: "auto", width: "100%" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 500, color: "text.primary" }}>
+            Projects
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button variant="contained" color="primary" onClick={() => setShowImportModal(true)} sx={{ bgcolor: "#2563eb", "&:hover": { bgcolor: "#1d4ed8" } }}>
               Import
-            </button>
-            <button
-              onClick={() => setShowNewModal(true)}
-              className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm font-medium text-white transition-colors"
-            >
+            </Button>
+            <Button variant="contained" onClick={() => setShowNewModal(true)}>
               New Project
-            </button>
-          </div>
-        </div>
+            </Button>
+          </Box>
+        </Box>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-900/30 border border-red-800 rounded-lg text-sm text-red-300">
+          <Typography
+            variant="caption"
+            sx={{ mb: 2, p: 1.5, display: "block", color: "error.main", bgcolor: "rgba(239,68,68,0.1)", borderRadius: 1, border: 1, borderColor: "rgba(239,68,68,0.3)" }}
+          >
             {error}
-          </div>
+          </Typography>
         )}
 
         {isLoading && projects.length === 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Grid container spacing={3} columns={12}>
             {Array.from({ length: 6 }).map((_, i) => (
-              <SkeletonCard key={i} lines={3} />
+              <Grid key={i} size={{ xs: 12, sm: 6, md: 4 }}>
+                <SkeletonCard lines={3} />
+              </Grid>
             ))}
-          </div>
+          </Grid>
         ) : projects.length === 0 ? (
           <EmptyState
-            icon={<Plus className="h-6 w-6" />}
+            icon={<Plus size={24} />}
             title="No projects yet"
             description="Create your first architecture to get started."
             action={
-              <button
-                onClick={() => setShowNewModal(true)}
-                className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm font-medium text-white transition-colors"
-              >
+              <Button variant="contained" onClick={() => setShowNewModal(true)}>
                 Create Project
-              </button>
+              </Button>
             }
           />
         ) : (
           <>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Grid container spacing={3} columns={12}>
               {projects.map((p) => (
-                <ProjectCard key={p.id} project={p} onDelete={handleDelete} />
+                <Grid key={p.id} size={{ xs: 12, sm: 6, md: 4 }}>
+                  <ProjectCard project={p} onDelete={handleDelete} />
+                </Grid>
               ))}
-            </div>
+            </Grid>
 
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-6">
-                <button
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mt: 3 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1}
-                  className="px-3 py-1.5 text-xs bg-surface-800 hover:bg-surface-700 disabled:opacity-40 rounded transition-colors"
+                  sx={{ minWidth: 0 }}
                 >
                   Prev
-                </button>
-                <span className="text-xs text-surface-400">
+                </Button>
+                <Typography variant="caption" color="text.secondary">
                   Page {currentPage} of {totalPages}
-                </span>
-                <button
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
-                  className="px-3 py-1.5 text-xs bg-surface-800 hover:bg-surface-700 disabled:opacity-40 rounded transition-colors"
+                  sx={{ minWidth: 0 }}
                 >
                   Next
-                </button>
-              </div>
+                </Button>
+              </Box>
             )}
           </>
         )}
-      </main>
+      </Box>
 
       <ImportModal
         isOpen={showImportModal}
@@ -175,6 +187,6 @@ export default function DashboardPage() {
         onClose={() => setShowNewModal(false)}
         onSubmit={handleCreate}
       />
-    </div>
+    </Box>
   );
 }

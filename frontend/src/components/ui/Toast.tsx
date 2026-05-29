@@ -18,12 +18,13 @@ function ToastItem({ toast }: { toast: Toast }) {
     >
       <span className="text-sm mt-0.5 shrink-0">{style.icon}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-surface-100 truncate">{toast.title}</p>
-        {toast.message && <p className="text-[10px] text-surface-400 mt-0.5">{toast.message}</p>}
+        <p className="text-xs font-medium truncate" style={{ color: '#f4f4f5' }}>{toast.title}</p>
+        {toast.message && <p className="text-[10px] mt-0.5" style={{ color: '#a1a1aa' }}>{toast.message}</p>}
       </div>
       <button
         onClick={() => removeToast(toast.id)}
-        className="text-surface-500 hover:text-surface-300 text-xs shrink-0 leading-none mt-0.5"
+        className="text-xs shrink-0 leading-none mt-0.5"
+        style={{ color: '#71717a' }}
       >
         x
       </button>

@@ -51,15 +51,15 @@ function ViolationRow({
       >
         <div className="flex items-center gap-2 mb-1">
           <ViolationIcon className="h-4 w-4" />
-          <span className="text-[10px] font-medium text-surface-200 truncate flex-1">
+          <span className="text-[10px] font-medium truncate flex-1" style={{ color: '#f4f4f5' }}>
             {violation.type.replace(/_/g, " ")}
           </span>
         </div>
-        <p className="text-[9px] text-surface-400 leading-relaxed line-clamp-2">{violation.message}</p>
+        <p className="text-[9px] leading-relaxed line-clamp-2" style={{ color: '#a1a1aa' }}>{violation.message}</p>
         <div className="flex items-center gap-1.5 mt-1.5 text-[9px]">
-          <span className="text-surface-500 truncate max-w-[80px]">{sourceLabel}</span>
-          <span className="text-surface-600">&rarr;</span>
-          <span className="text-surface-500 truncate max-w-[80px]">{targetLabel}</span>
+          <span className="truncate max-w-[80px]" style={{ color: '#a1a1aa' }}>{sourceLabel}</span>
+          <span style={{ color: '#52525b' }}>&rarr;</span>
+          <span className="truncate max-w-[80px]" style={{ color: '#a1a1aa' }}>{targetLabel}</span>
         </div>
       </button>
       {violation.remediation && (
@@ -67,9 +67,9 @@ function ViolationRow({
           onClick={() => setShowRemediation((v) => !v)}
           className="mt-2 w-full text-left text-[8px] px-2 py-1 rounded bg-blue-950/30 border border-blue-800/30 hover:bg-blue-900/30 transition-colors"
         >
-          <span className="text-blue-400 font-medium">{showRemediation ? "Hide" : "Show"} remediation</span>
+          <span className="font-medium" style={{ color: '#60a5fa' }}>{showRemediation ? "Hide" : "Show"} remediation</span>
           {showRemediation && (
-            <p className="text-blue-300/80 mt-1 leading-relaxed">{violation.remediation}</p>
+            <p className="mt-1 leading-relaxed" style={{ color: 'rgba(147, 197, 253, 0.8)' }}>{violation.remediation}</p>
           )}
         </button>
       )}
@@ -122,9 +122,9 @@ export default function SecurityPanel() {
     <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col overflow-hidden">
       <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
         <Shield className="h-4 w-4" />
-        <span className="text-xs font-semibold text-surface-100">Security Audit</span>
+        <span className="text-xs font-semibold" style={{ color: '#f4f4f5' }}>Security Audit</span>
         {violations.length > 0 && (
-          <span className="ml-auto text-[9px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full font-mono">
+          <span className="ml-auto text-[9px] bg-red-500/20 px-1.5 py-0.5 rounded-full font-mono" style={{ color: '#ef4444' }}>
             {violations.length}
           </span>
         )}
@@ -134,7 +134,8 @@ export default function SecurityPanel() {
         <button
           onClick={handleAudit}
           disabled={auditing}
-          className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+          className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+          style={{ color: '#60a5fa' }}
         >
           {auditing ? (
             <>
@@ -150,14 +151,14 @@ export default function SecurityPanel() {
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-surface-800">
         {violations.length === 0 && (
           <div className="px-3 py-8 text-center">
-            <p className="text-[10px] text-surface-600">No audit results yet</p>
-            <p className="text-[9px] text-surface-700 mt-1">Click the button above to scan for violations</p>
+            <p className="text-[10px]" style={{ color: '#52525b' }}>No audit results yet</p>
+            <p className="text-[9px] mt-1" style={{ color: '#3f3f46' }}>Click the button above to scan for violations</p>
           </div>
         )}
 
         {critical.length > 0 && (
           <div className="px-3 py-2">
-            <p className="text-[9px] uppercase tracking-wider text-red-400 font-medium mb-2 flex items-center gap-1">
+            <p className="text-[9px] uppercase tracking-wider font-medium mb-2 flex items-center gap-1" style={{ color: '#ef4444' }}>
               <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
               Critical ({critical.length})
             </p>
@@ -171,7 +172,7 @@ export default function SecurityPanel() {
 
         {warnings.length > 0 && (
           <div className="px-3 py-2 border-t border-surface-800">
-            <p className="text-[9px] uppercase tracking-wider text-orange-400 font-medium mb-2 flex items-center gap-1">
+            <p className="text-[9px] uppercase tracking-wider font-medium mb-2 flex items-center gap-1" style={{ color: '#fb923c' }}>
               <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
               Warnings ({warnings.length})
             </p>

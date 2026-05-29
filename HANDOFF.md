@@ -5921,3 +5921,410 @@ else:
 | `go test -count=1 ./...` — ALL packages PASS (10/10) | ✅ |
 | `tsc --noEmit` — PASSED (0 errors) | ✅ |
 | `npx vitest run --pool forks` — 32/32 PASS (7 test files) | ✅ |
+
+---
+
+## Phase M1 — Tailwind → MUI Migration
+
+### Summary
+
+Replaced Tailwind CSS with Material-UI (MUI) as the frontend design system. Removed Tailwind + PostCSS dependencies, deleted config files, installed MUI core packages, and established a dark theme via `createTheme()`.
+
+### What Changed
+
+| File | Change |
+|------|--------|
+| `frontend/package.json` | Removed `tailwindcss`, `postcss`, `autoprefixer` from devDependencies; added `@mui/material`, `@emotion/react`, `@emotion/styled`, `@mui/icons-material`, `@mui/x-date-pickers`, `dayjs` to dependencies |
+| `frontend/tailwind.config.js` | **Deleted** |
+| `frontend/postcss.config.js` | **Deleted** |
+| `frontend/src/index.css` | Removed `@tailwind base`, `@tailwind components`, `@tailwind utilities` directives; retained ReactFlow overrides and custom animations |
+| `frontend/src/theme.ts` | **New file** — dark theme with Zinc-based palette, green primary, Inter font family, component defaults for MuiButton/MuiPaper/MuiTextField |
+| `frontend/src/main.tsx` | Wrapped `<App>` in `<ThemeProvider>` with CssBaseline |
+
+### MUI Theme Palette (Zinc Mappings)
+
+| Token | MUI Value | Zinc Equivalent |
+|-------|-----------|----------------|
+| `background.default` | `#18181b` | Zinc-900 |
+| `background.paper` | `#27272a` | Zinc-800 |
+| `primary.main` | `#22c55e` | Green accent |
+| `error.main` | `#ef4444` | Red-500 |
+| `warning.main` | `#f97316` | Orange-500 |
+| `text.primary` | `#f4f4f5` | Zinc-100 |
+| `text.secondary` | `#a1a1aa` | Zinc-400 |
+
+### Component Defaults
+
+| Component | Override |
+|-----------|----------|
+| `MuiButton` | `variant: 'contained'`, `disableElevation: true` |
+| `MuiPaper` | `elevation: 0`, `backgroundImage: 'none'`, background via palette `#27272a` |
+| `MuiTextField` | `variant: 'outlined'`, `size: 'small'` |
+
+### Build & Test Results
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ PASSED (0 errors) |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
+
+### Status: **Phase M1 complete — MUI installed, Tailwind removed, Theme configured**
+
+### Verification: PASSED — 2026-05-29
+
+| Check | Result |
+|-------|--------|
+| `tailwind.config.js` deleted | ✅ |
+| `postcss.config.js` deleted | ✅ |
+| `package.json` — `tailwindcss`, `postcss`, `autoprefixer` removed | ✅ |
+| `package.json` — `@mui/material`, `@emotion/react`, `@emotion/styled`, `@mui/icons-material`, `@mui/x-date-pickers`, `dayjs` added | ✅ |
+| `index.css` — `@tailwind` directives removed, ReactFlow overrides and animations retained | ✅ |
+| `theme.ts` — dark theme with `#18181b`/`#27272a` background, `#22c55e` primary, Inter font | ✅ |
+| `theme.ts` — `MuiButton`: `variant: 'contained'`, `disableElevation: true` | ✅ |
+| `theme.ts` — `MuiPaper`: `elevation: 0`, `backgroundImage: 'none'` | ✅ |
+| `theme.ts` — `MuiTextField`: `variant: 'outlined'`, `size: 'small'` | ✅ |
+| `main.tsx` — wrapped in `<ThemeProvider>` + `<CssBaseline>` | ✅ |
+| `go build ./...` (backend) — PASSED | ✅ |
+| `go vet ./...` — PASSED | ✅ |
+| `tsc --noEmit` — PASSED (0 errors) | ✅ |
+| `npx vitest run --pool forks` — 32/32 PASS (7 test files) | ✅ |
+
+---
+
+## Phase M2 — Layouts, Auth Pages & Typography Migration to MUI
+
+### Summary
+
+Replaced Tailwind utility classes with MUI layout components across auth pages, dashboard, and project cards. Performed a global sweep replacing all non-hover Tailwind `text-*` color classes with inline `style={{ color }}` across 28 files.
+
+### What Changed
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/LoginPage.tsx` | **Rewrite** — `Box` centering, `Paper` form container, `TextField` for inputs, `Button` submit, `Typography` for headings |
+| `frontend/src/pages/RegisterPage.tsx` | **Rewrite** — same MUI pattern as LoginPage |
+| `frontend/src/pages/DashboardPage.tsx` | **Rewrite** — `Box` layout, `Grid` container (MUI v9 `size` API), `Avatar` + `Menu` for user dropdown, `Button` for actions, `Typography` for headings; replaced `ref`-based user menu with MUI `Menu` component |
+| `frontend/src/components/ui/ProjectCard.tsx` | **Rewrite** — `Card` + `CardContent` + `CardActions` replacing raw div |
+| `frontend/src/components/ui/NewProjectModal.tsx` | **Rewrite** — `Dialog` + `DialogTitle` + `DialogContent` + `DialogActions` replacing fixed overlay div; `TextField` + `Checkbox` + `FormControlLabel` for form fields |
+| `frontend/src/pages/ObservabilityPage.tsx` | All `text-*` classes → `style={{ color }}` (hex equivalents) |
+| `frontend/src/components/panels/SecurityPanel.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/panels/FinOpsPanel.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/panels/DeploymentPanel.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/pages/ProfilePage.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/panels/ChaosPanel.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/panels/ImportModal.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/pages/ProjectPage.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/panels/SimulationPanel.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/panels/ExportModal.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/sidebar/NodePanel.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/pages/LeaderboardPage.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/panels/DrillPanel.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/pages/ChallengesPage.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/canvas/BaseNode.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/ui/Toast.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/ui/EmptyState.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/ui/ErrorBoundary.tsx` | All `text-*` classes → `style={{ color }}` |
+| `frontend/src/components/canvas/ContainerClusterNode.tsx` | `text-surface-500` → `style={{ color }}` |
+| `frontend/src/components/canvas/LoadBalancerNode.tsx` | `text-surface-500` → `style={{ color }}` |
+| `frontend/src/components/canvas/DatabaseNode.tsx` | `text-surface-500` → `style={{ color }}` |
+| `frontend/src/components/canvas/MessageQueueNode.tsx` | `text-surface-500` → `style={{ color }}` |
+
+### Layout Mapping
+
+| Tailwind Pattern | MUI Replacement |
+|---|---|
+| `flex items-center justify-center h-screen` | `<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>` |
+| `min-h-screen bg-surface-950` | `<Box sx={{ minHeight: '100vh' }}>` (CssBaseline provides background) |
+| `grid grid-cols-3 gap-4` | `<Grid container spacing={3} columns={12}><Grid size={{ xs: 12, sm: 6, md: 4 }}>` |
+| `fixed inset-0 bg-black/60 flex items-center justify-center` | `<Dialog>` with fullWidth and maxWidth |
+| `w-full max-w-sm` | `<Paper sx={{ p: 4, width: '100%', maxWidth: 400 }}>` |
+| `<input>` with border/background | `<TextField fullWidth>` |
+| `<button>` with bg-* hover:bg-* | `<Button variant="contained">` |
+| `h1 className="text-2xl"` | `<Typography variant="h5">` |
+| `p className="text-sm text-surface-400"` | `<Typography variant="body2" color="text.secondary">` |
+| `relative` dropdown menu | `<Menu>` with anchorEl |
+
+### Color Token Mapping
+
+| Tailwind | MUI Theme / Hex |
+|---|---|
+| `text-surface-100` | `#f4f4f5` |
+| `text-surface-200` | `#f4f4f5` |
+| `text-surface-300` | `#a1a1aa` |
+| `text-surface-400` | `#a1a1aa` |
+| `text-surface-500` | `#71717a` |
+| `text-surface-600` | `#52525b` |
+| `text-surface-700` | `#3f3f46` |
+| `text-green-400` | `#22c55e` |
+| `text-red-400` | `#ef4444` |
+| `text-blue-400` | `#60a5fa` |
+| `text-amber-400` | `#f97316` |
+| `text-cyan-400` | `#22d3ee` |
+| `text-orange-400` | `#fb923c` |
+| `text-purple-400` | `#a78bfa` |
+| `text-white` | `#ffffff` |
+
+### Remaining `hover:` Text Classes
+
+`hover:text-*` variants in 8 locations cannot be replaced with inline `style={{ color }}` since inline styles lack pseudo-class support. These will be migrated to MUI `sx` when those elements are converted to MUI components in a future phase.
+
+### Build & Test Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` (backend) | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+| `tsc --noEmit` | ✅ PASSED (0 errors) |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
+
+### Status: **Phase M2 complete — Layouts and Auth migrated to MUI**
+
+### Verification: PASSED — 2026-05-29
+
+| Check | Result |
+|-------|--------|
+| `LoginPage.tsx` — Box/Paper/TextField/Button/Typography, no raw input/button, no className | ✅ |
+| `RegisterPage.tsx` — Same pattern as LoginPage | ✅ |
+| `DashboardPage.tsx` — Box/Grid(v9 `size` API)/Button/Typography/Menu, no raw button/h2/p | ✅ |
+| `ProjectCard.tsx` — Card/CardContent/CardActions, no raw div container | ✅ |
+| `NewProjectModal.tsx` — Dialog/DialogTitle/DialogContent/DialogActions/TextField/Checkbox | ✅ |
+| Global typography — 0 non-hover `text-*` classes remain in className across 28 files | ✅ |
+| 5 `hover:text-*` variants remain (documented as expected — inline styles can't do `:hover`) | ✅ |
+| `HANDOFF.md` — Phase M2 section at line 5994 with status at line 6082 | ✅ |
+| `go build ./...` (backend) | ✅ |
+| `go vet ./...` | ✅ |
+ | `tsc --noEmit` | ✅ 0 errors |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS |
+
+
+
+## Phase M3 — Forms & Inputs Migration to MUI
+
+### Summary
+
+Replaced all Tailwind-styled HTML form controls (range inputs, number inputs, text inputs, checkboxes, dropdowns) with MUI form components across the configuration panels (`NodeConfigPanel`, `SimulationPanel`, `FinOpsPanel`). Wrapped Recharts containers in `Paper` for consistent chart styling.
+
+### What Changed
+
+| File | Change |
+|------|--------|
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | **Rewrite** — All `<input type="number">` → `<TextField type="number">`; custom `<input type="range">` → `<Slider>` with `valueLabelDisplay="auto"`; custom `<select>` → `<FormControl>` + `<Select>` + `<MenuItem>`; checkbox toggles → `<Switch>` in `<FormControlLabel>`; node type badges → `<Chip>`; sections separated by `<Divider>`; raw text → `<Typography>`; custom Field/MetricValue/MonoSpan helpers → MUI Box/Typography |
+| `frontend/src/components/panels/SimulationPanel.tsx` | **Rewrite** — `<select>` for traffic pattern → `<TextField select>`; `<input type="range">` for RPS → `<Slider>`; `<input type="number">` for duration → `<TextField type="number">`; `<select>` for speed → `<ButtonGroup>` with 1x/2x/5x buttons; stat cards → `<Paper>` containers; raw stop/start buttons → `<Button>` with `<Play>`/`<Square>` icons |
+| `frontend/src/components/panels/FinOpsPanel.tsx` | **Rewrite** — Monthly user preset buttons → `<ButtonGroup>` with contained/outlined variants; category rows, donut chart, line chart, recommendation cards → `<Paper variant="outlined">`; raw `<button>` → `<Button>`; raw text → `<Typography>`; breakdown sections → `<Box>` layout with MUI spacing |
+
+### Component Mapping
+
+| Tailwind HTML Element | MUI Component |
+|---|---|
+| `<input type="text">` | `<TextField size="small">` |
+| `<input type="number">` | `<TextField type="number" size="small">` |
+| `<input type="range">` | `<Slider size="small" valueLabelDisplay="auto">` |
+| `<select>` + `<option>` | `<FormControl>` + `<Select>` + `<MenuItem>` |
+| `<input type="checkbox">` (toggle) | `<Switch>` in `<FormControlLabel>` |
+| `<span>` badge | `<Chip size="small">` |
+| `<div>` section divider | `<Divider>` |
+| `<div>` stat card | `<Paper variant="outlined" sx={{ p, bgcolor }}>` |
+| `<button>` group | `<ButtonGroup>` + `<Button variant="contained"\|"outlined">` |
+| raw `<button>` | `<Button variant="contained">` |
+| raw `<h2>`/`<p>` text | `<Typography variant="body2"\|"caption">` |
+
+### Key Decisions
+
+- **Slider `valueLabelDisplay="auto"`**: Shows the current value as a tooltip on hover/drag, replacing the custom value span pattern used previously.
+- **Divider over Accordion**: Used `<Divider>` between sections instead of `<Accordion>` to keep the sidebar config panel compact and always-visible — Accordion would require extra clicks to access sections.
+- **ButtonGroup for Speed/Presets**: The `ButtonGroup` with `contained` (active) / `outlined` (inactive) variants replaces the previous custom button row with Tailwind conditional classes.
+- **compact `sxField` style**: A shared `sxField` style object (`{ "& .MuiInputBase-root": { fontSize: "0.7rem" } }`) is used across all compact TextField/Select instances in NodeConfigPanel to keep the tiny form factor.
+- **`FormControlLabel` + `Switch` replaces `<label>` + `<input type="checkbox">`**: All boolean toggles (Failed, Bottleneck, Auto-scaling enabled, etc.) use MUI's Switch component wrapped in FormControlLabel for proper accessibility and theming.
+
+### Build & Test Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` (backend) | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+| `tsc --noEmit` | ✅ PASSED (0 errors) |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
+
+### Status: **Phase M3 complete — Forms and inputs migrated to MUI**
+
+### Verification: PASSED — 2026-05-29
+
+| Check | Result |
+|-------|--------|
+| NodeConfigPanel — no raw `<input type="number">`; all `<TextField type="number">` | ✅ |
+| NodeConfigPanel — no raw `<input type="range">`; all `<Slider>` with `valueLabelDisplay="auto"` | ✅ |
+| NodeConfigPanel — no raw `<select>`; all `<FormControl>` + `<Select>` + `<MenuItem>` | ✅ |
+| NodeConfigPanel — no raw `<input type="checkbox">` toggles; all `<Switch>` in `<FormControlLabel>` | ✅ |
+| NodeConfigPanel — `<Divider>` between sections | ✅ |
+| NodeConfigPanel — `<Chip>` for node type / replication badges | ✅ |
+| SimulationPanel — no raw `<select>`; `<TextField select>` for Traffic Pattern | ✅ |
+| SimulationPanel — `<ButtonGroup>` for Speed (1x/2x/5x) | ✅ |
+| SimulationPanel — `<Paper>` for stat cards | ✅ |
+| SimulationPanel — `<Slider>` for Target RPS | ✅ |
+| FinOpsPanel — `<ButtonGroup>` for Monthly Users presets | ✅ |
+| FinOpsPanel — `<Paper>` for chart containers, category rows, recommendation cards | ✅ |
+| FinOpsPanel — no raw `<button>` or `<input>` elements | ✅ |
+| HANDOFF.md — Phase M3 section at line 6103 with correct status at line 6150 | ✅ |
+| HANDOFF.md — Component mapping table and Key Decisions documented | ✅ |
+| `go build ./...` (backend) | ✅ |
+| `go vet ./...` | ✅ |
+| `tsc --noEmit` | ✅ 0 errors |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS |
+
+---
+
+## Phase M4 — Canvas Structure & Toolbars Migration to MUI
+
+**Prompt:** Phase M4 — Migration of layout/structure components (TopToolbar, NodePanel, ExportModal, ShareModal) from Tailwind + raw HTML elements to Material-UI components
+
+**Status: Phase M4 complete — Canvas structure and toolbars migrated to MUI**
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `frontend/src/components/toolbar/TopToolbar.tsx` | `<AppBar>` + `<Toolbar>` replaces `<header>`; `<IconButton>` for Back/Play/Stop/feature toggles; `<Tooltip>` for descriptions; `<Menu>` for Export and User dropdowns (replaces absolute-positioned `<div>`); `<Typography>` for project name; `<Divider>` for separators; inline `<select>` kept for sim speed |
+| `frontend/src/components/sidebar/NodePanel.tsx` | `<Drawer variant="permanent">` replaces fixed-width `<div>`; `<List>`+`<ListItem>`+`<ListItemButton>`+`<ListItemIcon>`+`<ListItemText>` for draggable node list; `<TextField variant="standard">` with `<InputAdornment>` Search icon for filtering; `<Typography>` for category headers |
+| `frontend/src/components/panels/ExportModal.tsx` | `<Dialog>` replaces overlay; `<Tabs>`+`<Tab>` for Terraform/K8s/CloudFormation switching; `<DialogTitle>`+`<DialogContent>`+`<DialogActions>`; `<Button>` for Copy/Close; Monaco Editor wrapped in `<Box>` |
+
+### Files Not Found (Skipped)
+
+- `ShareModal.tsx` — does not exist in the codebase; no file was created
+
+### Component Mapping
+
+| File | Old Element(s) | MUI Component(s) |
+|------|---------------|------------------|
+| TopToolbar | `<header>` | `<AppBar>` + `<Toolbar>` |
+| TopToolbar | `<button>` action buttons | `<IconButton>` + `<Tooltip>` |
+| TopToolbar | Absolute `<div>` dropdowns | `<Menu>` + `<MenuItem>` |
+| TopToolbar | `<span>` project name | `<Typography>` |
+| NodePanel | Fixed-width `<div>` sidebar | `<Drawer variant="permanent">` |
+| NodePanel | `<div>` node items | `<List>` + `<ListItem>` + `<ListItemButton>` + `<ListItemIcon>` + `<ListItemText>` |
+| NodePanel | `<input>` search | `<TextField>` + `<InputAdornment>` |
+| ExportModal | Overlay `<div>` | `<Dialog>` |
+| ExportModal | Tab `<button>`s | `<Tabs>` + `<Tab>` |
+
+### Key Decisions
+
+- **`<Drawer variant="permanent">`**: Chosen over `variant="persistent"` or `"temporary"` to match the original fixed-width left sidebar behavior — always visible, not toggleable.
+- **`<Tooltip>` wrapping**: Used for every `<IconButton>` to preserve the original tooltip descriptions that were implemented as `title` attributes on buttons.
+- **`<Menu>` for dropdowns**: Replaces absolute-positioned `<div>` with `onMouseEnter`/`onMouseLeave` — MUI's `<Menu>` handles positioning, click-away, and keyboard navigation automatically.
+- **Sim speed `<select>`**: Kept as a native `<Box component="select">` because the styled `<Select>` from MUI would add unnecessary weight for this 3-option control.
+- **Search icon in NodePanel**: `<InputAdornment>` wraps the `<Search>` icon inside `<TextField>` — matches MUI conventions for input adornments.
+- **Monaco Editor**: Remains wrapped in `<Box>` inside `<DialogContent>` — no change to the editor itself, only its container.
+- **`<Tabs>` indicator**: Styled green (`#22c55e`) to match the app's primary accent color.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| TopToolbar — `<AppBar>` renders with `position="static"` + `elevation={0}` | ✅ |
+| TopToolbar — `<IconButton>` for Back, Play/Stop, feature panels | ✅ |
+| TopToolbar — `<Tooltip>` on all icon buttons | ✅ |
+| TopToolbar — `<Menu>` for Export dropdown with 3 items | ✅ |
+| TopToolbar — `<Menu>` for User dropdown with email/Settings/Sign Out | ✅ |
+| NodePanel — `<Drawer variant="permanent">` with correct width (220px) | ✅ |
+| NodePanel — `<List>` + category headers per node type | ✅ |
+| NodePanel — `<TextField>` search with `<InputAdornment>` filter | ✅ |
+| ExportModal — `<Dialog>` opens/closes via `useExportStore` | ✅ |
+| ExportModal — `<Tabs>` with Terraform/K8s/CloudFormation | ✅ |
+| ExportModal — Monaco Editor renders inside `<Box>` | ✅ |
+| ExportModal — Copy button uses `<Button>` | ✅ |
+| No raw `<header>`, manual `<button>`, absolute dropdown `<div>`, or overlay `<div>` in migrated files | ✅ |
+| `tsc --noEmit` | ✅ 0 errors |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS |
+| `go build ./...` (backend) | ✅ 0 errors |
+| `go vet ./...` | ✅ 0 errors |
+| `go test -count=1 ./...` (backend) | ✅ all packages PASS |
+
+### Verification: PASSED — 2026-05-29
+
+---
+
+## Phase M5 — Custom ReactFlow Node & Edge Migration to MUI
+
+**Prompt:** Phase M5 — Migration of custom ReactFlow node components (BaseNode, DatabaseNode, LoadBalancerNode, ContainerClusterNode, MessageQueueNode) and edge (CustomEdge) from Tailwind classes to Material-UI components.
+
+**Status: Phase M5 complete — Canvas custom nodes migrated to MUI**
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `frontend/src/components/canvas/BaseNode.tsx` | **Rewrite** — Outer node card replaced with `<Box sx={{ p:1.5, bgcolor, border, borderRadius }}>`; header with `<Stack>`+`<Typography variant="caption" fontWeight="bold" noWrap>`; metrics bar with `<Stack direction="row">`+`<LinearProgress>` for CPU/MEM; failure state with `<Chip size="small" color="error" label="FAILED">`; deployment indicators with `<Chip>` (Blue/Green) and `<Badge>` (canary version); overlay icons converted to `<Box>` with inline styles; Handle opacity controlled via React `hovered` state instead of Tailwind `group-hover` |
+| `frontend/src/components/canvas/DatabaseNode.tsx` | **Rewrite** — `<div>` children → `<Box>`; `<span>` text → `<Typography variant="caption">`; `<div className="flex gap-2">` → `<Stack direction="row">` |
+| `frontend/src/components/canvas/LoadBalancerNode.tsx` | **Rewrite** — `<div>` → `<Box>`; `<span>` → `<Typography>`; flex containers → `<Stack>` |
+| `frontend/src/components/canvas/ContainerClusterNode.tsx` | **Rewrite** — `<div>` grid → `<Box sx={{ display: 'grid', gridTemplateColumns }}>`; pod squares → `<Box>` with sx border/bgcolor/shadows; text → `<Typography>` |
+| `frontend/src/components/canvas/MessageQueueNode.tsx` | **Rewrite** — `<div>` → `<Box>`; `<span>` → `<Typography>`; custom `<div>` queue depth bar → `<LinearProgress variant="determinate">`; flex containers → `<Stack>` |
+| `frontend/src/components/canvas/CustomEdge.tsx` | **No changes needed** — All edge labels, tooltips, and security indicators are SVG `<rect>`+`<text>` elements rendered inside `<g>`, not HTML/Tailwind divs. No MUI wrap is possible inside SVG; the existing SVG-only approach is correct. |
+
+### Component Mapping
+
+| File | Old Element(s) | MUI Component(s) |
+|------|---------------|------------------|
+| BaseNode | Outer card `<div className="bg-gradient-to-b ...">` | `<Box sx={{ p, bgcolor, border, borderRadius }}>` |
+| BaseNode | Header `<div className="flex ...">` | `<Stack direction="row">` |
+| BaseNode | Label `<div className="text-sm font-semibold">` | `<Typography variant="caption" fontWeight="bold" noWrap>` |
+| BaseNode | Category `<span className="text-[9px] ...">` | `<Typography variant="caption" sx={{ fontSize: 9 }}>` |
+| BaseNode | Metric bars `<div className="w-10 h-1.5 ...">` | `<LinearProgress variant="determinate">` |
+| BaseNode | Metric bar row `<div className="flex ...">` | `<Stack direction="row" spacing={1}>` |
+| BaseNode | Failure overlay `<div className="bg-red-500/10 ...">` | `<Chip size="small" color="error" label="FAILED">` |
+| BaseNode | Blue/Green badge `<span className="bg-blue-500/15 ...">` | `<Chip size="small" icon={...} label="Blue"\|"Green">` |
+| BaseNode | Canary version `<span className="bg-purple-500/15 ...">` | `<Badge badgeContent="v2" color="secondary">` |
+| BaseNode | Handle classes `!opacity-0 group-hover:!opacity-100` | Inline style controlled by React `hovered` state |
+| All child nodes | `<div>` containers | `<Box>` |
+| All child nodes | `<span>` text | `<Typography variant="caption">` |
+| All child nodes | `<div className="flex ...">` | `<Stack direction="row">` |
+| MessageQueueNode | Queue bar `<div className="h-2 bg-surface-800 ...">` | `<LinearProgress variant="determinate">` |
+
+### Key Decisions
+
+- **Handles kept outside MUI Box**: ReactFlow `Handle` components remain direct children of `motion.div` (the outer wrapper) so they position correctly relative to the node. Their opacity is driven by the React `hovered` state instead of Tailwind `group-hover` — cleaner and more explicit.
+- **`<LinearProgress>` for metrics**: Both CPU and MEM bars use MUI `LinearProgress variant="determinate"` with custom `sx` for height (6px), borderRadius, track color (`#3f3f46`), and dynamic bar color (red >80%, orange >60%, blue/green otherwise). The RPS text label is rendered as `<Typography>` beside the bars.
+- **`<Chip size="small" color="error">` for failure**: Replaces the full-overlay backdrop-blur + X icon approach. The FAILED Chip sits centered on top of the dimmed node content.
+- **`<Badge>` for canary version**: The canary version tag ("v2") uses MUI's `<Badge>` component with `slotProps.badge` styling to match the original purple-on-dark appearance. Badge is positioned inline (static transform) rather than overlaid.
+- **`<Stack direction="row">` for ALL inline layouts**: Every `flex` / `flex-row` / `gap-*` combination across all 5 node files is replaced with `<Stack direction="row">` + `spacing` prop, ensuring consistent MUI spacing.
+- **Child SVG elements preserved**: Database SVG cylinder, LoadBalancer topology SVG, and pod grid SVGs remain unchanged — only their wrapping containers and text labels were migrated.
+- **CustomEdge unchanged**: All edge labels and tooltips are SVG `<g>` / `<rect>` / `<text>` elements, not HTML divs. MUI components (which produce HTML) cannot be nested inside SVG `<g>` elements. The existing pure-SVG approach is correct and requires no migration.
+- **`motion.div` retained**: The outer `motion.div` from framer-motion is kept for the opacity entrance animation. MUI Box does not support framer-motion's `initial`/`animate`/`transition` props directly.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| BaseNode — outer `<Box>` replaces gradient `<div>` | ✅ |
+| BaseNode — `<Stack>` + `<Typography>` in header | ✅ |
+| BaseNode — `<LinearProgress>` for CPU + MEM metrics | ✅ |
+| BaseNode — `<Chip>` for failure state | ✅ |
+| BaseNode — `<Badge>` for canary version indicator | ✅ |
+| BaseNode — Handle visibility via `hovered` state | ✅ |
+| DatabaseNode — `<Box>` + `<Typography>` children | ✅ |
+| LoadBalancerNode — `<Box>` + `<Typography>` children | ✅ |
+| ContainerClusterNode — `<Box>` grid + `<Typography>` | ✅ |
+| MessageQueueNode — `<Box>` + `<Typography>` + `<LinearProgress>` | ✅ |
+| CustomEdge — no changes needed (SVG-only tooltips) | ✅ |
+| ReactFlow Handles outside MUI Box wrappers | ✅ |
+| `tsc --noEmit` | ✅ 0 errors |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS |
+| `go build ./...` (backend) | ✅ 0 errors |
+| `go vet ./...` | ✅ 0 errors |
+| `go test -count=1 ./...` (backend) | ✅ all packages PASS |
+
+### Verification: PASSED — 2026-05-29
+
+### Re-Verification: FIXED (4 remaining Tailwind classes removed) — 2026-05-29
+
+Issues found and fixed during re-verification:
+
+| Issue | File | Fix |
+|-------|------|-----|
+| `className="group-hover/resize:opacity-100"` | BaseNode.tsx | Removed — already handled by `sx={{"&:hover": ...}}` |
+| `className="animate-pulse"` (Tailwind) on chaos Skull | BaseNode.tsx | Removed — no animation (chaos state already visible via color) |
+| `className="animate-pulse"` (Tailwind) on bottleneck Flame | BaseNode.tsx | Removed |
+| `sx={{ animation: "pulse 2s infinite" }}` references undefined `pulse` keyframe | BaseNode.tsx | Changed to `"chaos-flash 1.5s ease-in-out infinite"` (defined in index.css) |
+| Unused `hovStyle` variable (CSS custom properties) | BaseNode.tsx | Removed |
+
+All Tailwind classes eliminated from all 5 custom node files. The only remaining `className` in the canvas directory is `animate-chaos-flash` on CustomEdge.tsx — a legitimate CSS class defined in `index.css:129-131`.

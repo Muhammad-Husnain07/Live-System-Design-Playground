@@ -10,6 +10,12 @@ import { useDeployStore } from "../../store/deploymentStore";
 import { useFinOpsStore } from "../../store/finopsStore";
 import { NODE_COMPAT } from "../../store/exportStore";
 import type { CanvasNode } from "../../types/canvas";
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import LinearProgress from "@mui/material/LinearProgress";
+import Chip from "@mui/material/Chip";
+import Badge from "@mui/material/Badge";
 
 export type BaseNodeData = CanvasNode["data"];
 
@@ -22,7 +28,16 @@ const MIN_H = 80;
 const DEFAULT_W = 220;
 const DEFAULT_H = 120;
 
-const handleClass = "!opacity-0 group-hover:!opacity-100 !transition-opacity !w-3 !h-3 !border-2 !bg-surface-900 !border-surface-500 hover:!border-blue-400 !z-20";
+const handleStyle: React.CSSProperties = {
+  opacity: 0,
+  transition: "opacity 0.2s",
+  width: 12,
+  height: 12,
+  borderWidth: 2,
+  borderColor: "#71717a",
+  background: "#18181b",
+  zIndex: 20,
+};
 
 function ResizeHandle({ nodeId }: { nodeId: string }) {
   const resizeNode = useCanvasStore((s) => s.resizeNode);
@@ -66,15 +81,20 @@ function ResizeHandle({ nodeId }: { nodeId: string }) {
   );
 
   return (
-    <div
+    <Box
       onPointerDown={onPointerDown}
-      className={`absolute bottom-0 right-0 z-30 cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity ${resizing ? "!opacity-100" : ""}`}
-      style={{ touchAction: "none" }}
+      sx={{
+        position: "absolute", bottom: 0, right: 0, zIndex: 30,
+        cursor: "nwse-resize", opacity: 0, transition: "opacity 0.2s",
+        "&:hover": { opacity: 1 },
+        touchAction: "none",
+      }}
+      style={resizing ? { opacity: 1 } : undefined}
     >
-      <svg width="14" height="14" viewBox="0 0 14 14" className="drop-shadow-md">
+      <svg width="14" height="14" viewBox="0 0 14 14" style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}>
         <path d="M14 0v14H0l4-4h6V4l4-4z" fill="rgba(96,165,250,0.6)" stroke="rgba(96,165,250,0.9)" strokeWidth="0.5" />
       </svg>
-    </div>
+    </Box>
   );
 }
 
@@ -84,9 +104,9 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
 
   if (!meta) {
     return (
-      <div className="bg-red-950/40 border border-red-500/30 rounded px-2 py-1 text-[10px] text-red-400">
+      <Box sx={{ bgcolor: "rgba(127,29,29,0.4)", border: 1, borderColor: "rgba(239,68,68,0.3)", borderRadius: 1, px: 1, py: 0.5, fontSize: "10px", color: "#ef4444" }}>
         Unknown
-      </div>
+      </Box>
     );
   }
 
@@ -124,7 +144,7 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
   });
   const dimStyle = nw || nh ? { width: nw ?? DEFAULT_W, height: nh ?? DEFAULT_H } : undefined;
 
-  const borderColor = bgBorderColor ?? (isFailed ? "#EF4444" : hasChaos ? "#F97316" : isSecurityHighlighted ? "#EF4444" : selected ? "#60A5FA" : meta.color);
+  const nodeColor = bgBorderColor ?? (isFailed ? "#EF4444" : hasChaos ? "#F97316" : isSecurityHighlighted ? "#EF4444" : selected ? "#60A5FA" : meta.color);
   const shadowColor = isFailed ? "rgba(239,68,68,0.4)" : hasChaos ? "rgba(249,115,22,0.5)" : isSecurityHighlighted ? "rgba(239,68,68,0.5)" : selected ? "rgba(96,165,250,0.4)" : hovered ? `${meta.color}40` : "rgba(0,0,0,0)";
   const shadowIntensity = selected || isFailed || hasChaos || isSecurityHighlighted ? "14px" : hovered ? "10px" : "0px";
 
@@ -133,144 +153,196 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15, ease: "easeOut" }}
-      className="relative group group/node overflow-hidden"
+      style={{ position: "relative", overflow: "hidden", ...dimStyle }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={dimStyle}
     >
-      <Handle type="target" position={Position.Left} id="left" isConnectable={isConnectable} className={handleClass} />
-      <Handle type="source" position={Position.Right} id="right" isConnectable={isConnectable} className={handleClass} />
-      <Handle type="target" position={Position.Top} id="top" isConnectable={isConnectable} className={handleClass} />
-      <Handle type="source" position={Position.Bottom} id="bottom" isConnectable={isConnectable} className={handleClass} />
+      <Handle type="target" position={Position.Left} id="left" isConnectable={isConnectable} style={{ ...handleStyle, opacity: hovered ? 1 : 0 }} />
+      <Handle type="source" position={Position.Right} id="right" isConnectable={isConnectable} style={{ ...handleStyle, opacity: hovered ? 1 : 0 }} />
+      <Handle type="target" position={Position.Top} id="top" isConnectable={isConnectable} style={{ ...handleStyle, opacity: hovered ? 1 : 0 }} />
+      <Handle type="source" position={Position.Bottom} id="bottom" isConnectable={isConnectable} style={{ ...handleStyle, opacity: hovered ? 1 : 0 }} />
 
       {isFailed && (
-        <div className="absolute inset-0 z-10 bg-red-500/10 rounded-lg flex items-center justify-center pointer-events-none backdrop-blur-[1px]">
-          <span title="Node failed"><X className="text-2xl drop-shadow-lg text-red-400" /></span>
-        </div>
+        <Box sx={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <Chip size="small" color="error" label="FAILED" icon={<X size={12} />} />
+        </Box>
       )}
       {hasChaos && !isFailed && (
-        <div className="absolute -top-2 -right-2 z-20" title="Chaos active">
-          <span title="Chaos active"><Skull className="h-4 w-4 drop-shadow-lg animate-pulse text-orange-400" /></span>
-        </div>
+        <Box sx={{ position: "absolute", top: -8, right: -8, zIndex: 20 }} title="Chaos active">
+          <Skull size={16} style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))", color: "#fb923c" }} />
+        </Box>
       )}
       {isBottleneck && !isFailed && (
-        <div className="absolute -top-2 -left-2 z-20" title="Bottleneck detected">
-          <span title="Bottleneck detected"><Flame className="h-4 w-4 drop-shadow-lg animate-pulse text-orange-400" /></span>
-        </div>
+        <Box sx={{ position: "absolute", top: -8, left: -8, zIndex: 20 }} title="Bottleneck detected">
+          <Flame size={16} style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))", color: "#fb923c" }} />
+        </Box>
       )}
       {exportMode && (
-        <div
-          className={`absolute -top-2 -left-2 z-20 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border-2 shadow-lg ${
-            compatStatus === "supported"
-              ? "bg-green-950 text-green-400 border-green-500/50"
-              : "bg-red-950 text-red-400 border-red-500/50"
-          }`}
+        <Box
+          sx={{
+            position: "absolute", top: -8, left: -8, zIndex: 20, width: 20, height: 20,
+            borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 10, fontWeight: 700, border: 2, boxShadow: 2,
+            bgcolor: compatStatus === "supported" ? "rgba(0,128,0,0.3)" : "rgba(128,0,0,0.3)",
+            borderColor: compatStatus === "supported" ? "rgba(34,197,94,0.5)" : "rgba(239,68,68,0.5)",
+          }}
           title={compatStatus === "supported" ? "IaC Supported" : "IaC Skipped (no mapping)"}
         >
-          {compatStatus === "supported" ? <Check className="w-3 h-3" /> : <CircleSlash className="w-3 h-3" />}
-        </div>
+          {compatStatus === "supported" ? <Check size={12} style={{ color: "#22c55e" }} /> : <CircleSlash size={12} style={{ color: "#ef4444" }} />}
+        </Box>
       )}
       {nodeCost && (
-        <div className="absolute -bottom-1 -right-1 z-20 bg-green-950/80 text-green-400 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-green-500/40 shadow-lg backdrop-blur-sm">
+        <Box
+          sx={{
+            position: "absolute", bottom: -4, right: -4, zIndex: 20,
+            bgcolor: "rgba(0,128,0,0.5)", fontSize: 9, fontFamily: "monospace",
+            px: 0.75, py: 0.25, borderRadius: "999px", border: 1, borderColor: "rgba(34,197,94,0.4)",
+            boxShadow: 2, backdropFilter: "blur(4px)", color: "#22c55e",
+          }}
+        >
           ${nodeCost.monthlyCost.toFixed(0)}/mo
-        </div>
+        </Box>
       )}
 
-      <div
-        className={`w-full h-full bg-gradient-to-b from-surface-850 to-surface-900 rounded-lg border-2 shadow-lg transition-all duration-200 ${
-          isFailed ? "animate-pulse" : ""
-        }`}
-        style={{
-          borderColor,
+      <Box
+        sx={{
+          p: 1.5, bgcolor: "#18181b", border: 1, borderColor: nodeColor,
+          borderRadius: 1, minWidth: 150, textAlign: "center",
+          opacity: isFailed ? 0.6 : 1,
           boxShadow: `0 0 ${shadowIntensity} ${shadowColor}${hovered && !selected && !isFailed && !hasChaos && !isSecurityHighlighted ? ", 0 4px 12px rgba(0,0,0,0.3)" : ""}`,
+          transition: "box-shadow 0.2s",
         }}
       >
-        <div className="flex items-center gap-2 px-3 pt-2.5 pb-1.5">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-base shrink-0"
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+          <Box
+            sx={{ width: 28, height: 28, borderRadius: 1, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}
             style={{ backgroundColor: `${meta.color}20` }}
           >
-            <meta.icon className="h-4 w-4" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-surface-100 truncate leading-tight">{label}</div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: meta.color }} />
-              <span className="text-[9px] text-surface-500 font-medium uppercase tracking-wider">{meta.category}</span>
-              {isPublic && <span className="text-[9px] text-blue-400 font-medium ml-auto" title="Public facing"><Globe className="h-3 w-3 inline" /> Public</span>}
-            </div>
-          </div>
-        </div>
+            <meta.icon size={16} />
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="caption" fontWeight="bold" noWrap sx={{ display: "block", lineHeight: 1.3, color: "#f4f4f5", fontSize: "0.8rem" }}>
+              {label}
+            </Typography>
+            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.25 }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, bgcolor: meta.color }} />
+              <Typography variant="caption" sx={{ fontSize: 9, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em", color: "#71717a" }}>
+                {meta.category}
+              </Typography>
+              {isPublic && (
+                <Typography variant="caption" sx={{ fontSize: 9, ml: "auto", color: "#60a5fa" }} title="Public facing">
+                  <Globe size={12} style={{ display: "inline", verticalAlign: "middle" }} /> Public
+                </Typography>
+              )}
+            </Stack>
+          </Box>
+        </Stack>
 
-        {children && <div className="px-3 pb-1">{children}</div>}
+        {children && <Box sx={{ mb: 0.5 }}>{children}</Box>}
 
         {(deployStrategy === "blue_green" || isCanary) && (
-          <div className="px-3 pb-1.5 flex items-center gap-1.5 flex-wrap">
+          <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mb: 0.75, px: 0.5 }}>
             {deployStrategy === "blue_green" && bgActiveGroup && (
-              <span
-                className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
-                  bgActiveGroup === "blue"
-                    ? "bg-blue-500/15 text-blue-400 border border-blue-500/20"
-                    : "bg-green-500/15 text-green-400 border border-green-500/20"
-                }`}
-              >
-                {bgActiveGroup === "blue" ? <><Circle className="h-2 w-2 fill-current" /> Blue</> : <><Circle className="h-2 w-2 fill-current" /> Green</>}
-              </span>
+              <Chip
+                size="small"
+                icon={<Circle size={8} style={{ fill: "currentColor" }} />}
+                label={bgActiveGroup === "blue" ? "Blue" : "Green"}
+                sx={{
+                  height: 18, fontSize: 9,
+                  bgcolor: bgActiveGroup === "blue" ? "rgba(59,130,246,0.15)" : "rgba(34,197,94,0.15)",
+                  color: bgActiveGroup === "blue" ? "#60a5fa" : "#22c55e",
+                  border: 1, borderColor: bgActiveGroup === "blue" ? "rgba(59,130,246,0.2)" : "rgba(34,197,94,0.2)",
+                  "& .MuiChip-icon": { ml: 0.5 },
+                }}
+              />
             )}
             {isCanary && (
-              <span className="text-[9px] bg-purple-500/15 text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/20">
-                {config.deployment.canaryVersion || "v2"}
-              </span>
+              <Badge
+                badgeContent={config.deployment.canaryVersion || "v2"}
+                color="secondary"
+                slotProps={{
+                  badge: {
+                    sx: {
+                      fontSize: 9, height: 18, minWidth: 18, px: 0.5,
+                      bgcolor: "rgba(168,85,247,0.15)", color: "#a78bfa",
+                      border: "1px solid rgba(168,85,247,0.2)", position: "static",
+                      transform: "none", borderRadius: "4px",
+                    },
+                  },
+                }}
+              >
+                <Box sx={{ display: "none" }} />
+              </Badge>
             )}
             {isCanaryFailing && (
-              <span className="text-[9px] text-red-400 flex items-center gap-1 animate-pulse">
-                <AlertTriangle className="h-3 w-3" /> Canary failing
-              </span>
+              <Chip
+                size="small"
+                icon={<AlertTriangle size={10} />}
+                label="Failing"
+                color="error"
+                sx={{ height: 18, fontSize: 9, animation: "chaos-flash 1.5s ease-in-out infinite" }}
+              />
             )}
-          </div>
+          </Stack>
         )}
 
         {deployStrategy === "canary" && totalRPS > 0 && (
-          <div className="px-3 pb-1.5">
-            <div className="h-2 bg-surface-800 rounded-full overflow-hidden flex border border-surface-700/50">
-              <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${stablePct}%` }} title={`Stable: ${stablePct}%`} />
-              <div className="h-full bg-purple-500 transition-all duration-500" style={{ width: `${canaryPct}%` }} title={`Canary: ${canaryPct}%`} />
-            </div>
-          </div>
+          <Box sx={{ mb: 0.75, px: 0.5 }}>
+            <Box sx={{ height: 8, bgcolor: "#27272a", borderRadius: "999px", overflow: "hidden", display: "flex", border: 1, borderColor: "#3f3f4680" }}>
+              <Box sx={{ height: "100%", bgcolor: "#3B82F6", transition: "width 0.5s" }} style={{ width: `${stablePct}%` }} title={`Stable: ${stablePct}%`} />
+              <Box sx={{ height: "100%", bgcolor: "#A855F7", transition: "width 0.5s" }} style={{ width: `${canaryPct}%` }} title={`Canary: ${canaryPct}%`} />
+            </Box>
+          </Box>
         )}
 
         {metrics && (
-          <div className="flex items-center gap-2 px-3 py-1.5 border-t border-surface-700/40 bg-surface-950/40 rounded-b-lg">
-            <div className="flex items-center gap-1.5" title={`CPU: ${Math.round(metrics.cpuPercent)}%`}>
-              <div className="w-10 h-1.5 bg-surface-700 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${Math.min(Math.max(metrics.cpuPercent, 0), 100)}%`,
-                    backgroundColor: metrics.cpuPercent > 80 ? "#EF4444" : metrics.cpuPercent > 60 ? "#F97316" : "#3B82F6",
-                  }}
-                />
-              </div>
-              <span className="text-[8px] text-surface-500 font-mono">CPU</span>
-            </div>
-            <div className="flex items-center gap-1.5" title={`MEM: ${Math.round(metrics.memoryPercent)}%`}>
-              <div className="w-10 h-1.5 bg-surface-700 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${Math.min(Math.max(metrics.memoryPercent, 0), 100)}%`,
-                    backgroundColor: metrics.memoryPercent > 80 ? "#EF4444" : metrics.memoryPercent > 60 ? "#F97316" : "#22C55E",
-                  }}
-                />
-              </div>
-              <span className="text-[8px] text-surface-500 font-mono">MEM</span>
-            </div>
-            <span className="ml-auto text-[9px] font-mono text-surface-400 font-medium">{metrics.currentRPS.toLocaleString()} <span className="text-surface-600">RPS</span></span>
-          </div>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ px: 1, py: 0.75, borderTop: 1, borderColor: "#3f3f4670", bgcolor: "rgba(0,0,0,0.3)", borderRadius: "0 0 4px 4px", mx: -1.5, mb: -1.5, mt: 0.5 }}
+          >
+            <Box sx={{ flex: 1 }} title={`CPU: ${Math.round(metrics.cpuPercent)}%`}>
+              <LinearProgress
+                variant="determinate"
+                value={Math.min(Math.max(metrics.cpuPercent, 0), 100)}
+                sx={{
+                  height: 6, borderRadius: "999px", bgcolor: "#3f3f46",
+                  "& .MuiLinearProgress-bar": {
+                    bgcolor: metrics.cpuPercent > 80 ? "#EF4444" : metrics.cpuPercent > 60 ? "#F97316" : "#3B82F6",
+                    borderRadius: "999px",
+                  },
+                }}
+              />
+              <Typography variant="caption" sx={{ fontSize: 8, fontFamily: "monospace", color: "#71717a", display: "block", mt: 0.25 }}>
+                CPU
+              </Typography>
+            </Box>
+            <Box sx={{ flex: 1 }} title={`MEM: ${Math.round(metrics.memoryPercent)}%`}>
+              <LinearProgress
+                variant="determinate"
+                value={Math.min(Math.max(metrics.memoryPercent, 0), 100)}
+                sx={{
+                  height: 6, borderRadius: "999px", bgcolor: "#3f3f46",
+                  "& .MuiLinearProgress-bar": {
+                    bgcolor: metrics.memoryPercent > 80 ? "#EF4444" : metrics.memoryPercent > 60 ? "#F97316" : "#22C55E",
+                    borderRadius: "999px",
+                  },
+                }}
+              />
+              <Typography variant="caption" sx={{ fontSize: 8, fontFamily: "monospace", color: "#71717a", display: "block", mt: 0.25 }}>
+                MEM
+              </Typography>
+            </Box>
+            <Typography variant="caption" sx={{ fontSize: 9, fontFamily: "monospace", fontWeight: 500, color: "#a1a1aa", ml: "auto !important", flexShrink: 0 }}>
+              {metrics.currentRPS.toLocaleString()}
+              <Typography variant="caption" component="span" sx={{ color: "#52525b", fontSize: 9 }}> RPS</Typography>
+            </Typography>
+          </Stack>
         )}
 
         <ResizeHandle nodeId={nodeId} />
-      </div>
+      </Box>
     </motion.div>
   );
 }

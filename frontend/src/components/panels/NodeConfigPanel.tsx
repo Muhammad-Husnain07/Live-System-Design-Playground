@@ -3,13 +3,27 @@ import { ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCanvasStore } from "../../store/canvasStore";
 import { NODE_REGISTRY } from "../../utils/nodeRegistry";
-import type { NodeType, NodeConfig, NodeMetrics, EdgeRoutingConfig, AutoScalingConfig } from "../../types/canvas";
+import type { NodeType, NodeConfig, NodeMetrics, EdgeRoutingConfig } from "../../types/canvas";
+import TextField from "@mui/material/TextField";
+import Slider from "@mui/material/Slider";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import Switch from "@mui/material/Switch";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Chip from "@mui/material/Chip";
+import Divider from "@mui/material/Divider";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
 
 const REGIONS = ["us-east-1", "us-west-2", "eu-west-1", "eu-central-1", "ap-southeast-1", "ap-northeast-1", "sa-east-1"];
 
 const PROTOCOLS = ["HTTP", "gRPC", "TCP", "WebSocket", "AMQP", "Replication"] as const;
 
 const STRATEGIES = ["rolling", "blue_green", "canary"] as const;
+
+const sxField = { "& .MuiInputBase-root": { fontSize: "0.7rem" }, "& .MuiInputLabel-root": { fontSize: "0.7rem" } };
 
 export default function NodeConfigPanel() {
   const selectedNodeId = useCanvasStore((s) => s.selectedNodeId);
@@ -46,23 +60,17 @@ export default function NodeConfigPanel() {
   );
 
   return (
-    <motion.aside
-      className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 overflow-y-auto overflow-x-hidden"
-    >
+    <motion.aside className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 overflow-y-auto overflow-x-hidden">
       <AnimatePresence mode="wait">
         {selectedNode ? (
           <NodeConfigContent key="node" node={selectedNode} onUpdate={onUpdateNode} onUpdateLabel={onUpdateLabel} simRunning={isSimRunning} nodes={nodes} />
         ) : selectedEdge ? (
           <EdgeConfigContent key="edge" edge={selectedEdge} onUpdate={onUpdateEdgeData} nodes={nodes} />
         ) : (
-          <motion.div
-            key="empty"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="p-4 text-center text-surface-500 text-xs mt-8"
-          >
-            Select a node or edge to configure
+          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <Box sx={{ p: 2, textAlign: "center", mt: 4, color: "text.disabled", fontSize: "0.75rem" }}>
+              Select a node or edge to configure
+            </Box>
           </motion.div>
         )}
       </AnimatePresence>
@@ -70,103 +78,25 @@ export default function NodeConfigPanel() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Section wrapper                                                    */
-/* ------------------------------------------------------------------ */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="border-b border-surface-800 last:border-b-0">
-      <div className="px-3 pt-3 pb-2">
-        <h3 className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider">{title}</h3>
-      </div>
-      <div className="px-3 pb-3 space-y-2.5">{children}</div>
-    </div>
+    <Box sx={{ px: 2, py: 1.5 }}>
+      <Typography variant="caption" sx={{ fontWeight: 600, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.05em", mb: 1, display: "block" }}>
+        {title}
+      </Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>{children}</Box>
+    </Box>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Reusable field controls                                            */
-/* ------------------------------------------------------------------ */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-[10px] text-surface-500 shrink-0">{label}</span>
-      <div className="w-36">{children}</div>
-    </div>
-  );
-}
-
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label className="flex items-center justify-between cursor-pointer group">
-      <span className="text-[10px] text-surface-400 group-hover:text-surface-300 transition-colors">{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="accent-green-500"
-      />
-    </label>
-  );
-}
-
-function SliderField({ label, value, min = 0, max = 100, step = 1, onChange, suffix = "" }: {
-  label: string; value: number; min?: number; max?: number; step?: number; onChange: (v: number) => void; suffix?: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] text-surface-500">{label}</span>
-        <span className="text-[10px] text-surface-300 font-mono">{value}{suffix}</span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1 appearance-none bg-surface-700 rounded-full cursor-pointer accent-green-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-green-500"
-      />
-    </div>
-  );
-}
-
-function Select({ value, options, onChange }: { value: string; options: readonly string[] | string[]; onChange: (v: string) => void }) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-surface-800 text-surface-200 text-[10px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-blue-500 transition-colors"
-    >
-      {options.map((o) => <option key={o} value={o}>{o}</option>)}
-    </select>
-  );
-}
-
-function NumInput({ value, min, max, step, onChange }: { value: number; min?: number; max?: number; step?: number; onChange: (v: number) => void }) {
-  return (
-    <input
-      type="number"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="w-full bg-surface-800 text-surface-200 text-[10px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-blue-500 transition-colors"
-    />
-  );
-}
-
-function TextInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full bg-surface-800 text-surface-200 text-[10px] px-2 py-1.5 rounded border border-surface-700 placeholder-surface-500 focus:outline-none focus:border-blue-500 transition-colors"
-    />
+    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+      <Typography variant="caption" sx={{ color: "text.disabled", flexShrink: 0, fontSize: "0.65rem" }}>
+        {label}
+      </Typography>
+      <Box sx={{ width: 160, flexShrink: 0 }}>{children}</Box>
+    </Box>
   );
 }
 
@@ -186,224 +116,211 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
   const metrics: NodeMetrics | undefined = node.data?.metrics;
   const label = node.data?.label as string | undefined;
 
-  if (!cfg) return <div className="p-4 text-red-400 text-xs">Missing config</div>;
+  if (!cfg) return <Box sx={{ p: 2, color: "error.main", fontSize: "0.75rem" }}>Missing config</Box>;
 
   return (
-    <motion.div
-      key="node"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      transition={{ duration: 0.15 }}
-    >
+    <motion.div key="node" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.15 }}>
       {/* Section 1 — Identity */}
       <Section title="Identity">
         <Field label="Label">
-          <TextInput value={label ?? ""} onChange={(v) => onUpdateLabel?.(v)} placeholder="Node label" />
+          <TextField size="small" value={label ?? ""} onChange={(e) => onUpdateLabel?.(e.target.value)} placeholder="Node label" sx={sxField} />
         </Field>
         {meta && (
-          <div className="flex items-center gap-2">
-            <meta.icon className="h-4 w-4" />
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${meta.color}20`, color: meta.color }}>
-              {meta.label}
-            </span>
-          </div>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <meta.icon size={16} />
+            <Chip label={meta.label} size="small" sx={{ backgroundColor: `${meta.color}20`, color: meta.color, fontWeight: 500, fontSize: "0.65rem" }} />
+          </Box>
         )}
         {cfg.replicationRole && cfg.replicationRole !== "none" && (
-          <div className="flex items-center gap-2">
-            <span className={`text-[9px] px-2 py-0.5 rounded-full font-semibold ${cfg.replicationRole === "primary" ? "bg-green-900/40 text-green-400" : "bg-blue-900/40 text-blue-400"}`}>
-              {cfg.replicationRole === "primary" ? "Primary" : "Replica"}
-            </span>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Chip label={cfg.replicationRole === "primary" ? "Primary" : "Replica"} size="small"
+              sx={{ color: cfg.replicationRole === "primary" ? "#22c55e" : "#60a5fa", bgcolor: cfg.replicationRole === "primary" ? "rgba(34,197,94,0.15)" : "rgba(96,165,250,0.15)", fontWeight: 600, fontSize: "0.6rem" }}
+            />
             {metrics?.isSplitBrain && (
-              <span className="text-[9px] px-2 py-0.5 rounded-full font-semibold bg-red-900/40 text-red-400">
-                Split-Brain
-              </span>
+              <Chip label="Split-Brain" size="small" sx={{ color: "#ef4444", bgcolor: "rgba(239,68,68,0.15)", fontWeight: 600, fontSize: "0.6rem" }} />
             )}
-          </div>
+          </Box>
         )}
         <Field label="Region">
-          <Select value={cfg.region} options={REGIONS} onChange={(v) => onUpdate({ region: v })} />
+          <FormControl fullWidth size="small" sx={sxField}>
+            <Select value={cfg.region} onChange={(e) => onUpdate({ region: e.target.value })}>
+              {REGIONS.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+            </Select>
+          </FormControl>
         </Field>
       </Section>
+
+      <Divider sx={{ borderColor: "#3f3f46" }} />
 
       {/* Section 2 — Capacity */}
       <Section title="Capacity">
         <Field label="Instances">
-          <NumInput value={cfg.instances} min={1} max={100} onChange={(v) => onUpdate({ instances: v })} />
+          <TextField type="number" size="small" value={cfg.instances} slotProps={{ htmlInput: { min: 1, max: 100 } }}
+            onChange={(e) => onUpdate({ instances: Math.max(1, Number(e.target.value)) })} sx={sxField} />
         </Field>
         <Field label="Max RPS">
-          <NumInput value={cfg.maxRPS} min={0} onChange={(v) => onUpdate({ maxRPS: v })} />
+          <TextField type="number" size="small" value={cfg.maxRPS} slotProps={{ htmlInput: { min: 0 } }}
+            onChange={(e) => onUpdate({ maxRPS: Math.max(0, Number(e.target.value)) })} sx={sxField} />
         </Field>
         <Field label="Avg Latency">
-          <NumInput value={cfg.latencyMs} min={0} onChange={(v) => onUpdate({ latencyMs: v })} />
+          <TextField type="number" size="small" value={cfg.latencyMs} slotProps={{ htmlInput: { min: 0 } }}
+            onChange={(e) => onUpdate({ latencyMs: Math.max(0, Number(e.target.value)) })} sx={sxField} />
         </Field>
         <Field label="Compute Tier">
-          <select
-            value={cfg.computeTier ?? "on_demand"}
-            onChange={(e) => onUpdate({ computeTier: e.target.value as "on_demand" | "reserved" | "spot" })}
-            className="w-full bg-surface-800 text-surface-200 text-[10px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-blue-500 transition-colors"
-          >
-            <option value="on_demand">On-Demand ($30.37)</option>
-            <option value="reserved">Reserved 1yr ($18.22)</option>
-            <option value="spot">Spot ($9.11 — 5% interrupt)</option>
-          </select>
+          <FormControl fullWidth size="small" sx={sxField}>
+            <Select value={cfg.computeTier ?? "on_demand"} onChange={(e) => onUpdate({ computeTier: e.target.value as "on_demand" | "reserved" | "spot" })}>
+              <MenuItem value="on_demand">On-Demand ($30.37)</MenuItem>
+              <MenuItem value="reserved">Reserved 1yr ($18.22)</MenuItem>
+              <MenuItem value="spot">Spot ($9.11 — 5% interrupt)</MenuItem>
+            </Select>
+          </FormControl>
         </Field>
-        {cfg.latencyMs > 0 && (
-          <div className="flex items-center gap-1">
-            <div className="flex-1 h-1 bg-surface-700 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min((cfg.latencyMs / 500) * 100, 100)}%` }} />
-            </div>
-            <span className="text-[8px] text-surface-600 w-6 text-right">500ms</span>
-          </div>
-        )}
       </Section>
+
+      <Divider sx={{ borderColor: "#3f3f46" }} />
 
       {/* Section 3 — Reliability */}
       <Section title="Reliability">
-        <SliderField
-          label="Error Rate"
-          value={Math.round(cfg.errorRate * 100)}
-          max={100}
-          onChange={(v) => onUpdate({ errorRate: v / 100 })}
-          suffix="%"
-        />
-        <Toggle label="Failed" checked={cfg.isFailed} onChange={(v) => onUpdate({ isFailed: v })} />
-        <Toggle label="Bottleneck" checked={cfg.isBottleneck} onChange={(v) => onUpdate({ isBottleneck: v })} />
+        <Box sx={{ px: 1 }}>
+          <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>Error Rate: {Math.round(cfg.errorRate * 100)}%</Typography>
+          <Slider size="small" value={cfg.errorRate * 100} onChange={(_, v) => onUpdate({ errorRate: (v as number) / 100 })} valueLabelDisplay="auto" />
+        </Box>
+        <FormControlLabel control={<Switch size="small" checked={cfg.isFailed} onChange={(e) => onUpdate({ isFailed: e.target.checked })} />} label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Failed</Typography>} />
+        <FormControlLabel control={<Switch size="small" checked={cfg.isBottleneck} onChange={(e) => onUpdate({ isBottleneck: e.target.checked })} />} label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Bottleneck</Typography>} />
       </Section>
+
+      <Divider sx={{ borderColor: "#3f3f46" }} />
 
       {/* Section 4 — Replication */}
       {cfg.replicationRole !== undefined && (
-        <Section title="Replication">
-          <Field label="Role">
-            <select
-              value={cfg.replicationRole}
-              onChange={(e) => onUpdate({ replicationRole: e.target.value })}
-              className="w-full bg-surface-800 text-surface-200 text-[10px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-blue-500 transition-colors"
-            >
-              <option value="none">None</option>
-              <option value="primary">Primary</option>
-              <option value="replica">Replica</option>
-            </select>
-          </Field>
-          {cfg.replicationRole === "replica" && (
-            <Field label="Replication Lag">
-              <NumInput value={cfg.replicationLagMs} min={0} max={5000} step={10} onChange={(v) => onUpdate({ replicationLagMs: v })} />
+        <>
+          <Section title="Replication">
+            <Field label="Role">
+              <FormControl fullWidth size="small" sx={sxField}>
+                <Select value={cfg.replicationRole} onChange={(e) => onUpdate({ replicationRole: e.target.value })}>
+                  <MenuItem value="none">None</MenuItem>
+                  <MenuItem value="primary">Primary</MenuItem>
+                  <MenuItem value="replica">Replica</MenuItem>
+                </Select>
+              </FormControl>
             </Field>
-          )}
-        </Section>
+            {cfg.replicationRole === "replica" && (
+              <Field label="Replication Lag">
+                <TextField type="number" size="small" value={cfg.replicationLagMs} slotProps={{ htmlInput: { min: 0, max: 5000, step: 10 } }}
+                  onChange={(e) => onUpdate({ replicationLagMs: Number(e.target.value) })} sx={sxField} />
+              </Field>
+            )}
+          </Section>
+          <Divider sx={{ borderColor: "#3f3f46" }} />
+        </>
       )}
 
       {/* Section 5 — Auto-Scaling */}
       <Section title="Auto-Scaling">
-        <Toggle label="Enabled" checked={cfg.autoScaling?.enabled ?? false} onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, enabled: v } })} />
+        <FormControlLabel control={<Switch size="small" checked={cfg.autoScaling?.enabled ?? false} onChange={(e) => onUpdate({ autoScaling: { ...cfg.autoScaling, enabled: e.target.checked } })} />}
+          label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Enabled</Typography>} />
         {(cfg.autoScaling?.enabled || (cfg.autoScaling && !simRunning)) && (
           <>
             <Field label="Min Instances">
-              <NumInput value={cfg.autoScaling?.minInstances ?? 1} min={1} max={100} onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, minInstances: v } })} />
+              <TextField type="number" size="small" value={cfg.autoScaling?.minInstances ?? 1} slotProps={{ htmlInput: { min: 1, max: 100 } }}
+                onChange={(e) => onUpdate({ autoScaling: { ...cfg.autoScaling, minInstances: Number(e.target.value) } })} sx={sxField} />
             </Field>
             <Field label="Max Instances">
-              <NumInput value={cfg.autoScaling?.maxInstances ?? 10} min={1} max={500} onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, maxInstances: v } })} />
+              <TextField type="number" size="small" value={cfg.autoScaling?.maxInstances ?? 10} slotProps={{ htmlInput: { min: 1, max: 500 } }}
+                onChange={(e) => onUpdate({ autoScaling: { ...cfg.autoScaling, maxInstances: Number(e.target.value) } })} sx={sxField} />
             </Field>
-            <SliderField
-              label="CPU Target"
-              value={cfg.autoScaling?.targetCPUPercent ?? 70}
-              onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, targetCPUPercent: v } })}
-              suffix="%"
-            />
-            <SliderField
-              label="Memory Target"
-              value={cfg.autoScaling?.targetMemPercent ?? 80}
-              onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, targetMemPercent: v } })}
-              suffix="%"
-            />
+            <Box sx={{ px: 1 }}>
+              <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>CPU Target: {cfg.autoScaling?.targetCPUPercent ?? 70}%</Typography>
+              <Slider size="small" value={cfg.autoScaling?.targetCPUPercent ?? 70} onChange={(_, v) => onUpdate({ autoScaling: { ...cfg.autoScaling, targetCPUPercent: v as number } })} valueLabelDisplay="auto" />
+            </Box>
+            <Box sx={{ px: 1 }}>
+              <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>Memory Target: {cfg.autoScaling?.targetMemPercent ?? 80}%</Typography>
+              <Slider size="small" value={cfg.autoScaling?.targetMemPercent ?? 80} onChange={(_, v) => onUpdate({ autoScaling: { ...cfg.autoScaling, targetMemPercent: v as number } })} valueLabelDisplay="auto" />
+            </Box>
             <Field label="Cooldown (ticks)">
-              <NumInput value={cfg.autoScaling?.cooldownTicks ?? 3} min={1} max={50} onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, cooldownTicks: v } })} />
+              <TextField type="number" size="small" value={cfg.autoScaling?.cooldownTicks ?? 3} slotProps={{ htmlInput: { min: 1, max: 50 } }}
+                onChange={(e) => onUpdate({ autoScaling: { ...cfg.autoScaling, cooldownTicks: Number(e.target.value) } })} sx={sxField} />
             </Field>
             <Field label="Scale Up Factor">
-              <NumInput value={cfg.autoScaling?.scaleUpFactor ?? 1.5} min={1.1} max={5} step={0.1} onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, scaleUpFactor: v } })} />
+              <TextField type="number" size="small" value={cfg.autoScaling?.scaleUpFactor ?? 1.5} slotProps={{ htmlInput: { min: 1.1, max: 5, step: 0.1 } }}
+                onChange={(e) => onUpdate({ autoScaling: { ...cfg.autoScaling, scaleUpFactor: Number(e.target.value) } })} sx={sxField} />
             </Field>
             <Field label="Scale Down Factor">
-              <NumInput value={cfg.autoScaling?.scaleDownFactor ?? 0.5} min={0.1} max={0.9} step={0.05} onChange={(v) => onUpdate({ autoScaling: { ...cfg.autoScaling, scaleDownFactor: v } })} />
+              <TextField type="number" size="small" value={cfg.autoScaling?.scaleDownFactor ?? 0.5} slotProps={{ htmlInput: { min: 0.1, max: 0.9, step: 0.05 } }}
+                onChange={(e) => onUpdate({ autoScaling: { ...cfg.autoScaling, scaleDownFactor: Number(e.target.value) } })} sx={sxField} />
             </Field>
           </>
         )}
       </Section>
+
+      <Divider sx={{ borderColor: "#3f3f46" }} />
 
       {/* Section 6 — Deployment Strategy */}
       <Section title="Deployment Strategy">
         <Field label="Strategy">
-          <Select value={cfg.deployment.strategy} options={STRATEGIES} onChange={(v) => onUpdate({ deployment: { ...cfg.deployment, strategy: v as "rolling" | "blue_green" | "canary" } })} />
+          <FormControl fullWidth size="small" sx={sxField}>
+            <Select value={cfg.deployment.strategy} onChange={(e) => onUpdate({ deployment: { ...cfg.deployment, strategy: e.target.value as "rolling" | "blue_green" | "canary" } })}>
+              {STRATEGIES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+            </Select>
+          </FormControl>
         </Field>
         {cfg.deployment.strategy === "canary" && (
-          <>
-            <SliderField
-              label="Canary Traffic"
-              value={cfg.deployment.canaryPercent}
-              onChange={(v) => onUpdate({ deployment: { ...cfg.deployment, canaryPercent: v } })}
-              suffix="%"
-            />
-          </>
+          <Box sx={{ px: 1 }}>
+            <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>Canary Traffic: {cfg.deployment.canaryPercent}%</Typography>
+            <Slider size="small" value={cfg.deployment.canaryPercent} onChange={(_, v) => onUpdate({ deployment: { ...cfg.deployment, canaryPercent: v as number } })} valueLabelDisplay="auto" />
+          </Box>
         )}
         {cfg.deployment.strategy === "blue_green" && (
           <Field label="Blue/Green Group">
-            <TextInput value={cfg.deployment.blueGreenGroup || ""} onChange={(v) => onUpdate({ deployment: { ...cfg.deployment, blueGreenGroup: v } })} placeholder="blue or green" />
+            <TextField size="small" value={cfg.deployment.blueGreenGroup || ""} onChange={(e) => onUpdate({ deployment: { ...cfg.deployment, blueGreenGroup: e.target.value } })} placeholder="blue or green" sx={sxField} />
           </Field>
         )}
         {cfg.deployment.strategy !== "rolling" && (
           <Field label="Canary Version">
-            <TextInput value={cfg.deployment.canaryVersion} onChange={(v) => onUpdate({ deployment: { ...cfg.deployment, canaryVersion: v } })} placeholder="e.g. v2" />
+            <TextField size="small" value={cfg.deployment.canaryVersion} onChange={(e) => onUpdate({ deployment: { ...cfg.deployment, canaryVersion: e.target.value } })} placeholder="e.g. v2" sx={sxField} />
           </Field>
         )}
         {cfg.deployment.strategy !== "blue_green" && (
-          <Toggle
-            label="Activate Canary"
-            checked={cfg.deployment.isCanaryActive}
-            onChange={(v) => onUpdate({ deployment: { ...cfg.deployment, isCanaryActive: v } })}
-          />
+          <FormControlLabel control={<Switch size="small" checked={cfg.deployment.isCanaryActive} onChange={(e) => onUpdate({ deployment: { ...cfg.deployment, isCanaryActive: e.target.checked } })} />}
+            label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Activate Canary</Typography>} />
         )}
       </Section>
 
+      <Divider sx={{ borderColor: "#3f3f46" }} />
+
       {/* Section 7 — Security */}
       <Section title="Security">
-        <Toggle label="Public Facing" checked={cfg.security.isPublicFacing} onChange={(v) => onUpdate({ security: { ...cfg.security, isPublicFacing: v } })} />
-        <Toggle label="Requires TLS" checked={cfg.security.requiresTLS} onChange={(v) => onUpdate({ security: { ...cfg.security, requiresTLS: v } })} />
+        <FormControlLabel control={<Switch size="small" checked={cfg.security.isPublicFacing} onChange={(e) => onUpdate({ security: { ...cfg.security, isPublicFacing: e.target.checked } })} />}
+          label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Public Facing</Typography>} />
+        <FormControlLabel control={<Switch size="small" checked={cfg.security.requiresTLS} onChange={(e) => onUpdate({ security: { ...cfg.security, requiresTLS: e.target.checked } })} />}
+          label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Requires TLS</Typography>} />
         <Field label="VPC ID">
-          <TextInput value={cfg.security.vpcId} onChange={(v) => onUpdate({ security: { ...cfg.security, vpcId: v } })} placeholder="vpc-xxxx" />
+          <TextField size="small" value={cfg.security.vpcId} onChange={(e) => onUpdate({ security: { ...cfg.security, vpcId: e.target.value } })} placeholder="vpc-xxxx" sx={sxField} />
         </Field>
-        <div>
-          <div className="text-[10px] text-surface-500 mb-1">Allowed Inbound</div>
-          <div className="max-h-28 overflow-y-auto space-y-1 border border-surface-800 rounded p-1.5">
+        <Box>
+          <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>Allowed Inbound</Typography>
+          <Box sx={{ maxHeight: 112, overflowY: "auto", border: 1, borderColor: "divider", borderRadius: 1, p: 0.75 }}>
             {nodes.filter((n) => n.id !== node.id).length === 0 ? (
-              <div className="text-[9px] text-surface-600 text-center py-1">No other nodes available</div>
+              <Typography variant="caption" sx={{ color: "text.disabled", display: "block", textAlign: "center", py: 0.5 }}>No other nodes available</Typography>
             ) : (
-              nodes
-                .filter((n) => n.id !== node.id)
-                .map((n) => {
-                  const checked = cfg.security.allowedInbound?.includes(n.id) ?? false;
-                  const nm = NODE_REGISTRY[n.data?.nodeType as NodeType];
-                  return (
-                    <label key={n.id} className="flex items-center gap-1.5 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          const next = checked
-                            ? (cfg.security.allowedInbound ?? []).filter((id: string) => id !== n.id)
-                            : [...(cfg.security.allowedInbound ?? []), n.id];
-                          onUpdate({ security: { ...cfg.security, allowedInbound: next } });
-                        }}
-                        className="accent-green-500"
-                      />
-                      <span className="text-[10px] text-surface-400 group-hover:text-surface-300 truncate">
-                        {nm && <nm.icon className="h-3 w-3 shrink-0" />} {n.data?.label ?? n.id}
-                      </span>
-                    </label>
-                  );
-                })
+              nodes.filter((n) => n.id !== node.id).map((n) => {
+                const checked = cfg.security.allowedInbound?.includes(n.id) ?? false;
+                const nm = NODE_REGISTRY[n.data?.nodeType as NodeType];
+                return (
+                  <FormControlLabel key={n.id} control={<Switch size="small" checked={checked} onChange={() => {
+                    const next = checked
+                      ? (cfg.security.allowedInbound ?? []).filter((id: string) => id !== n.id)
+                      : [...(cfg.security.allowedInbound ?? []), n.id];
+                    onUpdate({ security: { ...cfg.security, allowedInbound: next } });
+                  }} />} label={<Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.65rem" }}>{n.data?.label ?? n.id}</Typography>} sx={{ ml: 0 }} />
+                );
+              })
             )}
-          </div>
-        </div>
+          </Box>
+        </Box>
       </Section>
+
+      <Divider sx={{ borderColor: "#3f3f46" }} />
 
       {/* Section 8 — Live Metrics */}
       {simRunning && (
@@ -415,12 +332,10 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
               <Field label="Memory"><MetricValue>{Math.round(metrics.memoryPercent)}%</MetricValue></Field>
               <Field label="Instances"><MetricValue>{cfg.instances}</MetricValue></Field>
               {cfg.autoScaling?.enabled && (
-                <Field label="Desired Inst">
-                  <MetricValue>{metrics.desiredInstances ?? cfg.instances}</MetricValue>
-                </Field>
+                <Field label="Desired Inst"><MetricValue>{metrics.desiredInstances ?? cfg.instances}</MetricValue></Field>
               )}
               {metrics.scalingEvent && (
-                <div className="text-[9px] text-amber-400 font-medium py-1">{metrics.scalingEvent}</div>
+                <Typography variant="caption" sx={{ color: "warning.main", fontWeight: 500, display: "block", py: 0.5 }}>{metrics.scalingEvent}</Typography>
               )}
               <Field label="Queue Depth"><MetricValue>{metrics.queueDepth}</MetricValue></Field>
               <Field label="P99 Latency"><MetricValue>{metrics.p99LatencyMs}ms</MetricValue></Field>
@@ -432,17 +347,17 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
                 <Field label="Data Inconsist."><MetricValue>{Math.round(metrics.dataInconsistency)}</MetricValue></Field>
               )}
               {metrics.isSplitBrain && (
-                <div className="text-[9px] text-red-400 font-semibold py-1">⚠ Split-brain detected</div>
+                <Typography variant="caption" sx={{ color: "error.main", fontWeight: 600, display: "block", py: 0.5 }}>⚠ Split-brain detected</Typography>
               )}
               {metrics.spotInterrupted && (
-                <div className="text-[9px] text-orange-400 font-semibold py-1">⚠ Spot instance interrupted</div>
+                <Typography variant="caption" sx={{ color: "#fb923c", fontWeight: 600, display: "block", py: 0.5 }}>⚠ Spot instance interrupted</Typography>
               )}
               {cfg.deployment.isCanaryActive && (
                 <Field label="Canary RPS"><MetricValue>{(metrics as any).canaryRPS?.toLocaleString() ?? 0}</MetricValue></Field>
               )}
             </>
           ) : (
-            <div className="text-[9px] text-surface-600 text-center py-2">No metrics available</div>
+            <Typography variant="caption" sx={{ color: "text.disabled", display: "block", textAlign: "center", py: 1 }}>No metrics available</Typography>
           )}
         </Section>
       )}
@@ -451,7 +366,7 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
 }
 
 function MetricValue({ children }: { children: React.ReactNode }) {
-  return <span className="text-[10px] text-surface-200 font-mono">{children}</span>;
+  return <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.primary", fontSize: "0.65rem" }}>{children}</Typography>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -464,7 +379,7 @@ function EdgeConfigContent({ edge, onUpdate, nodes }: {
 }) {
   const routing: EdgeRoutingConfig | undefined = edge.data?.routing;
 
-  if (!routing) return <div className="p-4 text-red-400 text-xs">Missing routing config</div>;
+  if (!routing) return <Box sx={{ p: 2, color: "error.main", fontSize: "0.75rem" }}>Missing routing config</Box>;
 
   const srcNode = nodes.find((n) => n.id === edge.source);
   const tgtNode = nodes.find((n) => n.id === edge.target);
@@ -472,99 +387,65 @@ function EdgeConfigContent({ edge, onUpdate, nodes }: {
   const tgtLabel = tgtNode?.data?.label ?? edge.target;
 
   return (
-    <motion.div
-      key="edge"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      transition={{ duration: 0.15 }}
-    >
-      {/* Edge header */}
-      <div className="px-3 pt-3 pb-2 border-b border-surface-800">
-        <div className="text-xs font-medium text-surface-200">Edge Connection</div>
-        <div className="text-[10px] text-surface-500 mt-1">
+    <motion.div key="edge" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.15 }}>
+      <Box sx={{ px: 2, pt: 2, pb: 1.5, borderBottom: 1, borderColor: "divider" }}>
+        <Typography variant="body2" sx={{ fontWeight: 500, color: "text.primary", fontSize: "0.75rem" }}>Edge Connection</Typography>
+        <Typography variant="caption" sx={{ color: "text.disabled", display: "block", mt: 0.5, fontSize: "0.65rem" }}>
           {srcLabel} <ArrowRight className="h-3 w-3 inline" /> {tgtLabel}
-        </div>
-      </div>
+        </Typography>
+      </Box>
 
-      <div className="px-3 py-3 space-y-2.5">
+      <Box sx={{ px: 2, py: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
         <Field label="Protocol">
-          <Select value={routing.protocol} options={PROTOCOLS} onChange={(v) => onUpdate({ routing: { ...routing, protocol: v } })} />
+          <FormControl fullWidth size="small" sx={sxField}>
+            <Select value={routing.protocol} onChange={(e) => onUpdate({ routing: { ...routing, protocol: e.target.value } })}>
+              {PROTOCOLS.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+            </Select>
+          </FormControl>
         </Field>
 
-        <Toggle
-          label="Synchronous"
-          checked={routing.isSync}
-          onChange={(v) => onUpdate({ routing: { ...routing, isSync: v } })}
-        />
+        <FormControlLabel control={<Switch size="small" checked={routing.isSync} onChange={(e) => onUpdate({ routing: { ...routing, isSync: e.target.checked } })} />}
+          label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Synchronous</Typography>} />
+        <FormControlLabel control={<Switch size="small" checked={routing.requiresTLS} onChange={(e) => onUpdate({ routing: { ...routing, requiresTLS: e.target.checked } })} />}
+          label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Requires TLS</Typography>} />
 
-        <Toggle
-          label="Requires TLS"
-          checked={routing.requiresTLS}
-          onChange={(v) => onUpdate({ routing: { ...routing, requiresTLS: v } })}
-        />
+        <Box sx={{ px: 1 }}>
+          <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>Traffic: {routing.trafficPercent}%</Typography>
+          <Slider size="small" value={routing.trafficPercent} onChange={(_, v) => onUpdate({ routing: { ...routing, trafficPercent: v as number } })} valueLabelDisplay="auto" />
+        </Box>
 
-        <SliderField
-          label="Traffic %"
-          value={routing.trafficPercent}
-          onChange={(v) => onUpdate({ routing: { ...routing, trafficPercent: v } })}
-          suffix="%"
-        />
+        <Divider sx={{ borderColor: "#3f3f46" }} />
 
-        {/* Network Physics */}
-        <div className="pt-2 border-t border-surface-800 space-y-2.5">
-          <div className="text-[9px] text-surface-600 font-medium uppercase tracking-wider">Network Physics</div>
-          <SliderField
-            label="Packet Loss"
-            value={routing.packetLoss ?? 0}
-            min={0}
-            max={5}
-            step={0.1}
-            onChange={(v) => onUpdate({ routing: { ...routing, packetLoss: v } })}
-            suffix="%"
-          />
-          <Field label="Jitter">
-            <NumInput
-              value={routing.jitterMs ?? 0}
-              min={0}
-              max={500}
-              step={1}
-              onChange={(v) => onUpdate({ routing: { ...routing, jitterMs: v } })}
-            />
-          </Field>
-        </div>
+        <Typography variant="caption" sx={{ color: "text.disabled", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "0.6rem" }}>Network Physics</Typography>
 
-        {/* Read-only stats */}
-        <div className="pt-2 border-t border-surface-800 space-y-1.5">
-          <div className="text-[9px] text-surface-600 font-medium uppercase tracking-wider">Stats</div>
-          <Field label="Throughput"><span className="text-[10px] text-surface-300 font-mono">{edge.data?.throughputRPS ?? 0} RPS</span></Field>
-          <Field label="Latency"><span className="text-[10px] text-surface-300 font-mono">{edge.data?.latencyMs ?? 0}ms</span></Field>
-          <Field label="Animated">
-            <input
-              type="checkbox"
-              checked={edge.data?.isAnimated ?? false}
-              onChange={(e) => onUpdate({ isAnimated: e.target.checked })}
-              className="accent-green-500"
-            />
-          </Field>
-          <Field label="Saturated">
-            <input
-              type="checkbox"
-              checked={edge.data?.isSaturated ?? false}
-              onChange={(e) => onUpdate({ isSaturated: e.target.checked })}
-              className="accent-orange-500"
-            />
-          </Field>
-          <Field label="Secure">
-            <input
-              type="checkbox"
-              checked={edge.data?.isSecure ?? true}
-              onChange={(e) => onUpdate({ isSecure: e.target.checked })}
-              className="accent-green-500"
-            />
-          </Field>
-        </div>
-      </div>
+        <Box sx={{ px: 1 }}>
+          <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>Packet Loss: {routing.packetLoss ?? 0}%</Typography>
+          <Slider size="small" value={routing.packetLoss ?? 0} min={0} max={5} step={0.1} onChange={(_, v) => onUpdate({ routing: { ...routing, packetLoss: v as number } })} valueLabelDisplay="auto" />
+        </Box>
+
+        <Field label="Jitter">
+          <TextField type="number" size="small" value={routing.jitterMs ?? 0} slotProps={{ htmlInput: { min: 0, max: 500, step: 1 } }}
+            onChange={(e) => onUpdate({ routing: { ...routing, jitterMs: Number(e.target.value) } })} sx={sxField} />
+        </Field>
+
+        <Divider sx={{ borderColor: "#3f3f46" }} />
+
+        <Typography variant="caption" sx={{ color: "text.disabled", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "0.6rem" }}>Stats</Typography>
+
+        <Field label="Throughput"><MonoSpan>{edge.data?.throughputRPS ?? 0} RPS</MonoSpan></Field>
+        <Field label="Latency"><MonoSpan>{edge.data?.latencyMs ?? 0}ms</MonoSpan></Field>
+
+        <FormControlLabel control={<Switch size="small" checked={edge.data?.isAnimated ?? false} onChange={(e) => onUpdate({ isAnimated: e.target.checked })} />}
+          label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Animated</Typography>} />
+        <FormControlLabel control={<Switch size="small" checked={edge.data?.isSaturated ?? false} onChange={(e) => onUpdate({ isSaturated: e.target.checked })} />}
+          label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Saturated</Typography>} />
+        <FormControlLabel control={<Switch size="small" checked={edge.data?.isSecure ?? true} onChange={(e) => onUpdate({ isSecure: e.target.checked })} />}
+          label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Secure</Typography>} />
+      </Box>
     </motion.div>
   );
+}
+
+function MonoSpan({ children }: { children: React.ReactNode }) {
+  return <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.secondary", fontSize: "0.65rem" }}>{children}</Typography>;
 }

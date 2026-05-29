@@ -1,6 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
 
 export default function LoginPage() {
   const { login, isAuthenticated, isLoading, error, clearError } = useAuthStore();
@@ -36,72 +41,62 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-950 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-surface-100">
+    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", px: 2 }}>
+      <Paper sx={{ p: 4, width: "100%", maxWidth: 400 }}>
+        <Box sx={{ textAlign: "center", mb: 3 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: "text.primary" }}>
             Live System Design
-          </h1>
-          <p className="text-surface-400 text-sm mt-1">Sign in to your account</p>
-        </div>
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Sign in to your account
+          </Typography>
+        </Box>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm text-surface-300 mb-1" htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }}
-              className={`w-full px-3 py-2 bg-surface-800 border rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-1 text-sm ${
-                fieldErrors.email ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-surface-700 focus:border-blue-500 focus:ring-blue-500"
-              }`}
-              placeholder="you@example.com"
-            />
-            {fieldErrors.email && <p className="text-[10px] text-red-400 mt-1">{fieldErrors.email}</p>}
-          </div>
+        <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <TextField
+            id="email"
+            label="Email"
+            type="email"
+            required
+            fullWidth
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }}
+            placeholder="you@example.com"
+            error={!!fieldErrors.email}
+            helperText={fieldErrors.email}
+          />
 
-          <div>
-            <label className="block text-sm text-surface-300 mb-1" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: undefined })); }}
-              className={`w-full px-3 py-2 bg-surface-800 border rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-1 text-sm ${
-                fieldErrors.password ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-surface-700 focus:border-blue-500 focus:ring-blue-500"
-              }`}
-              placeholder="••••••••"
-            />
-            {fieldErrors.password && <p className="text-[10px] text-red-400 mt-1">{fieldErrors.password}</p>}
-          </div>
+          <TextField
+            id="password"
+            label="Password"
+            type="password"
+            required
+            fullWidth
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: undefined })); }}
+            placeholder="••••••••"
+            error={!!fieldErrors.password}
+            helperText={fieldErrors.password}
+          />
 
           {(err || error) && (
-            <p className="text-red-400 text-sm">{err || error}</p>
+            <Typography variant="body2" sx={{ color: "error.main" }}>
+              {err || error}
+            </Typography>
           )}
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-surface-700 disabled:text-surface-500 text-white rounded-lg font-medium text-sm transition-colors"
-          >
+          <Button type="submit" variant="contained" fullWidth disabled={isLoading} sx={{ mt: 1 }}>
             {isLoading ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
+          </Button>
+        </Box>
 
-        <p className="text-center text-surface-400 text-sm mt-6">
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mt: 3 }}>
           Don&apos;t have an account?{" "}
-          <Link to="/register" className="text-blue-400 hover:text-blue-300">
+          <Link to="/register" style={{ color: "#60a5fa", textDecoration: "none" }}>
             Create one
           </Link>
-        </p>
-      </div>
-    </div>
+        </Typography>
+      </Paper>
+    </Box>
   );
 }
