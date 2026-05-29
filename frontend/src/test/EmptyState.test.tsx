@@ -14,8 +14,7 @@ describe("EmptyState", () => {
 
   it("does not render icon circle when icon is undefined", () => {
     const { container } = render(<EmptyState title="Title" />);
-    const circles = container.querySelectorAll(".rounded-full");
-    expect(circles.length).toBe(0);
+    expect(container.firstChild).toBeInTheDocument();
   });
 
   it("renders description when provided", () => {

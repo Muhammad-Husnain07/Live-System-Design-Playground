@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 
 interface EmptyStateProps {
   icon?: ReactNode;
@@ -9,15 +11,15 @@ interface EmptyStateProps {
 
 export default function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", py: 6, textAlign: "center", px: 2 }}>
       {icon && (
-        <div className="w-12 h-12 rounded-full bg-surface-800 flex items-center justify-center mb-3">
-          <span className="text-lg" style={{ color: '#71717a' }}>{icon}</span>
-        </div>
+        <Box sx={{ width: 48, height: 48, borderRadius: "50%", bgcolor: "#27272a", display: "flex", alignItems: "center", justifyContent: "center", mb: 1.5 }}>
+          <Typography variant="body2" sx={{ color: "#71717a", fontSize: "1rem" }}>{icon}</Typography>
+        </Box>
       )}
-      <p className="text-sm mb-1" style={{ color: '#a1a1aa' }}>{title}</p>
-      {description && <p className="text-[11px] mb-4 max-w-xs" style={{ color: '#52525b' }}>{description}</p>}
+      <Typography variant="body2" sx={{ color: "#a1a1aa", mb: 0.5 }}>{title}</Typography>
+      {description && <Typography variant="caption" sx={{ color: "#52525b", mb: 2, maxWidth: 280 }}>{description}</Typography>}
       {action}
-    </div>
+    </Box>
   );
 }

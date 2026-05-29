@@ -1,48 +1,46 @@
-export function SkeletonLine({ width = "100%", height = 12, className = "" }: { width?: string; height?: number; className?: string }) {
-  return (
-    <div
-      className={`bg-surface-800 rounded animate-pulse ${className}`}
-      style={{ width, height }}
-    />
-  );
+import Skeleton from "@mui/material/Skeleton";
+import Box from "@mui/material/Box";
+
+export function SkeletonLine({ width = "100%", height = 12 }: { width?: string; height?: number }) {
+  return <Skeleton variant="rectangular" width={width} height={height} sx={{ borderRadius: 1, bgcolor: "#27272a" }} />;
 }
 
 export function SkeletonCard({ lines = 3 }: { lines?: number }) {
   return (
-    <div className="bg-surface-900 border border-surface-800 rounded-lg p-4 space-y-3">
-      <SkeletonLine width="70%" height={16} />
+    <Box sx={{ bgcolor: "#18181b", border: 1, borderColor: "#27272a", borderRadius: 1, p: 2 }}>
+      <Skeleton variant="rectangular" width="70%" height={16} sx={{ borderRadius: 1, bgcolor: "#27272a", mb: 1 }} />
       {Array.from({ length: lines }).map((_, i) => (
-        <SkeletonLine key={i} width={`${60 + Math.random() * 30}%`} height={10} />
+        <Skeleton key={i} variant="rectangular" width={`${60 + Math.random() * 30}%`} height={10} sx={{ borderRadius: 1, bgcolor: "#27272a", mb: 0.5 }} />
       ))}
-    </div>
+    </Box>
   );
 }
 
 export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
   return (
-    <div className="space-y-2">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       {Array.from({ length: rows }).map((_, r) => (
-        <div key={r} className="flex gap-4">
+        <Box key={r} sx={{ display: "flex", gap: 2 }}>
           {Array.from({ length: cols }).map((_, c) => (
-            <SkeletonLine key={c} width={`${100 / cols}%`} height={12} />
+            <Skeleton key={c} variant="rectangular" width={`${100 / cols}%`} height={12} sx={{ borderRadius: 1, bgcolor: "#27272a" }} />
           ))}
-        </div>
+        </Box>
       ))}
-    </div>
+    </Box>
   );
 }
 
 export function SkeletonPanel() {
   return (
-    <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col overflow-hidden">
-      <div className="px-3 py-2.5 border-b border-surface-800">
-        <SkeletonLine width="40%" height={14} />
-      </div>
-      <div className="flex-1 p-3 space-y-3">
-        <SkeletonLine width="100%" height={32} />
-        <SkeletonLine width="100%" height={80} />
-        <SkeletonLine width="60%" height={32} />
-      </div>
-    </div>
+    <Box sx={{ width: 320, flexShrink: 0, bgcolor: "#09090b", borderLeft: 1, borderColor: "#27272a", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Box sx={{ px: 1.5, py: 1.25, borderBottom: 1, borderColor: "#27272a" }}>
+        <Skeleton variant="rectangular" width="40%" height={14} sx={{ borderRadius: 1, bgcolor: "#27272a" }} />
+      </Box>
+      <Box sx={{ flex: 1, p: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
+        <Skeleton variant="rectangular" width="100%" height={32} sx={{ borderRadius: 1, bgcolor: "#27272a" }} />
+        <Skeleton variant="rectangular" width="100%" height={80} sx={{ borderRadius: 1, bgcolor: "#27272a" }} />
+        <Skeleton variant="rectangular" width="60%" height={32} sx={{ borderRadius: 1, bgcolor: "#27272a" }} />
+      </Box>
+    </Box>
   );
 }

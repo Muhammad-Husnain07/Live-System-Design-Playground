@@ -6,8 +6,16 @@ import { useToastStore } from "../../store/toastStore";
 import EmptyState from "../ui/EmptyState";
 import { useSimulationStore } from "../../store/simulationStore";
 import api from "../../utils/api";
+import Alert from "@mui/material/Alert";
+import Card from "@mui/material/Card";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import Slider from "@mui/material/Slider";
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
 
-/* ── Popover for a single chaos card ── */
 function ChaosConfigPopover({
   definition,
   onClose,
@@ -53,96 +61,105 @@ function ChaosConfigPopover({
   }, [runId, selectedNodeId, definition, severity, durationSec, addActiveEvent, addToast, onClose, nodes]);
 
   return (
-    <div className="absolute left-0 top-full mt-1 w-64 bg-surface-900 border border-surface-700 rounded-lg shadow-2xl z-50 p-3 space-y-3">
-      <p className="text-[10px] leading-relaxed" style={{ color: '#a1a1aa' }}>{definition.description}</p>
+    <Card
+      variant="outlined"
+      sx={{ position: "absolute", left: 0, top: "100%", mt: 0.5, width: 256, zIndex: 50, p: 1.5, display: "flex", flexDirection: "column", gap: 1.5, bgcolor: "#18181b", borderColor: "#3f3f46" }}
+    >
+      <Typography variant="caption" sx={{ color: "#a1a1aa", lineHeight: 1.4 }}>{definition.description}</Typography>
 
-      <div>
-        <label className="text-[9px] block mb-1" style={{ color: '#71717a' }}>Target Node</label>
-        <select
+      <Box>
+        <Typography variant="caption" sx={{ color: "#71717a", display: "block", mb: 0.5, fontSize: "0.7rem" }}>Target Node</Typography>
+        <Select
           value={selectedNodeId}
           onChange={(e) => setSelectedNodeId(e.target.value)}
-          className="w-full bg-surface-800 text-[11px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-red-500" style={{ color: '#f4f4f5' }}
+          size="small"
+          displayEmpty
+          fullWidth
+          sx={{ fontSize: "0.7rem", bgcolor: "#27272a", color: "#f4f4f5", "& .MuiOutlinedInput-notchedOutline": { borderColor: "#3f3f46" }, "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#ef4444" } }}
         >
-          <option value="">Select a node...</option>
+          <MenuItem value="" disabled sx={{ fontSize: "0.7rem" }}>Select a node...</MenuItem>
           {nodes.map((n) => (
-            <option key={n.id} value={n.id}>
-              {n.data?.label ?? n.id}
-            </option>
+            <MenuItem key={n.id} value={n.id} sx={{ fontSize: "0.7rem" }}>{n.data?.label ?? n.id}</MenuItem>
           ))}
-        </select>
-      </div>
+        </Select>
+      </Box>
 
-      <div>
-        <label className="text-[9px] block mb-1" style={{ color: '#71717a' }}>
+      <Box>
+        <Typography variant="caption" sx={{ color: "#71717a", display: "block", mb: 0.5, fontSize: "0.7rem" }}>
           Severity: {Math.round(severity * 100)}%
-        </label>
-        <input
-          type="range"
+        </Typography>
+        <Slider
+          value={severity}
+          onChange={(_, v) => setSeverity(v as number)}
           min={0.05}
           max={1}
           step={0.05}
-          value={severity}
-          onChange={(e) => setSeverity(Number(e.target.value))}
-          className="w-full accent-red-500"
+          size="small"
+          sx={{ color: "#ef4444", "& .MuiSlider-thumb": { width: 12, height: 12 } }}
         />
-        <div className="flex justify-between text-[8px] mt-0.5" style={{ color: '#52525b' }}>
-          <span>5%</span>
-          <span>100%</span>
-        </div>
-      </div>
+        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+          <Typography variant="caption" sx={{ fontSize: "0.6rem", color: "#52525b" }}>5%</Typography>
+          <Typography variant="caption" sx={{ fontSize: "0.6rem", color: "#52525b" }}>100%</Typography>
+        </Box>
+      </Box>
 
-      <div>
-        <label className="text-[9px] block mb-1" style={{ color: '#71717a' }}>Duration (seconds)</label>
-        <input
+      <Box>
+        <Typography variant="caption" sx={{ color: "#71717a", display: "block", mb: 0.5, fontSize: "0.7rem" }}>Duration (seconds)</Typography>
+        <TextField
           type="number"
-          min={1}
-          max={300}
+          size="small"
           value={durationSec}
           onChange={(e) => setDurationSec(Math.max(1, Math.min(300, Number(e.target.value) || 1)))}
-          className="w-full bg-surface-800 text-[11px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-red-500" style={{ color: '#f4f4f5' }}
+          slotProps={{ htmlInput: { min: 1, max: 300, style: { fontSize: "0.7rem", color: "#f4f4f5" } } }}
+          sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: "#3f3f46" }, "& .MuiInputBase-root": { bgcolor: "#27272a" }, "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#ef4444" } }}
         />
-      </div>
+      </Box>
 
-      <button
+      <Button
         onClick={handleInject}
         disabled={!selectedNodeId || injecting}
-        className="w-full py-1.5 text-[11px] font-medium rounded transition-colors bg-red-500/20 hover:bg-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: '#ef4444' }}
+        variant="contained"
+        size="small"
+        sx={{ bgcolor: "rgba(239,68,68,0.2)", color: "#ef4444", fontSize: "0.7rem", "&:hover": { bgcolor: "rgba(239,68,68,0.3)" }, "&.Mui-disabled": { opacity: 0.3, color: "#ef4444" } }}
       >
         {injecting ? "Injecting..." : "Inject Chaos"}
-      </button>
-    </div>
+      </Button>
+    </Card>
   );
 }
 
-/* ── Single chaos type card ── */
 function ChaosCard({ definition }: { definition: (typeof CHAOS_TYPES)[number] }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="relative">
-      <button
+    <Box sx={{ position: "relative" }}>
+      <Card
+        variant="outlined"
         onClick={() => setOpen((v) => !v)}
-        className="w-full text-left bg-surface-900 hover:bg-surface-800 border border-surface-800 hover:border-red-500/40 rounded-lg p-2.5 transition-colors group"
+        sx={{
+          p: 1.25, cursor: "pointer", bgcolor: "#18181b", borderColor: "#27272a",
+          transition: "all 0.15s", "&:hover": { borderColor: "rgba(239,68,68,0.4)", bgcolor: "#27272a" },
+        }}
       >
-        <div className="flex items-center gap-2">
-          <definition.icon className="h-4 w-4" />
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-medium truncate" style={{ color: '#f4f4f5' }}>{definition.label}</p>
-            <p className="text-[9px] leading-tight mt-0.5 line-clamp-2" style={{ color: '#71717a' }}>{definition.description}</p>
-          </div>
-        </div>
-      </button>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <definition.icon size={16} />
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 500, color: "#f4f4f5", display: "block", fontSize: "0.7rem" }}>{definition.label}</Typography>
+            <Typography variant="caption" sx={{ fontSize: "0.6rem", color: "#71717a", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", mt: 0.25 }}>
+              {definition.description}
+            </Typography>
+          </Box>
+        </Box>
+      </Card>
       {open && <ChaosConfigPopover definition={definition} onClose={() => setOpen(false)} />}
-    </div>
+    </Box>
   );
 }
 
-/* ── Active event row with countdown ── */
 function ActiveEventRow({ event, onRemove }: { event: ChaosEventData; onRemove: (id: string) => void }) {
   const def = CHAOS_TYPES.find((d) => d.type === event.eventType);
   const nodes = useCanvasStore((s) => s.nodes);
   const nodeLabel = nodes.find((n) => n.id === event.nodeId)?.data?.label ?? event.nodeId;
 
-  /* inject time tracking */
   const injectedAtRef = useRef(Date.now());
   const totalSec = event.durationTicks / 10;
   const [remaining, setRemaining] = useState(totalSec);
@@ -167,45 +184,35 @@ function ActiveEventRow({ event, onRemove }: { event: ChaosEventData; onRemove: 
   const severityPct = Math.round(event.severity * 100);
 
   return (
-    <div className="bg-surface-900 border border-surface-800 rounded-lg p-2 space-y-1">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {def ? <def.icon className="h-4 w-4" /> : <span className="text-sm">?</span>}
-          <span className="text-[10px] font-medium truncate" style={{ color: '#f4f4f5' }}>{def?.label ?? event.eventType}</span>
-        </div>
+    <Card variant="outlined" sx={{ p: 1, bgcolor: "#18181b", borderColor: "#27272a" }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}>
+          {def ? <def.icon size={16} /> : <Typography variant="caption">?</Typography>}
+          <Typography variant="caption" sx={{ fontSize: "0.65rem", fontWeight: 500, color: "#f4f4f5" }}>{def?.label ?? event.eventType}</Typography>
+        </Box>
         {totalSec > 0 && (
-          <span className="text-[10px] font-mono shrink-0" style={{ color: '#a1a1aa' }}>{fmt(remaining)}</span>
+          <Typography variant="caption" sx={{ fontSize: "0.65rem", fontFamily: "monospace", color: "#a1a1aa", flexShrink: 0 }}>{fmt(remaining)}</Typography>
         )}
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-[9px] truncate" style={{ color: '#71717a' }}>{nodeLabel}</span>
-        <div className="flex items-center gap-2">
-          <div className="w-16 h-1.5 bg-surface-800 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${severityPct}%`, backgroundColor: def?.color ?? "#EF4444" }}
-            />
-          </div>
-          <button
-            onClick={() => onRemove(event.id)}
-            className="text-[9px] transition-colors shrink-0" style={{ color: '#52525b' }}
-          >
-            x
-          </button>
-        </div>
-      </div>
-    </div>
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 0.25 }}>
+        <Typography variant="caption" sx={{ fontSize: "0.6rem", color: "#71717a" }}>{nodeLabel}</Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ width: 64, height: 6, bgcolor: "#27272a", borderRadius: "999px", overflow: "hidden" }}>
+            <Box sx={{ height: "100%", borderRadius: "999px", transition: "width 0.5s", bgcolor: def?.color ?? "#EF4444", width: `${severityPct}%` }} />
+          </Box>
+          <Button onClick={() => onRemove(event.id)} size="small" sx={{ minWidth: 0, p: 0, color: "#52525b", fontSize: "0.6rem" }}>x</Button>
+        </Box>
+      </Box>
+    </Card>
   );
 }
 
-/* ── Main ChaosPanel ── */
 export default function ChaosPanel() {
   const { activeEvents, setActiveEvents, removeActiveEvent } = useChaosStore();
   const runId = useSimulationStore((s) => s.runId);
   const isRunning = useSimulationStore((s) => s.isRunning);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  /* Poll active events every 3s during simulation */
   useEffect(() => {
     if (!runId || !isRunning) {
       if (pollTimer.current) { clearInterval(pollTimer.current); pollTimer.current = null; }
@@ -222,60 +229,57 @@ export default function ChaosPanel() {
     return () => { if (pollTimer.current) { clearInterval(pollTimer.current); pollTimer.current = null; } };
   }, [runId, isRunning, setActiveEvents]);
 
-  /* Reset events on unmount */
   useEffect(() => {
     return () => { if (pollTimer.current) { clearInterval(pollTimer.current); pollTimer.current = null; } };
   }, []);
 
   return (
-    <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col overflow-hidden">
-      {/* ── Header ── */}
-      <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
-        <Skull className="h-4 w-4" />
-        <span className="text-xs font-semibold" style={{ color: '#f4f4f5' }}>Chaos Engineering</span>
+    <Box sx={{ width: 320, flexShrink: 0, bgcolor: "#09090b", borderLeft: 1, borderColor: "#27272a", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Box sx={{ px: 1.5, py: 1.25, borderBottom: 1, borderColor: "#27272a", display: "flex", alignItems: "center", gap: 1 }}>
+        <Skull size={16} />
+        <Typography variant="caption" sx={{ fontWeight: 600, color: "#f4f4f5", fontSize: "0.75rem" }}>Chaos Engineering</Typography>
         {activeEvents.length > 0 && (
-          <span className="ml-auto text-[9px] bg-red-500/20 px-1.5 py-0.5 rounded-full font-mono" style={{ color: '#ef4444' }}>
+          <Typography variant="caption" sx={{ ml: "auto", fontSize: "0.6rem", bgcolor: "rgba(239,68,68,0.2)", px: 0.75, py: 0.25, borderRadius: "999px", fontFamily: "monospace", color: "#ef4444" }}>
             {activeEvents.length}
-          </span>
+          </Typography>
         )}
-      </div>
+      </Box>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-surface-800">
-        {/* ── Inject Section ── */}
-        <div className="px-3 py-2">
-          <p className="text-[9px] uppercase tracking-wider font-medium mb-2" style={{ color: '#52525b' }}>Inject Fault</p>
-          <div className="grid grid-cols-2 gap-1.5">
+      <Box sx={{ flex: 1, overflowY: "auto" }}>
+        <Box sx={{ px: 1.5, py: 1 }}>
+          <Alert severity="warning" sx={{ mb: 1.5, py: 0.5, fontSize: "0.7rem", "& .MuiAlert-icon": { fontSize: "1rem", py: 0 } }}>
+            <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "0.7rem" }}>Danger Zone</Typography>
+          </Alert>
+
+          <Typography variant="caption" sx={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, color: "#52525b", display: "block", mb: 1 }}>
+            Inject Fault
+          </Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.75 }}>
             {CHAOS_TYPES.map((def) => (
               <ChaosCard key={def.type} definition={def} />
             ))}
-          </div>
-        </div>
+          </Box>
+        </Box>
 
-        {/* ── Active Events ── */}
         {activeEvents.length > 0 && (
-          <div className="px-3 py-2 border-t border-surface-800">
-            <p className="text-[9px] uppercase tracking-wider font-medium mb-2" style={{ color: '#52525b' }}>
+          <Box sx={{ px: 1.5, py: 1, borderTop: 1, borderColor: "#27272a" }}>
+            <Typography variant="caption" sx={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, color: "#52525b", display: "block", mb: 1 }}>
               Active Events ({activeEvents.length})
-            </p>
-            <div className="space-y-1.5">
+            </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
               {activeEvents.map((ev) => (
                 <ActiveEventRow key={ev.id} event={ev} onRemove={(id) => removeActiveEvent(id)} />
               ))}
-            </div>
-          </div>
+            </Box>
+          </Box>
         )}
 
-        {/* ── Empty state ── */}
         {activeEvents.length === 0 && (
-          <div className="px-3 py-2">
-            <EmptyState
-              icon="!"
-              title="No active chaos events"
-              description="Select a chaos type above and inject a fault into a node."
-            />
-          </div>
+          <Box sx={{ px: 1.5, py: 1 }}>
+            <EmptyState icon="!" title="No active chaos events" description="Select a chaos type above and inject a fault into a node." />
+          </Box>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

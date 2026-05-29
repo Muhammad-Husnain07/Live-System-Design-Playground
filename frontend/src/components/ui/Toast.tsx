@@ -1,47 +1,36 @@
-import { useToastStore, type Toast } from "../../store/toastStore";
-import { Check, X, Info, AlertTriangle } from "lucide-react";
-import type { ReactNode } from "react";
-
-const TYPE_STYLES: Record<Toast["type"], { bg: string; border: string; icon: ReactNode }> = {
-  success: { bg: "bg-green-950/80", border: "border-green-500/40", icon: <Check className="h-4 w-4" /> },
-  error: { bg: "bg-red-950/80", border: "border-red-500/40", icon: <X className="h-4 w-4" /> },
-  info: { bg: "bg-blue-950/80", border: "border-blue-500/40", icon: <Info className="h-4 w-4" /> },
-  warning: { bg: "bg-orange-950/80", border: "border-orange-500/40", icon: <AlertTriangle className="h-4 w-4" /> },
-};
-
-function ToastItem({ toast }: { toast: Toast }) {
-  const removeToast = useToastStore((s) => s.removeToast);
-  const style = TYPE_STYLES[toast.type];
-  return (
-    <div
-      className={`${style.bg} ${style.border} border rounded-lg px-3 py-2 shadow-xl backdrop-blur-sm flex items-start gap-2 min-w-[260px] max-w-sm animate-slide-up`}
-    >
-      <span className="text-sm mt-0.5 shrink-0">{style.icon}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium truncate" style={{ color: '#f4f4f5' }}>{toast.title}</p>
-        {toast.message && <p className="text-[10px] mt-0.5" style={{ color: '#a1a1aa' }}>{toast.message}</p>}
-      </div>
-      <button
-        onClick={() => removeToast(toast.id)}
-        className="text-xs shrink-0 leading-none mt-0.5"
-        style={{ color: '#71717a' }}
-      >
-        x
-      </button>
-    </div>
-  );
-}
+import { useToastStore } from "../../store/toastStore";
+import Snackbar from "@mui/material/Snackbar";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
 
 export default function ToastContainer() {
   const toasts = useToastStore((s) => s.toasts);
+  const removeToast = useToastStore((s) => s.removeToast);
+
   if (toasts.length === 0) return null;
+
   return (
-    <div className="fixed bottom-4 right-4 z-[9999] flex flex-col-reverse gap-2 pointer-events-none">
+    <Box sx={{ position: "fixed", bottom: 16, right: 16, zIndex: 9999, display: "flex", flexDirection: "column-reverse", gap: 1, pointerEvents: "none" }}>
       {toasts.map((t) => (
-        <div key={t.id} className="pointer-events-auto">
-          <ToastItem toast={t} />
-        </div>
+        <Snackbar
+          key={t.id}
+          open={true}
+          autoHideDuration={t.duration || 4000}
+          onClose={() => removeToast(t.id)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          sx={{ position: "static", transform: "none" }}
+        >
+          <Alert
+            severity={t.type}
+            variant="filled"
+            onClose={() => removeToast(t.id)}
+            sx={{ minWidth: 260, pointerEvents: "auto", "& .MuiAlert-message": { fontSize: "0.75rem" } }}
+          >
+            <Box sx={{ fontWeight: 600, fontSize: "0.75rem" }}>{t.title}</Box>
+            {t.message && <Box sx={{ fontSize: "0.65rem", mt: 0.25, opacity: 0.85 }}>{t.message}</Box>}
+          </Alert>
+        </Snackbar>
       ))}
-    </div>
+    </Box>
   );
 }
