@@ -139,15 +139,16 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
   });
   const dimStyle = nw || nh ? { width: nw ?? DEFAULT_W, height: nh ?? DEFAULT_H } : undefined;
 
-  const nodeColor = bgBorderColor ?? (isFailed ? "#EF4444" : hasChaos ? "#F97316" : isSecurityHighlighted ? "#EF4444" : selected ? "#60A5FA" : meta.color);
-  const shadowColor = isFailed ? "rgba(239,68,68,0.4)" : hasChaos ? "rgba(249,115,22,0.5)" : isSecurityHighlighted ? "rgba(239,68,68,0.5)" : selected ? "rgba(96,165,250,0.4)" : hovered ? `${meta.color}40` : "rgba(0,0,0,0)";
+  const nodeColor = bgBorderColor ?? (isFailed ? "#EF4444" : hasChaos ? "#F97316" : isSecurityHighlighted ? "#EF4444" : selected ? "#22c55e" : meta.color);
+  const shadowColor = isFailed ? "rgba(239,68,68,0.4)" : hasChaos ? "rgba(249,115,22,0.5)" : isSecurityHighlighted ? "rgba(239,68,68,0.5)" : selected ? "rgba(34,197,94,0.4)" : hovered ? `${meta.color}40` : "rgba(0,0,0,0)";
   const shadowIntensity = selected || isFailed || hasChaos || isSecurityHighlighted ? "14px" : hovered ? "10px" : "0px";
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.15, ease: "easeOut" }}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      whileHover={{ scale: 1.02 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       style={{ position: "relative", overflow: "hidden", ...dimStyle }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -199,15 +200,16 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
         </Box>
       )}
 
-      <Box
-        sx={{
-          p: 1.5, bgcolor: "#18181b", border: 1, borderColor: nodeColor,
-          borderRadius: 1, minWidth: 150, textAlign: "center",
-          opacity: isFailed ? 0.6 : 1,
-          boxShadow: `0 0 ${shadowIntensity} ${shadowColor}${hovered && !selected && !isFailed && !hasChaos && !isSecurityHighlighted ? ", 0 4px 12px rgba(0,0,0,0.3)" : ""}`,
-          transition: "box-shadow 0.2s",
-        }}
-      >
+        <Box
+          sx={{
+            p: 1.5, bgcolor: "#18181b", border: 1, borderColor: nodeColor,
+            borderRadius: 1, minWidth: 150, textAlign: "center",
+            opacity: isFailed ? 0.6 : 1,
+            boxShadow: `0 0 ${shadowIntensity} ${shadowColor}${hovered && !selected && !isFailed && !hasChaos && !isSecurityHighlighted ? ", 0 4px 12px rgba(0,0,0,0.3)" : ""}`,
+            transition: "box-shadow 0.2s",
+            animation: selected && !isFailed ? "pulse-green 1.5s ease-in-out infinite" : undefined,
+          }}
+        >
         <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
           <Box
             sx={{ width: 28, height: 28, borderRadius: 1, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}
