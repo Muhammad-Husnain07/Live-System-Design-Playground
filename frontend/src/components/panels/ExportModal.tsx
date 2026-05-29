@@ -2,15 +2,7 @@ import { useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useExportStore } from "../../store/exportStore";
 import { exportTerraform, exportKubernetes, exportCloudFormation } from "../../utils/iacExporter";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, Box, Button, Typography } from "@mui/material";
 
 interface IaCTab {
   id: string;

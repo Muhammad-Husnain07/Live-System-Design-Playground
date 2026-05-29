@@ -1,5 +1,4 @@
-import Skeleton from "@mui/material/Skeleton";
-import Box from "@mui/material/Box";
+import { Skeleton, Box } from "@mui/material";
 
 export function SkeletonLine({ width = "100%", height = 12 }: { width?: string; height?: number }) {
   return <Skeleton variant="rectangular" width={width} height={height} sx={{ borderRadius: 1, bgcolor: "#27272a" }} />;

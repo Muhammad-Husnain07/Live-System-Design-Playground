@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
+import { Box, Typography } from "@mui/material";
 
 interface EmptyStateProps {
   icon?: ReactNode;

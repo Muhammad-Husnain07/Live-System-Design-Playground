@@ -6,15 +6,7 @@ import { useProjectStore } from "../../store/projectStore";
 import { useAuthStore } from "../../store/authStore";
 import { useExportStore } from "../../store/exportStore";
 import ImportModal from "../panels/ImportModal";
-import AppBar from "@mui/material/AppBar";
-import Toolbar from "@mui/material/Toolbar";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
-import Divider from "@mui/material/Divider";
+import { AppBar, Toolbar, IconButton, Tooltip, Menu, MenuItem, Typography, Box, Divider } from "@mui/material";
 
 interface TopToolbarProps {
   projectId: string;

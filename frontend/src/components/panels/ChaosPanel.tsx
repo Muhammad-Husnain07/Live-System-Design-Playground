@@ -6,15 +6,7 @@ import { useToastStore } from "../../store/toastStore";
 import EmptyState from "../ui/EmptyState";
 import { useSimulationStore } from "../../store/simulationStore";
 import api from "../../utils/api";
-import Alert from "@mui/material/Alert";
-import Card from "@mui/material/Card";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import Slider from "@mui/material/Slider";
-import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
+import { Alert, Card, Box, Typography, Select, MenuItem, Slider, TextField, Button } from "@mui/material";
 
 function ChaosConfigPopover({
   definition,

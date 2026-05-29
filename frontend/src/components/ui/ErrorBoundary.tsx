@@ -1,7 +1,5 @@
 import { Component, type ReactNode } from "react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
+import { Box, Typography, Button } from "@mui/material";
 
 interface Props { children: ReactNode; }
 interface State { hasError: boolean; error: Error | null; }

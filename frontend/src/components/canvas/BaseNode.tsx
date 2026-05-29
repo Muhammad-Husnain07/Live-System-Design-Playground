@@ -10,12 +10,7 @@ import { useDeployStore } from "../../store/deploymentStore";
 import { useFinOpsStore } from "../../store/finopsStore";
 import { NODE_COMPAT } from "../../store/exportStore";
 import type { CanvasNode } from "../../types/canvas";
-import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
-import LinearProgress from "@mui/material/LinearProgress";
-import Chip from "@mui/material/Chip";
-import Badge from "@mui/material/Badge";
+import { Box, Stack, Typography, LinearProgress, Chip, Badge } from "@mui/material";
 
 export type BaseNodeData = CanvasNode["data"];
 
@@ -213,7 +208,7 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
           transition: "box-shadow 0.2s",
         }}
       >
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
           <Box
             sx={{ width: 28, height: 28, borderRadius: 1, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}
             style={{ backgroundColor: `${meta.color}20` }}
@@ -221,10 +216,10 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
             <meta.icon size={16} />
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="caption" fontWeight="bold" noWrap sx={{ display: "block", lineHeight: 1.3, color: "#f4f4f5", fontSize: "0.8rem" }}>
+            <Typography variant="caption" noWrap sx={{ display: "block", lineHeight: 1.3, color: "#f4f4f5", fontSize: "0.8rem", fontWeight: "bold" }}>
               {label}
             </Typography>
-            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.25 }}>
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", mt: 0.25 }}>
               <Box sx={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, bgcolor: meta.color }} />
               <Typography variant="caption" sx={{ fontSize: 9, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em", color: "#71717a" }}>
                 {meta.category}
@@ -241,7 +236,7 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
         {children && <Box sx={{ mb: 0.5 }}>{children}</Box>}
 
         {(deployStrategy === "blue_green" || isCanary) && (
-          <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mb: 0.75, px: 0.5 }}>
+          <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", mb: 0.75, px: 0.5 }}>
             {deployStrategy === "blue_green" && bgActiveGroup && (
               <Chip
                 size="small"
@@ -296,12 +291,7 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
         )}
 
         {metrics && (
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            sx={{ px: 1, py: 0.75, borderTop: 1, borderColor: "#3f3f4670", bgcolor: "rgba(0,0,0,0.3)", borderRadius: "0 0 4px 4px", mx: -1.5, mb: -1.5, mt: 0.5 }}
-          >
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", px: 1, py: 0.75, borderTop: 1, borderColor: "#3f3f4670", bgcolor: "rgba(0,0,0,0.3)", borderRadius: "0 0 4px 4px", mx: -1.5, mb: -1.5, mt: 0.5 }}>
             <Box sx={{ flex: 1 }} title={`CPU: ${Math.round(metrics.cpuPercent)}%`}>
               <LinearProgress
                 variant="determinate"

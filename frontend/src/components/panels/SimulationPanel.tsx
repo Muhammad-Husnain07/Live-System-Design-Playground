@@ -1,13 +1,6 @@
 import { Square, Play, X, AlertTriangle, RefreshCw } from "lucide-react";
 import { useSimulationStore, type SimConfig } from "../../store/simulationStore";
-import TextField from "@mui/material/TextField";
-import MenuItem from "@mui/material/MenuItem";
-import ButtonGroup from "@mui/material/ButtonGroup";
-import Button from "@mui/material/Button";
-import Slider from "@mui/material/Slider";
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
+import { TextField, MenuItem, ButtonGroup, Button, Slider, Paper, Typography, Box } from "@mui/material";
 
 interface SimulationPanelProps {
   onStart: (overrides?: Partial<SimConfig>) => void;

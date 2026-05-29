@@ -1,7 +1,5 @@
 import { useToastStore } from "../../store/toastStore";
-import Snackbar from "@mui/material/Snackbar";
-import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
+import { Snackbar, Alert, Box } from "@mui/material";
 
 export default function ToastContainer() {
   const toasts = useToastStore((s) => s.toasts);

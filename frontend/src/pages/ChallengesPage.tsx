@@ -2,11 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Clock, ArrowLeft } from "lucide-react";
 import { useChallengeStore, type Challenge } from "../store/challengeStore";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
-import CircularProgress from "@mui/material/CircularProgress";
-import Grid from "@mui/material/Grid";
+import { Box, Typography, Button, CircularProgress, Grid } from "@mui/material";
 
 const DIFFICULTY_SX: Record<string, object> = {
   easy: { bgcolor: "rgba(34,197,94,0.1)" },
@@ -53,13 +49,13 @@ function ChallengeCard({ challenge, onStart }: { challenge: Challenge; onStart: 
       }}
     >
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
-        <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.375, color: "#f4f4f5" }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.375, color: "#f4f4f5" }}>
           {challenge.title}
         </Typography>
         <Typography
           variant="caption"
-          fontWeight={500}
           sx={{
+            fontWeight: 500,
             px: 1,
             py: 0.25,
             borderRadius: "4px",
@@ -156,7 +152,7 @@ export default function ChallengesPage() {
         >
           <ArrowLeft size={16} />
         </Button>
-        <Typography variant="body2" fontWeight={600}>
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
           Challenges
         </Typography>
       </Box>

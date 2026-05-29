@@ -3,9 +3,7 @@ import { type NodeProps } from "reactflow";
 import { Container, Zap } from "lucide-react";
 import BaseNode from "./BaseNode";
 import type { BaseNodeData } from "./BaseNode";
-import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
+import { Box, Stack, Typography } from "@mui/material";
 
 const TOTAL_PODS = 12;
 
@@ -40,7 +38,7 @@ function ContainerClusterNode(props: NodeProps<BaseNodeData>) {
             );
           })}
         </Box>
-        <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center" sx={{ fontSize: 9, color: "#71717a" }}>
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", justifyContent: "center", fontSize: 9, color: "#71717a" }}>
           <Typography variant="caption" sx={{ fontSize: 9, color: "#71717a", display: "flex", alignItems: "center", gap: 0.25 }}>
             <Container size={12} /> {healthyCount}/{TOTAL_PODS} pods
           </Typography>

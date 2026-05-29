@@ -3,9 +3,7 @@ import { type NodeProps } from "reactflow";
 import { Database, Zap } from "lucide-react";
 import BaseNode from "./BaseNode";
 import type { BaseNodeData } from "./BaseNode";
-import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
+import { Box, Stack, Typography } from "@mui/material";
 
 function DatabaseNode(props: NodeProps<BaseNodeData>) {
   return (
@@ -19,7 +17,7 @@ function DatabaseNode(props: NodeProps<BaseNodeData>) {
           <ellipse cx="90" cy="12" rx="80" ry="4" fill="none" stroke="#3f3f46" strokeWidth="1" strokeDasharray="4 3" />
           <ellipse cx="90" cy="4" rx="80" ry="4" fill="none" stroke="#3B82F6" strokeWidth="0.5" opacity="0.3" />
         </svg>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ fontSize: 9, color: "#71717a", justifyContent: "center" }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", fontSize: 9, color: "#71717a", justifyContent: "center" }}>
           <Typography variant="caption" sx={{ fontSize: 9, color: "#71717a", display: "flex", alignItems: "center", gap: 0.25 }}>
             <Database size={12} /> {props.data?.config?.instances ?? 1} replicas
           </Typography>

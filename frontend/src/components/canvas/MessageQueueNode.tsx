@@ -3,10 +3,7 @@ import { type NodeProps } from "reactflow";
 import { Inbox, Zap } from "lucide-react";
 import BaseNode from "./BaseNode";
 import type { BaseNodeData } from "./BaseNode";
-import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
-import LinearProgress from "@mui/material/LinearProgress";
+import { Box, Stack, Typography, LinearProgress } from "@mui/material";
 
 function MessageQueueNode(props: NodeProps<BaseNodeData>) {
   const { data } = props;
@@ -18,7 +15,7 @@ function MessageQueueNode(props: NodeProps<BaseNodeData>) {
   return (
     <BaseNode {...props}>
       <Box sx={{ mt: 0.5 }}>
-        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ fontSize: 9, color: "#71717a" }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "center", fontSize: 9, color: "#71717a" }}>
           <Typography variant="caption" sx={{ fontSize: 9, color: "#71717a", display: "flex", alignItems: "center", gap: 0.25 }}>
             <Inbox size={12} /> {props.data?.config?.instances ?? 3} brokers
           </Typography>
@@ -27,7 +24,7 @@ function MessageQueueNode(props: NodeProps<BaseNodeData>) {
           </Typography>
         </Stack>
         <Box sx={{ mt: 0.5 }}>
-          <Stack direction="row" justifyContent="space-between" sx={{ fontSize: 8, color: "#71717a", mb: 0.25 }}>
+          <Stack direction="row" sx={{ justifyContent: "space-between", fontSize: 8, color: "#71717a", mb: 0.25 }}>
             <Typography variant="caption" sx={{ fontSize: 8, color: "#71717a" }}>Queue depth</Typography>
             <Typography variant="caption" sx={{ fontSize: 8, fontFamily: "monospace", color: barColor }}>{depth.toLocaleString()}</Typography>
           </Stack>

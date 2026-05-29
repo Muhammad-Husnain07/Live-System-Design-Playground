@@ -1,14 +1,5 @@
 import { useState } from "react";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
-import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Checkbox from "@mui/material/Checkbox";
-import Box from "@mui/material/Box";
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Typography, FormControlLabel, Checkbox, Box } from "@mui/material";
 
 interface NewProjectModalProps {
   isOpen: boolean;

@@ -3,15 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useToastStore } from "../../store/toastStore";
 import api from "../../utils/api";
 import { X, FileText, Upload, AlertTriangle } from "lucide-react";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Box, Button, Typography, Select, MenuItem } from "@mui/material";
 
 interface ImportModalProps {
   isOpen: boolean;

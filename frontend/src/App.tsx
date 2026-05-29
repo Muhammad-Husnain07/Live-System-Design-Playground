@@ -11,8 +11,7 @@ import ObservabilityPage from "./pages/ObservabilityPage";
 import ChallengesPage from "./pages/ChallengesPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import ProfilePage from "./pages/ProfilePage";
-import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
+import { Box, CircularProgress } from "@mui/material";
 
 function App() {
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
