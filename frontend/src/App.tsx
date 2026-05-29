@@ -11,6 +11,8 @@ import ObservabilityPage from "./pages/ObservabilityPage";
 import ChallengesPage from "./pages/ChallengesPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import ProfilePage from "./pages/ProfilePage";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
 
 function App() {
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
@@ -21,9 +23,9 @@ function App() {
 
   if (isLoading) {
     return (
-      <div className="h-screen w-screen bg-surface-950 flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-2 border-surface-400 border-t-blue-500 rounded-full" />
-      </div>
+      <Box sx={{ height: "100vh", width: "100vw", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <CircularProgress sx={{ color: "#60a5fa" }} />
+      </Box>
     );
   }
 

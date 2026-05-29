@@ -22,10 +22,10 @@ const USER_PRESETS = [
   { label: "1M", value: 1_000_000 },
 ];
 
-const EFFORT_COLORS: Record<string, { color: string; bgClass: string }> = {
-  low: { color: "#22c55e", bgClass: "bg-green-500/10" },
-  medium: { color: "#facc15", bgClass: "bg-yellow-500/10" },
-  high: { color: "#ef4444", bgClass: "bg-red-500/10" },
+const EFFORT_COLORS: Record<string, string> = {
+  low: "#22c55e",
+  medium: "#facc15",
+  high: "#ef4444",
 };
 
 function formatCurrency(v: number): string {
@@ -177,8 +177,8 @@ function RecommCard({ rec, index }: { rec: CostReport["recommendations"][0]; ind
           </Typography>
         </Box>
         {rec.effort && (
-          <Box sx={{ px: 0.5, py: 0.25, borderRadius: "4px", flexShrink: 0, bgcolor: effortColor?.bgClass ?? "action.hover" }}>
-            <Typography variant="caption" sx={{ fontSize: "0.55rem", fontWeight: 500, color: effortColor?.color ?? "text.disabled" }}>
+          <Box sx={{ px: 0.5, py: 0.25, borderRadius: "4px", flexShrink: 0, bgcolor: `${effortColor ?? "action.hover"}15` }}>
+            <Typography variant="caption" sx={{ fontSize: "0.55rem", fontWeight: 500, color: effortColor ?? "text.disabled" }}>
               {rec.effort}
             </Typography>
           </Box>
@@ -258,7 +258,7 @@ export default function FinOpsPanel() {
   const hasResults = estimate !== null;
 
   return (
-    <Box className="w-80 shrink-0 bg-surface-950 border-l border-surface-800" sx={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <Box sx={{ width: 320, flexShrink: 0, backgroundColor: "#18181b", borderLeft: "1px solid #3f3f46", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <Box sx={{ px: 1.5, py: 1.25, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "center", gap: 1 }}>
         <DollarSign size={16} style={{ color: "#22c55e" }} />
         <Typography variant="caption" sx={{ color: "text.primary", fontWeight: 600, fontSize: "0.75rem" }}>Cost Estimation</Typography>
@@ -271,7 +271,7 @@ export default function FinOpsPanel() {
         )}
       </Box>
 
-      <Box className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-surface-800">
+      <Box sx={{ flex: 1, overflowY: "auto", "&::-webkit-scrollbar": { width: 6 }, "&::-webkit-scrollbar-thumb": { bgcolor: "#3f3f46", borderRadius: "4px" } }}>
         <Box sx={{ px: 1.5, py: 1, display: "flex", flexDirection: "column", gap: 1.5 }}>
           <Box>
             <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, display: "block", mb: 0.75, fontSize: "0.6rem" }}>

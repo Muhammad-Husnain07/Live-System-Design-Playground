@@ -2,12 +2,17 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Clock, ArrowLeft } from "lucide-react";
 import { useChallengeStore, type Challenge } from "../store/challengeStore";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Grid from "@mui/material/Grid";
 
-const DIFFICULTY_CLASSES: Record<string, string> = {
-  easy: "bg-green-500/10",
-  medium: "bg-yellow-500/10",
-  hard: "bg-orange-500/10",
-  expert: "bg-red-500/10",
+const DIFFICULTY_SX: Record<string, object> = {
+  easy: { bgcolor: "rgba(34,197,94,0.1)" },
+  medium: { bgcolor: "rgba(250,204,21,0.1)" },
+  hard: { bgcolor: "rgba(251,146,60,0.1)" },
+  expert: { bgcolor: "rgba(239,68,68,0.1)" },
 };
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -33,30 +38,80 @@ function ChallengeCard({ challenge, onStart }: { challenge: Challenge; onStart: 
   };
 
   return (
-    <div className="bg-surface-900 border border-surface-800 rounded-lg p-4 flex flex-col gap-3 hover:border-surface-600 transition-colors">
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold leading-snug" style={{ color: '#f4f4f5' }}>{challenge.title}</h3>
-        <span className={`text-[10px] font-medium px-2 py-0.5 rounded shrink-0 ${DIFFICULTY_CLASSES[challenge.difficulty] || "bg-surface-800"}`}
-          style={{ color: DIFFICULTY_COLORS[challenge.difficulty] || '#a1a1aa' }}
+    <Box
+      sx={{
+        bgcolor: "background.paper",
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 1,
+        p: 2,
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.5,
+        "&:hover": { borderColor: "rgba(161,161,170,0.6)" },
+        transition: "border-color 0.2s",
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
+        <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.375, color: "#f4f4f5" }}>
+          {challenge.title}
+        </Typography>
+        <Typography
+          variant="caption"
+          fontWeight={500}
+          sx={{
+            px: 1,
+            py: 0.25,
+            borderRadius: "4px",
+            flexShrink: 0,
+            ...(DIFFICULTY_SX[challenge.difficulty] || { bgcolor: "background.paper" }),
+            color: DIFFICULTY_COLORS[challenge.difficulty] || "#a1a1aa",
+          }}
         >
           {challenge.difficulty}
-        </span>
-      </div>
-      <p className="text-[11px] leading-relaxed line-clamp-2" style={{ color: '#a1a1aa' }}>{challenge.description}</p>
-      <div className="flex items-center justify-between mt-auto">
-        <span className="text-[10px]" style={{ color: '#71717a' }}>
-          <Clock className="h-4 w-4" /> {formatTime(challenge.timeLimitSeconds)}
-        </span>
-        <button
+        </Typography>
+      </Box>
+      <Typography
+        variant="caption"
+        sx={{
+          lineHeight: 1.625,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          color: "#a1a1aa",
+        }}
+      >
+        {challenge.description}
+      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: "auto" }}>
+        <Typography variant="caption" sx={{ color: "#71717a", display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Clock size={16} />
+          {formatTime(challenge.timeLimitSeconds)}
+        </Typography>
+        <Button
           onClick={handleStart}
           disabled={starting}
-          className="px-3 py-1.5 text-[11px] font-medium bg-blue-500/20 hover:bg-blue-500/30 rounded transition-colors disabled:opacity-50"
-          style={{ color: '#60a5fa' }}
+          size="small"
+          sx={{
+            px: 1.5,
+            py: 0.75,
+            fontSize: "11px",
+            fontWeight: 500,
+            bgcolor: "rgba(59,130,246,0.2)",
+            color: "#60a5fa",
+            borderRadius: "4px",
+            minWidth: 0,
+            lineHeight: 1,
+            "&:hover": { bgcolor: "rgba(59,130,246,0.3)" },
+            "&.Mui-disabled": { opacity: 0.5 },
+          }}
         >
           {starting ? "Starting..." : "Start Challenge"}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Box>
+    </Box>
   );
 }
 
@@ -80,48 +135,79 @@ export default function ChallengesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-950 flex flex-col" style={{ color: '#f4f4f5' }}>
-      <header className="h-[52px] shrink-0 bg-surface-950 border-b border-surface-800 flex items-center px-6 gap-3">
-        <button
+    <Box sx={{ minHeight: "100vh", bgcolor: "background.default", display: "flex", flexDirection: "column", color: "#f4f4f5" }}>
+      <Box
+        component="header"
+        sx={{
+          height: 52,
+          flexShrink: 0,
+          bgcolor: "background.default",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          display: "flex",
+          alignItems: "center",
+          px: 3,
+          gap: 1.5,
+        }}
+      >
+        <Button
           onClick={() => navigate("/dashboard")}
-          className="text-sm transition-colors"
-          style={{ color: '#a1a1aa' }}
+          sx={{ minWidth: 0, p: 0, color: "#a1a1aa", fontSize: "14px", "&:hover": { bgcolor: "transparent" } }}
         >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
-        <h1 className="text-sm font-semibold">Challenges</h1>
-      </header>
+          <ArrowLeft size={16} />
+        </Button>
+        <Typography variant="body2" fontWeight={600}>
+          Challenges
+        </Typography>
+      </Box>
 
-      <main className="flex-1 p-6 max-w-4xl mx-auto w-full">
+      <Box component="main" sx={{ flex: 1, p: 3, maxWidth: 896, mx: "auto", width: "100%" }}>
         {error && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs" style={{ color: '#ef4444' }}>
+          <Box
+            sx={{
+              mb: 2,
+              p: 1.5,
+              bgcolor: "rgba(239,68,68,0.1)",
+              border: "1px solid",
+              borderColor: "rgba(239,68,68,0.2)",
+              borderRadius: 1,
+              fontSize: "12px",
+              color: "#ef4444",
+            }}
+          >
             {error}
-          </div>
+          </Box>
         )}
 
         {challengesLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin h-8 w-8 border-2 border-surface-400 border-t-blue-500 rounded-full" />
-          </div>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", py: 10 }}>
+            <CircularProgress size={32} sx={{ color: "#60a5fa" }} />
+          </Box>
         ) : challengesError ? (
-          <div className="text-center py-20">
-            <p className="text-sm mb-2" style={{ color: '#ef4444' }}>{challengesError}</p>
-            <button onClick={fetchChallenges} className="text-xs transition-colors" style={{ color: '#60a5fa' }}>
+          <Box sx={{ textAlign: "center", py: 10 }}>
+            <Typography variant="body2" sx={{ mb: 1, color: "#ef4444" }}>
+              {challengesError}
+            </Typography>
+            <Button onClick={fetchChallenges} size="small" sx={{ fontSize: "12px", color: "#60a5fa", minWidth: 0 }}>
               Retry
-            </button>
-          </div>
+            </Button>
+          </Box>
         ) : challenges.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-xs" style={{ color: '#71717a' }}>No challenges available yet.</p>
-          </div>
+          <Box sx={{ textAlign: "center", py: 10 }}>
+            <Typography variant="caption" sx={{ color: "#71717a" }}>
+              No challenges available yet.
+            </Typography>
+          </Box>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Grid container spacing={2}>
             {challenges.map((c) => (
-              <ChallengeCard key={c.id} challenge={c} onStart={handleStart} />
+              <Grid key={c.id} size={{ xs: 12, md: 6 }}>
+                <ChallengeCard challenge={c} onStart={handleStart} />
+              </Grid>
             ))}
-          </div>
+          </Grid>
         )}
-      </main>
-    </div>
+      </Box>
+    </Box>
   );
 }

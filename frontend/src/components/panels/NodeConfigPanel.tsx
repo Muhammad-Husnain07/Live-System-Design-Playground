@@ -60,7 +60,7 @@ export default function NodeConfigPanel() {
   );
 
   return (
-    <motion.aside className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 overflow-y-auto overflow-x-hidden">
+    <motion.aside style={{ width: 320, flexShrink: 0, backgroundColor: "#18181b", borderLeft: "1px solid #3f3f46", overflowY: "auto", overflowX: "hidden" }}>
       <AnimatePresence mode="wait">
         {selectedNode ? (
           <NodeConfigContent key="node" node={selectedNode} onUpdate={onUpdateNode} onUpdateLabel={onUpdateLabel} simRunning={isSimRunning} nodes={nodes} />
@@ -391,7 +391,7 @@ function EdgeConfigContent({ edge, onUpdate, nodes }: {
       <Box sx={{ px: 2, pt: 2, pb: 1.5, borderBottom: 1, borderColor: "divider" }}>
         <Typography variant="body2" sx={{ fontWeight: 500, color: "text.primary", fontSize: "0.75rem" }}>Edge Connection</Typography>
         <Typography variant="caption" sx={{ color: "text.disabled", display: "block", mt: 0.5, fontSize: "0.65rem" }}>
-          {srcLabel} <ArrowRight className="h-3 w-3 inline" /> {tgtLabel}
+          {srcLabel} <ArrowRight size={12} style={{ display: "inline" }} /> {tgtLabel}
         </Typography>
       </Box>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Rocket, ArrowUp, ArrowDown, RotateCcw, AlertTriangle } from "lucide-react";
+import { Box, Typography, Button, Select, MenuItem, Slider } from "@mui/material";
 import { useSimulationStore } from "../../store/simulationStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useDeployStore } from "../../store/deploymentStore";
@@ -192,310 +193,323 @@ export default function DeploymentPanel() {
 
   if (!isRunning) {
     return (
-      <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col">
-        <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
-          <Rocket className="h-4 w-4" />
-          <span className="text-xs font-semibold" style={{ color: '#f4f4f5' }}>Deployment</span>
-        </div>
-        <div className="flex-1 flex items-center justify-center px-3">
-          <p className="text-[10px] text-center" style={{ color: '#52525b' }}>Start a simulation to control deployments</p>
-        </div>
-      </div>
+      <Box sx={{ width: 320, flexShrink: 0, bgcolor: '#09090b', borderLeft: '1px solid', borderColor: '#3f3f46', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ px: '12px', py: '10px', borderBottom: '1px solid', borderColor: '#3f3f46', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Rocket size={16} />
+          <Typography component="span" sx={{ fontSize: '12px', fontWeight: 600, color: '#f4f4f5' }}>Deployment</Typography>
+        </Box>
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', px: '12px' }}>
+          <Typography sx={{ fontSize: '10px', textAlign: 'center', color: '#52525b' }}>Start a simulation to control deployments</Typography>
+        </Box>
+      </Box>
     );
   }
 
   const activeGroup = depState?.activeGroup ?? deployCfg?.activeGroup ?? "";
 
   return (
-    <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col overflow-hidden">
-      <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
-        <Rocket className="h-4 w-4" />
-        <span className="text-xs font-semibold" style={{ color: '#f4f4f5' }}>Deployment</span>
+    <Box sx={{ width: 320, flexShrink: 0, bgcolor: '#09090b', borderLeft: '1px solid', borderColor: '#3f3f46', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Box sx={{ px: '12px', py: '10px', borderBottom: '1px solid', borderColor: '#3f3f46', display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Rocket size={16} />
+        <Typography component="span" sx={{ fontSize: '12px', fontWeight: 600, color: '#f4f4f5' }}>Deployment</Typography>
         {isBlueGreen && activeGroup && (
-          <span
-            className={`ml-auto text-[9px] font-mono px-1.5 py-0.5 rounded-full ${
-              activeGroup === "blue" ? "bg-blue-500/20" : "bg-green-500/20"
-            }`}
-            style={{ color: activeGroup === "blue" ? '#60a5fa' : '#22c55e' }}
+          <Typography
+            component="span"
+            sx={{
+              ml: 'auto', fontSize: '9px', fontFamily: 'monospace', px: '6px', py: '2px', borderRadius: '999px',
+              bgcolor: activeGroup === "blue" ? 'rgba(59,130,246,0.2)' : 'rgba(34,197,94,0.2)',
+              color: activeGroup === "blue" ? '#60a5fa' : '#22c55e',
+            }}
           >
             {activeGroup}
-          </span>
+          </Typography>
         )}
         {deployCfg?.isCanaryActive && (
-          <span className="ml-auto text-[9px] bg-purple-500/20 px-1.5 py-0.5 rounded-full font-mono" style={{ color: '#a78bfa' }}>
+          <Typography
+            component="span"
+            sx={{ ml: 'auto', fontSize: '9px', bgcolor: 'rgba(168,85,247,0.2)', px: '6px', py: '2px', borderRadius: '999px', fontFamily: 'monospace', color: '#a78bfa' }}
+          >
             active
-          </span>
+          </Typography>
         )}
-      </div>
+      </Box>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-surface-800 p-3 space-y-4">
-        {/* Node selector */}
-        <div>
-          <label className="text-[9px] uppercase tracking-wider font-medium mb-1.5 block" style={{ color: '#71717a' }}>
+      <Box sx={{
+        flex: 1, overflowY: 'auto', p: '12px', '& > * + *': { mt: '16px' },
+        '&::-webkit-scrollbar': { width: '6px' },
+        '&::-webkit-scrollbar-thumb': { bgcolor: '#27272a', borderRadius: '3px' },
+        '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
+      }}>
+        <Box>
+          <Typography component="label" sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500, mb: '6px', display: 'block', color: '#71717a' }}>
             Deploy Node
-          </label>
+          </Typography>
           {deployNodes.length === 0 ? (
-            <p className="text-[10px]" style={{ color: '#52525b' }}>No nodes with canary or blue/green strategy configured</p>
+            <Typography sx={{ fontSize: '10px', color: '#52525b' }}>No nodes with canary or blue/green strategy configured</Typography>
           ) : (
-            <select
+            <Select
               value={selectedNodeId}
               onChange={(e) => setSelectedNodeId(e.target.value)}
-              className="w-full bg-surface-800 text-[11px] px-2 py-1.5 rounded border border-surface-700 focus:outline-none focus:border-purple-500"
-              style={{ color: '#f4f4f5' }}
+              size="small"
+              sx={{
+                width: '100%', bgcolor: '#27272a', fontSize: '11px', color: '#f4f4f5', borderRadius: '4px',
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: '#3f3f46', borderWidth: '1px' },
+                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#a78bfa' },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#a78bfa' },
+                '& .MuiSelect-icon': { color: '#a1a1aa' },
+              }}
             >
-              <option value="">Select a node...</option>
-              <optgroup label="Blue/Green">
-                {bgNodes.map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.data?.label ?? n.id}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Canary">
-                {canaryNodes.map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.data?.label ?? n.id}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
+              <MenuItem value="" sx={{ fontSize: '11px' }}>Select a node...</MenuItem>
+              <MenuItem disabled sx={{ fontSize: '10px', color: '#71717a', opacity: '1 !important' }}>Blue/Green</MenuItem>
+              {bgNodes.map((n) => (
+                <MenuItem key={n.id} value={n.id} sx={{ fontSize: '11px' }}>
+                  {n.data?.label ?? n.id}
+                </MenuItem>
+              ))}
+              <MenuItem disabled sx={{ fontSize: '10px', color: '#71717a', opacity: '1 !important' }}>Canary</MenuItem>
+              {canaryNodes.map((n) => (
+                <MenuItem key={n.id} value={n.id} sx={{ fontSize: '11px' }}>
+                  {n.data?.label ?? n.id}
+                </MenuItem>
+              ))}
+            </Select>
           )}
-        </div>
+        </Box>
 
         {selectedNodeId && deployCfg && isBlueGreen && (
           <>
-            {/* Blue/Green status */}
-            <div className="bg-surface-900 rounded-lg border border-surface-800 p-3 space-y-3">
-              <p className="text-[9px] uppercase tracking-wider font-medium" style={{ color: '#71717a' }}>Blue/Green Status</p>
+            <Box sx={{ bgcolor: '#18181b', borderRadius: '8px', border: '1px solid', borderColor: '#3f3f46', p: '12px', '& > * + *': { mt: '12px' } }}>
+              <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500, color: '#71717a' }}>
+                Blue/Green Status
+              </Typography>
 
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px]" style={{ color: '#a1a1aa' }}>Group assignment</span>
-                    <span className="text-[11px] font-mono" style={{ color: '#f4f4f5' }}>{depState?.blueGreenGroup || deployCfg?.blueGreenGroup || "—"}</span>
-                  </div>
-                  <div className="flex gap-1">
-                    <button
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Box sx={{ flex: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '4px' }}>
+                    <Typography component="span" sx={{ fontSize: '10px', color: '#a1a1aa' }}>Group assignment</Typography>
+                    <Typography component="span" sx={{ fontSize: '11px', fontFamily: 'monospace', color: '#f4f4f5' }}>{depState?.blueGreenGroup || deployCfg?.blueGreenGroup || "—"}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: '4px' }}>
+                    <Button
                       onClick={() => handleSetGroup("blue")}
                       disabled={shifting || depState?.blueGreenGroup === "blue"}
-                      className={`flex-1 py-1.5 text-[10px] font-medium rounded transition-colors ${
-                        depState?.blueGreenGroup === "blue" || deployCfg?.blueGreenGroup === "blue"
-                          ? "bg-blue-500/30"
-                          : "bg-surface-800 hover:bg-surface-700"
-                      } disabled:opacity-50`}
-                      style={{
-                        color: depState?.blueGreenGroup === "blue" || deployCfg?.blueGreenGroup === "blue"
-                          ? '#93c5fd'
-                          : '#a1a1aa'
+                      sx={{
+                        flex: 1, py: '6px', fontSize: '10px', fontWeight: 500, borderRadius: '4px', textTransform: 'none', minWidth: 0,
+                        bgcolor: depState?.blueGreenGroup === "blue" || deployCfg?.blueGreenGroup === "blue" ? 'rgba(59,130,246,0.3)' : '#27272a',
+                        color: depState?.blueGreenGroup === "blue" || deployCfg?.blueGreenGroup === "blue" ? '#93c5fd' : '#a1a1aa',
+                        '&:hover': { bgcolor: depState?.blueGreenGroup === "blue" || deployCfg?.blueGreenGroup === "blue" ? 'rgba(59,130,246,0.3)' : '#3f3f46' },
+                        '&.Mui-disabled': { opacity: 0.5 },
                       }}
                     >
                       Blue
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => handleSetGroup("green")}
                       disabled={shifting || depState?.blueGreenGroup === "green"}
-                      className={`flex-1 py-1.5 text-[10px] font-medium rounded transition-colors ${
-                        depState?.blueGreenGroup === "green" || deployCfg?.blueGreenGroup === "green"
-                          ? "bg-green-500/30"
-                          : "bg-surface-800 hover:bg-surface-700"
-                      } disabled:opacity-50`}
-                      style={{
-                        color: depState?.blueGreenGroup === "green" || deployCfg?.blueGreenGroup === "green"
-                          ? '#86efac'
-                          : '#a1a1aa'
+                      sx={{
+                        flex: 1, py: '6px', fontSize: '10px', fontWeight: 500, borderRadius: '4px', textTransform: 'none', minWidth: 0,
+                        bgcolor: depState?.blueGreenGroup === "green" || deployCfg?.blueGreenGroup === "green" ? 'rgba(34,197,94,0.3)' : '#27272a',
+                        color: depState?.blueGreenGroup === "green" || deployCfg?.blueGreenGroup === "green" ? '#86efac' : '#a1a1aa',
+                        '&:hover': { bgcolor: depState?.blueGreenGroup === "green" || deployCfg?.blueGreenGroup === "green" ? 'rgba(34,197,94,0.3)' : '#3f3f46' },
+                        '&.Mui-disabled': { opacity: 0.5 },
                       }}
                     >
                       Green
-                    </button>
-                  </div>
-                </div>
-              </div>
+                    </Button>
+                  </Box>
+                </Box>
+              </Box>
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px]" style={{ color: '#a1a1aa' }}>Active group</span>
-                  <span
-                    className="text-[11px] font-mono font-medium"
-                    style={{
-                      color: activeGroup === "blue" ? '#60a5fa' : activeGroup === "green" ? '#22c55e' : '#f4f4f5'
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '4px' }}>
+                  <Typography component="span" sx={{ fontSize: '10px', color: '#a1a1aa' }}>Active group</Typography>
+                  <Typography
+                    component="span"
+                    sx={{
+                      fontSize: '11px', fontFamily: 'monospace', fontWeight: 500,
+                      color: activeGroup === "blue" ? '#60a5fa' : activeGroup === "green" ? '#22c55e' : '#f4f4f5',
                     }}
                   >
                     {activeGroup || "blue (default)"}
-                  </span>
-                </div>
-                <div className="h-2 bg-surface-800 rounded-full overflow-hidden flex">
-                  <div
-                    className={`h-full transition-all duration-300 ${activeGroup === "blue" ? "bg-blue-500" : "bg-green-500"}`}
-                    style={{ width: "100%" }}
+                  </Typography>
+                </Box>
+                <Box sx={{ height: '8px', bgcolor: '#27272a', borderRadius: '999px', overflow: 'hidden', display: 'flex' }}>
+                  <Box
+                    sx={{
+                      height: '100%', transition: 'all 0.3s',
+                      bgcolor: activeGroup === "blue" ? '#3b82f6' : '#22c55e',
+                      width: '100%',
+                    }}
                   />
-                </div>
-              </div>
-            </div>
+                </Box>
+              </Box>
+            </Box>
 
-            {/* Metrics */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-surface-900 rounded border border-surface-800 p-2">
-                <div className="text-[9px] uppercase tracking-wider" style={{ color: '#71717a' }}>Total RPS</div>
-                <div className="text-xs font-mono font-medium tabular-nums mt-0.5" style={{ color: '#f4f4f5' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
+              <Box sx={{ bgcolor: '#18181b', borderRadius: '4px', border: '1px solid', borderColor: '#3f3f46', p: '8px' }}>
+                <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#71717a' }}>Total RPS</Typography>
+                <Typography sx={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 500, fontVariantNumeric: 'tabular-nums', mt: '2px', color: '#f4f4f5' }}>
                   {Math.round(totalRPS).toLocaleString()}
-                </div>
-              </div>
-              <div className="bg-surface-900 rounded border border-surface-800 p-2">
-                <div className="text-[9px] uppercase tracking-wider" style={{ color: '#71717a' }}>Error Rate</div>
-                <div
-                  className="text-xs font-mono font-medium tabular-nums mt-0.5"
-                  style={{ color: errorRate > 0.1 ? '#ef4444' : '#f4f4f5' }}
-                >
+                </Typography>
+              </Box>
+              <Box sx={{ bgcolor: '#18181b', borderRadius: '4px', border: '1px solid', borderColor: '#3f3f46', p: '8px' }}>
+                <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#71717a' }}>Error Rate</Typography>
+                <Typography sx={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 500, fontVariantNumeric: 'tabular-nums', mt: '2px', color: errorRate > 0.1 ? '#ef4444' : '#f4f4f5' }}>
                   {(errorRate * 100).toFixed(1)}%
-                </div>
-              </div>
-            </div>
+                </Typography>
+              </Box>
+            </Box>
 
-            {/* Actions */}
-            <div className="space-y-1.5">
-              <button
+            <Box sx={{ '& > * + *': { mt: '6px' } }}>
+              <Button
                 onClick={handlePromote}
                 disabled={shifting}
-                className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
-                style={{ color: '#60a5fa' }}
+                sx={{
+                  width: '100%', py: '8px', fontSize: '11px', fontWeight: 500, borderRadius: '4px', textTransform: 'none',
+                  bgcolor: 'rgba(59,130,246,0.2)', color: '#60a5fa',
+                  '&:hover': { bgcolor: 'rgba(59,130,246,0.3)' },
+                  '&.Mui-disabled': { opacity: 0.3, cursor: 'not-allowed' },
+                }}
               >
-                {shifting ? "Updating..." : <><ArrowUp className="h-3 w-3" /> Promote to {activeGroup === "blue" ? "Green" : "Blue"}</>}
-              </button>
-              <button
+                {shifting ? "Updating..." : <><ArrowUp size={12} /> Promote to {activeGroup === "blue" ? "Green" : "Blue"}</>}
+              </Button>
+              <Button
                 onClick={handleRollback}
                 disabled={shifting}
-                className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-surface-800 hover:bg-surface-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                style={{ color: '#a1a1aa' }}
+                sx={{
+                  width: '100%', py: '8px', fontSize: '11px', fontWeight: 500, borderRadius: '4px', textTransform: 'none',
+                  bgcolor: '#27272a', color: '#a1a1aa',
+                  '&:hover': { bgcolor: '#3f3f46' },
+                  '&.Mui-disabled': { opacity: 0.3, cursor: 'not-allowed' },
+                }}
               >
-                <RotateCcw className="h-3 w-3" /> Toggle (Rollback)
-              </button>
-            </div>
+                <RotateCcw size={12} /> Toggle (Rollback)
+              </Button>
+            </Box>
           </>
         )}
 
         {selectedNodeId && deployCfg && !isBlueGreen && (
           <>
-            {/* Traffic split visual */}
-            <div className="bg-surface-900 rounded-lg border border-surface-800 p-3 space-y-2">
-              <p className="text-[9px] uppercase tracking-wider font-medium" style={{ color: '#71717a' }}>
+            <Box sx={{ bgcolor: '#18181b', borderRadius: '8px', border: '1px solid', borderColor: '#3f3f46', p: '12px', '& > * + *': { mt: '8px' } }}>
+              <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500, color: '#71717a' }}>
                 Traffic Split
-              </p>
-              <div className="flex items-center gap-3 text-[11px]">
-                <span className="font-medium" style={{ color: '#60a5fa' }}>Stable v1</span>
-                <span style={{ color: '#a1a1aa' }}>{stablePct}%</span>
-                <span style={{ color: '#52525b' }}>|</span>
-                <span className="font-medium" style={{ color: '#a78bfa' }}>Canary v2</span>
-                <span style={{ color: '#a1a1aa' }}>{canaryPct}%</span>
-              </div>
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11px' }}>
+                <Typography component="span" sx={{ fontWeight: 500, color: '#60a5fa' }}>Stable v1</Typography>
+                <Typography component="span" sx={{ color: '#a1a1aa' }}>{stablePct}%</Typography>
+                <Typography component="span" sx={{ color: '#52525b' }}>|</Typography>
+                <Typography component="span" sx={{ fontWeight: 500, color: '#a78bfa' }}>Canary v2</Typography>
+                <Typography component="span" sx={{ color: '#a1a1aa' }}>{canaryPct}%</Typography>
+              </Box>
 
-              <div className="h-2.5 bg-surface-800 rounded-full overflow-hidden flex">
-                <div
-                  className="h-full bg-blue-500 transition-all duration-300"
-                  style={{ width: `${stablePct}%` }}
-                />
-                <div
-                  className="h-full bg-purple-500 transition-all duration-300"
-                  style={{ width: `${canaryPct}%` }}
-                />
-              </div>
+              <Box sx={{ height: '10px', bgcolor: '#27272a', borderRadius: '999px', overflow: 'hidden', display: 'flex' }}>
+                <Box sx={{ height: '100%', bgcolor: '#3b82f6', transition: 'all 0.3s', width: `${stablePct}%` }} />
+                <Box sx={{ height: '100%', bgcolor: '#a855f7', transition: 'all 0.3s', width: `${canaryPct}%` }} />
+              </Box>
 
-              <div className="pt-1">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[9px]" style={{ color: '#71717a' }}>Canary traffic</span>
-                  <span className="text-[11px] font-mono tabular-nums" style={{ color: '#f4f4f5' }}>
+              <Box sx={{ pt: '4px' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '4px' }}>
+                  <Typography component="span" sx={{ fontSize: '9px', color: '#71717a' }}>Canary traffic</Typography>
+                  <Typography component="span" sx={{ fontSize: '11px', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', color: '#f4f4f5' }}>
                     {sliderValue}%
-                  </span>
-                </div>
-                <input
-                  type="range"
+                  </Typography>
+                </Box>
+                <Slider
+                  value={sliderValue}
+                  onChange={(_, v) => handleSliderChange(v as number)}
                   min={0}
                   max={100}
                   step={5}
-                  value={sliderValue}
-                  onChange={(e) => handleSliderChange(Number(e.target.value))}
                   disabled={shifting}
-                  className="w-full accent-purple-500 h-1.5"
+                  size="small"
+                  sx={{ color: '#a78bfa', width: '100%', py: 0, '& .MuiSlider-thumb': { width: 12, height: 12 }, '& .MuiSlider-rail': { bgcolor: '#3f3f46' } }}
                 />
-                <div className="flex justify-between text-[8px] mt-0.5" style={{ color: '#52525b' }}>
-                  <span>0% (stable)</span>
-                  <span>100% (canary)</span>
-                </div>
-              </div>
-            </div>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: '2px' }}>
+                  <Typography component="span" sx={{ fontSize: '8px', color: '#52525b' }}>0% (stable)</Typography>
+                  <Typography component="span" sx={{ fontSize: '8px', color: '#52525b' }}>100% (canary)</Typography>
+                </Box>
+              </Box>
+            </Box>
 
-            {/* Metrics */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-surface-900 rounded border border-surface-800 p-2">
-                <div className="text-[9px] uppercase tracking-wider" style={{ color: '#71717a' }}>Stable RPS</div>
-                <div className="text-xs font-mono font-medium tabular-nums mt-0.5" style={{ color: '#60a5fa' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
+              <Box sx={{ bgcolor: '#18181b', borderRadius: '4px', border: '1px solid', borderColor: '#3f3f46', p: '8px' }}>
+                <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#71717a' }}>Stable RPS</Typography>
+                <Typography sx={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 500, fontVariantNumeric: 'tabular-nums', mt: '2px', color: '#60a5fa' }}>
                   {Math.round(stableRPS).toLocaleString()}
-                </div>
-              </div>
-              <div className="bg-surface-900 rounded border border-surface-800 p-2">
-                <div className="text-[9px] uppercase tracking-wider" style={{ color: '#71717a' }}>Canary RPS</div>
-                <div className="text-xs font-mono font-medium tabular-nums mt-0.5" style={{ color: '#a78bfa' }}>
+                </Typography>
+              </Box>
+              <Box sx={{ bgcolor: '#18181b', borderRadius: '4px', border: '1px solid', borderColor: '#3f3f46', p: '8px' }}>
+                <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#71717a' }}>Canary RPS</Typography>
+                <Typography sx={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 500, fontVariantNumeric: 'tabular-nums', mt: '2px', color: '#a78bfa' }}>
                   {Math.round(canaryRPS).toLocaleString()}
-                </div>
-              </div>
-              <div className="bg-surface-900 rounded border border-surface-800 p-2">
-                <div className="text-[9px] uppercase tracking-wider" style={{ color: '#71717a' }}>Error Rate</div>
-                <div
-                  className="text-xs font-mono font-medium tabular-nums mt-0.5" style={{ color: !isFailing && errorRate > 0.1 ? '#fb923c' : 'inherit' }}
-                  style={{ color: isFailing ? '#ef4444' : (errorRate > 0.1 ? undefined : '#f4f4f5') }}
-                >
+                </Typography>
+              </Box>
+              <Box sx={{ bgcolor: '#18181b', borderRadius: '4px', border: '1px solid', borderColor: '#3f3f46', p: '8px' }}>
+                <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#71717a' }}>Error Rate</Typography>
+                <Typography sx={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 500, fontVariantNumeric: 'tabular-nums', mt: '2px', color: isFailing ? '#ef4444' : (errorRate > 0.1 ? '#fb923c' : '#f4f4f5') }}>
                   {(errorRate * 100).toFixed(1)}%
-                </div>
-              </div>
-              <div className="bg-surface-900 rounded border border-surface-800 p-2">
-                <div className="text-[9px] uppercase tracking-wider" style={{ color: '#71717a' }}>Status</div>
-                <div className="text-xs font-mono font-medium mt-0.5">
+                </Typography>
+              </Box>
+              <Box sx={{ bgcolor: '#18181b', borderRadius: '4px', border: '1px solid', borderColor: '#3f3f46', p: '8px' }}>
+                <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#71717a' }}>Status</Typography>
+                <Typography sx={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 500, mt: '2px' }}>
                   {deployCfg.isCanaryActive ? (
-                    <span style={{ color: '#a78bfa' }}>Canary active</span>
+                    <Typography component="span" sx={{ color: '#a78bfa' }}>Canary active</Typography>
                   ) : deployCfg.canaryFailed ? (
-                    <span style={{ color: '#ef4444' }}>Failed</span>
+                    <Typography component="span" sx={{ color: '#ef4444' }}>Failed</Typography>
                   ) : (
-                    <span style={{ color: '#a1a1aa' }}>Stable only</span>
+                    <Typography component="span" sx={{ color: '#a1a1aa' }}>Stable only</Typography>
                   )}
-                </div>
-              </div>
-            </div>
+                </Typography>
+              </Box>
+            </Box>
 
             {isFailing && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                <div>
-                  <p className="text-[10px] font-medium" style={{ color: '#ef4444' }}>Canary degrading</p>
-                  <p className="text-[9px]" style={{ color: '#ef4444', opacity: 0.7 }}>High error rate — auto-failover imminent</p>
-                </div>
-              </div>
+              <Box sx={{ bgcolor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', px: '12px', py: '8px', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AlertTriangle size={16} />
+                <Box>
+                  <Typography sx={{ fontSize: '10px', fontWeight: 500, color: '#ef4444' }}>Canary degrading</Typography>
+                  <Typography sx={{ fontSize: '9px', color: '#ef4444', opacity: 0.7 }}>High error rate — auto-failover imminent</Typography>
+                </Box>
+              </Box>
             )}
 
-            <div className="space-y-1.5">
-              <button
+            <Box sx={{ '& > * + *': { mt: '6px' } }}>
+              <Button
                 onClick={handlePromote}
                 disabled={shifting || !deployCfg.isCanaryActive}
-                className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-purple-500/20 hover:bg-purple-500/30 disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: '#a78bfa' }}
+                sx={{
+                  width: '100%', py: '8px', fontSize: '11px', fontWeight: 500, borderRadius: '4px', textTransform: 'none',
+                  bgcolor: 'rgba(168,85,247,0.2)', color: '#a78bfa',
+                  '&:hover': { bgcolor: 'rgba(168,85,247,0.3)' },
+                  '&.Mui-disabled': { opacity: 0.3, cursor: 'not-allowed' },
+                }}
               >
-                {shifting ? "Updating..." : <><ArrowUp className="h-3 w-3" /> Promote Canary</>}
-              </button>
-              <button
+                {shifting ? "Updating..." : <><ArrowUp size={12} /> Promote Canary</>}
+              </Button>
+              <Button
                 onClick={handleRollback}
                 disabled={shifting}
-                className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-red-500/20 hover:bg-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
-                style={{ color: '#ef4444' }}
+                sx={{
+                  width: '100%', py: '8px', fontSize: '11px', fontWeight: 500, borderRadius: '4px', textTransform: 'none',
+                  bgcolor: 'rgba(239,68,68,0.2)', color: '#ef4444',
+                  '&:hover': { bgcolor: 'rgba(239,68,68,0.3)' },
+                  '&.Mui-disabled': { opacity: 0.3, cursor: 'not-allowed' },
+                }}
               >
-                <ArrowDown className="h-3 w-3" /> Rollback
-              </button>
-            </div>
+                <ArrowDown size={12} /> Rollback
+              </Button>
+            </Box>
           </>
         )}
 
         {!selectedNodeId && deployNodes.length > 0 && (
-          <div className="py-8 text-center">
-            <p className="text-[10px]" style={{ color: '#52525b' }}>Select a node above to control its deployment</p>
-          </div>
+          <Box sx={{ py: '32px', textAlign: 'center' }}>
+            <Typography sx={{ fontSize: '10px', color: '#52525b' }}>Select a node above to control its deployment</Typography>
+          </Box>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

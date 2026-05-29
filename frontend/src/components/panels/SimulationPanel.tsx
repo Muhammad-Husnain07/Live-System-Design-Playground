@@ -31,7 +31,7 @@ export default function SimulationPanel({ onStart, onStop }: SimulationPanelProp
   };
 
   return (
-    <aside className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 overflow-y-auto">
+    <Box component="aside" sx={{ width: 320, flexShrink: 0, backgroundColor: "#18181b", borderLeft: "1px solid #3f3f46", overflowY: "auto" }}>
       <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2.5 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Typography variant="body2" sx={{ fontWeight: 500, color: "text.primary", fontSize: "0.875rem" }}>Simulation</Typography>
@@ -49,7 +49,7 @@ export default function SimulationPanel({ onStart, onStop }: SimulationPanelProp
           <ConfigForm config={config} setConfig={setConfig} onStart={onStart} />
         )}
       </Box>
-    </aside>
+    </Box>
   );
 }
 

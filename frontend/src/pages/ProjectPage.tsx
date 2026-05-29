@@ -42,6 +42,9 @@ import { useAuthStore } from "../store/authStore";
 import { useExportStore } from "../store/exportStore";
 import ExportModal from "../components/panels/ExportModal";
 import type { NodeType, NodeMetrics, SimulationNodeState } from "../types/canvas";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
 
 const VPC_COLORS = [
   "rgba(59,130,246,0.08)", "rgba(16,185,129,0.08)", "rgba(245,158,11,0.08)",
@@ -116,7 +119,7 @@ function ProgressRing({ value, size = 56, strokeWidth = 5, color }: { value: num
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (value / 100) * circumference;
   return (
-    <svg width={size} height={size} className="transform -rotate-90">
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={strokeWidth} />
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" />
     </svg>
@@ -148,41 +151,37 @@ function ChallengeTimerBar({ challenge, onSubmit, submitting }: { challenge: Non
   const timeStr = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 
   return (
-    <div className={`h-10 shrink-0 flex items-center justify-between px-4 border-b ${isUrgent ? "bg-red-500/10 border-red-500/30" : "bg-surface-900 border-surface-800"}`}>
-      <div className="flex items-center gap-3">
-        <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: '#71717a' }}>
-          <Sword className="h-4 w-4" /> {challenge.title}
-        </span>
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <div className="w-20 h-1.5 bg-surface-800 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-1000 ${isUrgent ? "bg-red-500" : "bg-blue-500"}`}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <span className={`text-xs font-mono tabular-nums font-medium${isUrgent ? " animate-pulse" : ""}`} style={{ color: isUrgent ? '#ef4444' : '#f4f4f5' }}>
+    <Box sx={{ height: 40, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, borderBottom: "1px solid", borderColor: isUrgent ? "rgba(239,68,68,0.3)" : "#27272a", bgcolor: isUrgent ? "rgba(239,68,68,0.1)" : "#18181b" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Typography sx={{ fontSize: "10px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em", color: "#71717a", display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Sword size={16} /> {challenge.title}
+        </Typography>
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ width: 80, height: 6, bgcolor: "#27272a", borderRadius: "9999px", overflow: "hidden" }}>
+            <Box sx={{ height: "100%", borderRadius: "9999px", transition: "all 1s", bgcolor: isUrgent ? "#ef4444" : "#3b82f6", width: `${progress}%` }} />
+          </Box>
+          <Typography sx={{ fontSize: "12px", fontFamily: '"ui-monospace", "SFMono-Regular", monospace', fontVariantNumeric: "tabular-nums", fontWeight: 500, "@keyframes pulse": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: isUrgent ? "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" : "none", color: isUrgent ? "#ef4444" : "#f4f4f5" }}>
             {timeStr}
-          </span>
-        </div>
-        <button
+          </Typography>
+        </Box>
+        <Button
           onClick={onSubmit}
           disabled={submitting}
-          className={`px-3 py-1 text-[11px] font-medium rounded transition-colors disabled:opacity-50 ${submitting ? "bg-surface-700" : "bg-blue-500/20 hover:bg-blue-500/30"}`}
-          style={{ color: submitting ? '#a1a1aa' : '#60a5fa' }}
+          sx={{ px: "12px", py: "4px", fontSize: "11px", fontWeight: 500, borderRadius: "4px", minWidth: "unset", lineHeight: 1.6, bgcolor: submitting ? "#3f3f46" : "rgba(59,130,246,0.2)", color: submitting ? "#a1a1aa" : "#60a5fa", "&:hover": { bgcolor: submitting ? "#3f3f46" : "rgba(59,130,246,0.3)" }, "&.Mui-disabled": { opacity: 0.5 } }}
         >
           {submitting ? (
-            <span className="flex items-center gap-1.5">
-              <span className="animate-spin h-3 w-3 border border-blue-400 border-t-transparent rounded-full" />
+            <Box sx={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <Box component="span" sx={{ "@keyframes spin": { to: { transform: "rotate(360deg)" } }, animation: "spin 1s linear infinite", height: 12, width: 12, border: "1px solid", borderColor: "#60a5fa", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block" }} />
               Evaluating...
-            </span>
+            </Box>
           ) : (
             "Submit"
           )}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Box>
+    </Box>
   );
 }
 
@@ -194,35 +193,37 @@ function ScoreReportModal({ report, onClose }: { report: { cost: number; reliabi
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-surface-900 border border-surface-700 rounded-xl p-6 w-80 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="text-center mb-4">
-          <span className="text-3xl">{report.passed ? <Trophy className="h-4 w-4" /> : <Frown className="h-4 w-4" />}</span>
-          <h3 className="text-lg font-bold mt-2" style={{ color: report.passed ? '#22c55e' : '#ef4444' }}>
+    <Box sx={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} onClick={onClose}>
+      <Box sx={{ bgcolor: "#18181b", border: "1px solid", borderColor: "#3f3f46", borderRadius: "12px", p: 3, width: 320, boxShadow: 24 }} onClick={(e) => e.stopPropagation()}>
+        <Box sx={{ textAlign: "center", mb: 2 }}>
+          <Typography component="span" sx={{ fontSize: "30px", lineHeight: 1.2 }}>{report.passed ? <Trophy size={16} /> : <Frown size={16} />}</Typography>
+          <Typography sx={{ fontSize: "18px", fontWeight: 700, mt: 1, color: report.passed ? "#22c55e" : "#ef4444" }}>
             {report.passed ? "Challenge Passed!" : "Challenge Failed"}
-          </h3>
-          <p className="text-[11px] mt-0.5" style={{ color: '#71717a' }}>Total Score: <span className="font-mono font-semibold" style={{ color: '#f4f4f5' }}>{report.total.toFixed(1)}</span></p>
-        </div>
+          </Typography>
+          <Typography sx={{ fontSize: "11px", mt: 0.25, color: "#71717a" }}>
+            Total Score: <Box component="span" sx={{ fontFamily: '"ui-monospace", "SFMono-Regular", monospace', fontWeight: 600, color: "#f4f4f5" }}>{report.total.toFixed(1)}</Box>
+          </Typography>
+        </Box>
 
-        <div className="flex justify-center gap-4 mb-4">
+        <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mb: 2 }}>
           {items.map((item) => (
-            <div key={item.label} className="flex flex-col items-center gap-1">
+            <Box key={item.label} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
               <ProgressRing value={item.value} color={item.color} size={56} strokeWidth={5} />
-              <span className="text-[9px] uppercase tracking-wider font-medium" style={{ color: '#71717a' }}>{item.label}</span>
-              <span className="text-xs font-mono font-semibold" style={{ color: item.color }}>{item.value.toFixed(1)}</span>
-            </div>
+              <Typography sx={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, color: "#71717a" }}>{item.label}</Typography>
+              <Typography sx={{ fontSize: "12px", fontFamily: '"ui-monospace", "SFMono-Regular", monospace', fontWeight: 600, color: item.color }}>{item.value.toFixed(1)}</Typography>
+            </Box>
           ))}
-        </div>
+        </Box>
 
-        <button
+        <Button
           onClick={onClose}
-          className="w-full py-2 text-[11px] font-medium bg-surface-800 hover:bg-surface-700 rounded transition-colors"
-          style={{ color: '#f4f4f5' }}
+          fullWidth
+          sx={{ py: 1, fontSize: "11px", fontWeight: 500, bgcolor: "#27272a", color: "#f4f4f5", "&:hover": { bgcolor: "#3f3f46" }, borderRadius: "4px", textTransform: "none" }}
         >
           Back to Dashboard
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Box>
+    </Box>
   );
 }
 
@@ -525,38 +526,38 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
 
   if (isLoading && !currentProject) {
     return (
-      <div className="h-screen bg-surface-950 flex items-center justify-center">
-        <div className="space-y-4 w-80">
-          <div className="bg-surface-900 border border-surface-800 rounded-lg p-4 space-y-3">
-            <div className="bg-surface-800 rounded animate-pulse" style={{ width: "70%", height: 16 }} />
-            <div className="bg-surface-800 rounded animate-pulse" style={{ width: "90%", height: 10 }} />
-            <div className="bg-surface-800 rounded animate-pulse" style={{ width: "60%", height: 10 }} />
-          </div>
-          <div className="bg-surface-900 border border-surface-800 rounded-lg p-4 space-y-3">
-            <div className="bg-surface-800 rounded animate-pulse" style={{ width: "50%", height: 16 }} />
-            <div className="bg-surface-800 rounded animate-pulse" style={{ width: "80%", height: 10 }} />
-            <div className="bg-surface-800 rounded animate-pulse" style={{ width: "70%", height: 10 }} />
-          </div>
-        </div>
-      </div>
+      <Box sx={{ height: "100vh", bgcolor: "#09090b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, width: 320 }}>
+          <Box sx={{ bgcolor: "#18181b", border: "1px solid", borderColor: "#27272a", borderRadius: "8px", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "70%", height: 16, "@keyframes pulse": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
+            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "90%", height: 10, "@keyframes pulse2": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: "pulse2 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
+            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "60%", height: 10, "@keyframes pulse3": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: "pulse3 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
+          </Box>
+          <Box sx={{ bgcolor: "#18181b", border: "1px solid", borderColor: "#27272a", borderRadius: "8px", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "50%", height: 16, "@keyframes pulse4": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: "pulse4 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
+            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "80%", height: 10, "@keyframes pulse5": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: "pulse5 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
+            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "70%", height: 10, "@keyframes pulse6": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: "pulse6 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
+          </Box>
+        </Box>
+      </Box>
     );
   }
 
   if (error && !currentProject) {
     return (
-      <div className="h-screen bg-surface-950 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-sm mb-2" style={{ color: '#ef4444' }}>{error}</p>
-          <button onClick={() => navigate("/dashboard")} className="text-sm transition-colors" style={{ color: '#60a5fa' }}>
+      <Box sx={{ height: "100vh", bgcolor: "#09090b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Box sx={{ textAlign: "center" }}>
+          <Typography sx={{ fontSize: "14px", mb: 0.5, color: "#ef4444" }}>{error}</Typography>
+          <Button onClick={() => navigate("/dashboard")} sx={{ fontSize: "14px", color: "#60a5fa", textTransform: "none", minWidth: "unset", p: 0, "&:hover": { bgcolor: "transparent", opacity: 0.8 } }}>
             Back to Dashboard
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <div className="h-screen bg-surface-950 flex flex-col" style={{ color: '#f4f4f5' }}>
+    <Box sx={{ height: "100vh", bgcolor: "#09090b", display: "flex", flexDirection: "column", color: "#f4f4f5" }}>
       <TopToolbar
         projectId={projectId}
         saving={saving}
@@ -578,7 +579,6 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         remoteUsers={remoteUsers}
       />
 
-      {/* Challenge mode bar */}
       {activeChallenge && (
         <ChallengeTimerBar
           challenge={activeChallenge}
@@ -587,20 +587,18 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         />
       )}
 
-      {/* WS reconnect banner */}
       {wsStatus === "disconnected" && useSimulationStore.getState().isRunning && (
-        <div className="h-8 shrink-0 flex items-center justify-center bg-orange-500/10 border-b border-orange-500/30 gap-2">
-          <span className="animate-spin h-3 w-3 border border-orange-400 border-t-transparent rounded-full" />
-          <span className="text-[10px] font-medium" style={{ color: '#fb923c' }}>Connection lost. Reconnecting...</span>
-        </div>
+        <Box sx={{ height: 32, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(249,115,22,0.1)", borderBottom: "1px solid rgba(249,115,22,0.3)", gap: 1 }}>
+          <Box component="span" sx={{ "@keyframes spin": { to: { transform: "rotate(360deg)" } }, animation: "spin 1s linear infinite", height: 12, width: 12, border: "1px solid", borderColor: "#fb923c", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block" }} />
+          <Typography sx={{ fontSize: "10px", fontWeight: 500, color: "#fb923c" }}>Connection lost. Reconnecting...</Typography>
+        </Box>
       )}
       {wsStatus === "error" && !useSimulationStore.getState().isRunning && (
-        <div className="h-8 shrink-0 flex items-center justify-center bg-red-500/10 border-b border-red-500/30">
-          <span className="text-[10px] font-medium" style={{ color: '#ef4444' }}>WebSocket connection failed</span>
-        </div>
+        <Box sx={{ height: 32, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(239,68,68,0.1)", borderBottom: "1px solid rgba(239,68,68,0.3)" }}>
+          <Typography sx={{ fontSize: "10px", fontWeight: 500, color: "#ef4444" }}>WebSocket connection failed</Typography>
+        </Box>
       )}
 
-      {/* ScoreReport modal */}
       {scoreReport && (
         <ScoreReportModal
           report={scoreReport}
@@ -608,10 +606,9 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         />
       )}
 
-      {/* 3-panel body */}
-      <div className="flex-1 flex overflow-hidden">
+      <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
         <NodePanel onApplyTemplate={handleApplyTemplate} />
-        <div ref={reactFlowWrapper} className="flex-1 relative" onDrop={onDrop} onDragOver={onDragOver} onMouseMove={handleMouseMove}>
+        <Box ref={reactFlowWrapper} sx={{ flex: 1, position: "relative" }} onDrop={onDrop} onDragOver={onDragOver} onMouseMove={handleMouseMove}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -646,10 +643,32 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
           >
             <VpcBoundaries nodes={nodes} />
             <Background color="#27272a" gap={20} />
-            <Controls className="[&>button]:!bg-surface-800 [&>button]:!border-surface-700 hover:[&>button]:!bg-surface-700 [&>button]:!shadow-none !bg-transparent !border-0 !shadow-none !flex-col-reverse" />
+            <Box sx={{
+              "& .react-flow__controls": {
+                background: "transparent !important",
+                border: "none !important",
+                boxShadow: "none !important",
+                display: "flex !important",
+                flexDirection: "column-reverse !important",
+              },
+              "& .react-flow__controls-button": {
+                background: "#27272a !important",
+                border: "1px solid #3f3f46 !important",
+                boxShadow: "none !important",
+                "&:hover": {
+                  background: "#3f3f46 !important",
+                },
+              },
+            }}>
+              <Controls />
+            </Box>
             <MiniMap
-              className="!border !border-surface-700 !rounded-lg overflow-hidden"
-              style={{ background: "#09090b" }}
+              style={{
+                background: "#09090b",
+                border: "1px solid #3f3f46",
+                borderRadius: "8px",
+                overflow: "hidden",
+              }}
               nodeColor={(n) => {
                 const nt = (n.data as any)?.nodeType;
                 const meta = nt ? (NODE_REGISTRY as any)[nt] : null;
@@ -659,42 +678,41 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
               nodeStrokeWidth={2}
             />
             <Panel position="bottom-left">
-              <div className="flex items-center gap-2 text-[10px] font-mono bg-surface-950/80 backdrop-blur-sm px-2.5 py-1 rounded border border-surface-800 pointer-events-auto" style={{ color: '#52525b' }}>
-                <span>Nodes: {nodes.length}</span>
-                <span style={{ color: '#3f3f46' }}>|</span>
-                <span>Edges: {edges.length}</span>
-              </div>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "10px", fontFamily: '"ui-monospace", "SFMono-Regular", monospace', bgcolor: "rgba(9,9,11,0.8)", backdropFilter: "blur(4px)", px: "10px", py: "4px", borderRadius: "4px", border: "1px solid", borderColor: "#27272a", pointerEvents: "auto", color: "#52525b" }}>
+                <Typography component="span" sx={{ fontSize: "inherit", fontFamily: "inherit" }}>Nodes: {nodes.length}</Typography>
+                <Typography component="span" sx={{ fontSize: "inherit", color: "#3f3f46" }}>|</Typography>
+                <Typography component="span" sx={{ fontSize: "inherit", fontFamily: "inherit" }}>Edges: {edges.length}</Typography>
+              </Box>
             </Panel>
           </ReactFlow>
           {collabConnected && remoteCursors.map((c) => (
-            <div
+            <Box
               key={c.clientId}
-              className="absolute pointer-events-none z-50"
-              style={{ left: c.x, top: c.y }}
+              sx={{ position: "absolute", pointerEvents: "none", zIndex: 50, left: c.x, top: c.y }}
             >
               <svg width="20" height="24" viewBox="0 0 20 24" fill="none">
                 <path d="M2 2L15 20L10.5 13.5L18 11L2 2Z" fill={c.color} stroke="white" strokeWidth="1.5" />
               </svg>
-              <span
-                className="absolute left-4 top-0 text-[10px] font-medium whitespace-nowrap px-1.5 py-0.5 rounded"
-                style={{ background: c.color, color: "#fff" }}
+              <Typography
+                component="span"
+                sx={{ position: "absolute", left: 16, top: 0, fontSize: "10px", fontWeight: 500, whiteSpace: "nowrap", px: "6px", py: "2px", borderRadius: "4px", bgcolor: c.color, color: "#fff" }}
               >
                 {c.name}
-              </span>
-            </div>
+              </Typography>
+            </Box>
           ))}
           {nodes.length === 0 && !isLoading && (
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-surface-800 flex items-center justify-center">
-                  <span className="text-xl" style={{ color: '#71717a' }}>+</span>
-                </div>
-                <p className="text-sm mb-1" style={{ color: '#71717a' }}>Empty canvas</p>
-                <p className="text-[11px]" style={{ color: '#52525b' }}>Drag nodes from the left panel to start designing</p>
-              </div>
-            </div>
+            <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Box sx={{ textAlign: "center" }}>
+                <Box sx={{ width: 56, height: 56, mx: "auto", mb: 1.5, borderRadius: "50%", bgcolor: "#27272a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Typography component="span" sx={{ fontSize: "20px", lineHeight: 1, color: "#71717a" }}>+</Typography>
+                </Box>
+                <Typography sx={{ fontSize: "14px", mb: 0.5, color: "#71717a" }}>Empty canvas</Typography>
+                <Typography sx={{ fontSize: "11px", color: "#52525b" }}>Drag nodes from the left panel to start designing</Typography>
+              </Box>
+            </Box>
           )}
-        </div>
+        </Box>
         {showSecurityPanel ? (
           <SecurityPanel />
         ) : showFinOpsPanel ? (
@@ -710,11 +728,11 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         ) : (
           <NodeConfigPanel />
         )}
-      </div>
+      </Box>
 
       <ToastContainer />
       <ExportModal />
-    </div>
+    </Box>
   );
 }
 

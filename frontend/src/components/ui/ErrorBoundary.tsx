@@ -1,4 +1,7 @@
 import { Component, type ReactNode } from "react";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
 
 interface Props { children: ReactNode; }
 interface State { hasError: boolean; error: Error | null; }
@@ -15,24 +18,20 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="h-screen w-screen bg-surface-950 flex items-center justify-center p-6">
-          <div className="bg-surface-900 border border-surface-800 rounded-xl p-6 max-w-md w-full text-center">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
-              <span className="text-lg" style={{ color: '#ef4444' }}>!</span>
-            </div>
-            <h2 className="text-sm font-semibold mb-1" style={{ color: '#f4f4f5' }}>Something went wrong</h2>
-            <p className="text-[11px] mb-4 leading-relaxed" style={{ color: '#71717a' }}>
+        <Box sx={{ height: "100vh", width: "100vw", display: "flex", alignItems: "center", justifyContent: "center", p: 3 }}>
+          <Box sx={{ bgcolor: "#27272a", border: 1, borderColor: "#3f3f46", borderRadius: 3, p: 3, maxWidth: 448, width: "100%", textAlign: "center" }}>
+            <Box sx={{ width: 48, height: 48, mx: "auto", mb: 2, borderRadius: "50%", bgcolor: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Typography sx={{ fontSize: "1.125rem", color: "#ef4444", fontWeight: 700 }}>!</Typography>
+            </Box>
+            <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, mb: 0.5, color: "#f4f4f5" }}>Something went wrong</Typography>
+            <Typography sx={{ fontSize: "0.6875rem", mb: 2, lineHeight: 1.625, color: "#71717a" }}>
               {this.state.error?.message || "An unexpected error occurred."}
-            </p>
-            <button
-              onClick={this.handleReset}
-              className="px-4 py-2 text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 rounded transition-colors"
-              style={{ color: '#60a5fa' }}
-            >
+            </Typography>
+            <Button size="small" onClick={this.handleReset} sx={{ color: "#60a5fa", bgcolor: "rgba(59,130,246,0.2)", "&:hover": { bgcolor: "rgba(59,130,246,0.3)" } }}>
               Try Again
-            </button>
-          </div>
-        </div>
+            </Button>
+          </Box>
+        </Box>
       );
     }
     return this.props.children;

@@ -4,6 +4,7 @@ import { useSecurityStore, type SecurityViolation } from "../../store/securitySt
 import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
 import api from "../../utils/api";
+import { Box, Typography, Button } from "@mui/material";
 
 const VIOLATION_ICONS: Record<string, LucideIcon> = {
   unencrypted_transit: Unlock,
@@ -37,43 +38,131 @@ function ViolationRow({
   const ViolationIcon = VIOLATION_ICONS[violation.type] ?? Lock;
 
   return (
-    <div
-      className={`bg-surface-900 border rounded-lg p-2.5 transition-all ${
-        isActive ? "border-red-500/50 ring-1 ring-red-500/20" : "border-surface-800"
-      }`}
+    <Box
+      sx={{
+        bgcolor: '#18181b',
+        border: '1px solid',
+        borderRadius: '8px',
+        p: '10px',
+        transition: 'all 0.15s',
+        borderColor: isActive ? 'rgba(239,68,68,0.5)' : '#3f3f46',
+        boxShadow: isActive ? '0 0 0 1px rgba(239,68,68,0.2)' : 'none',
+      }}
     >
-      <button
+      <Button
         onClick={() => {
           highlightViolation(violation, edgesList);
           onClick();
         }}
-        className="w-full text-left"
+        fullWidth
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          justifyContent: 'flex-start',
+          textTransform: 'none',
+          p: 0,
+          minWidth: 0,
+          minHeight: 0,
+          bgcolor: 'transparent',
+          color: 'inherit',
+          lineHeight: 'normal',
+          textAlign: 'left',
+          borderRadius: 0,
+          '&:hover': { bgcolor: 'transparent' },
+        }}
       >
-        <div className="flex items-center gap-2 mb-1">
-          <ViolationIcon className="h-4 w-4" />
-          <span className="text-[10px] font-medium truncate flex-1" style={{ color: '#f4f4f5' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', mb: '4px' }}>
+          <Box component="span" sx={{ display: 'flex' }}>
+            <ViolationIcon size={16} />
+          </Box>
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: '10px',
+              fontWeight: 500,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              flex: 1,
+              color: '#f4f4f5',
+            }}
+          >
             {violation.type.replace(/_/g, " ")}
-          </span>
-        </div>
-        <p className="text-[9px] leading-relaxed line-clamp-2" style={{ color: '#a1a1aa' }}>{violation.message}</p>
-        <div className="flex items-center gap-1.5 mt-1.5 text-[9px]">
-          <span className="truncate max-w-[80px]" style={{ color: '#a1a1aa' }}>{sourceLabel}</span>
-          <span style={{ color: '#52525b' }}>&rarr;</span>
-          <span className="truncate max-w-[80px]" style={{ color: '#a1a1aa' }}>{targetLabel}</span>
-        </div>
-      </button>
-      {violation.remediation && (
-        <button
-          onClick={() => setShowRemediation((v) => !v)}
-          className="mt-2 w-full text-left text-[8px] px-2 py-1 rounded bg-blue-950/30 border border-blue-800/30 hover:bg-blue-900/30 transition-colors"
+          </Typography>
+        </Box>
+        <Typography
+          variant="caption"
+          sx={{
+            fontSize: '9px',
+            lineHeight: 1.5,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            color: '#a1a1aa',
+            textAlign: 'left',
+            width: '100%',
+          }}
         >
-          <span className="font-medium" style={{ color: '#60a5fa' }}>{showRemediation ? "Hide" : "Show"} remediation</span>
+          {violation.message}
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px', mt: '6px' }}>
+          <Typography
+            variant="caption"
+            sx={{ fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80px', color: '#a1a1aa' }}
+          >
+            {sourceLabel}
+          </Typography>
+          <Typography variant="caption" sx={{ fontSize: '9px', color: '#52525b' }}>
+            &rarr;
+          </Typography>
+          <Typography
+            variant="caption"
+            sx={{ fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80px', color: '#a1a1aa' }}
+          >
+            {targetLabel}
+          </Typography>
+        </Box>
+      </Button>
+      {violation.remediation && (
+        <Button
+          onClick={() => setShowRemediation((v) => !v)}
+          fullWidth
+          sx={{
+            mt: '8px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            justifyContent: 'flex-start',
+            textTransform: 'none',
+            fontSize: '8px',
+            px: '8px',
+            py: '4px',
+            borderRadius: '4px',
+            bgcolor: 'rgba(23,37,84,0.3)',
+            border: '1px solid rgba(30,64,175,0.3)',
+            color: '#60a5fa',
+            minHeight: 0,
+            lineHeight: 1.2,
+            textAlign: 'left',
+            '&:hover': { bgcolor: 'rgba(30,58,138,0.3)' },
+          }}
+        >
+          <Typography variant="caption" sx={{ fontWeight: 500, color: '#60a5fa', fontSize: '8px' }}>
+            {showRemediation ? "Hide" : "Show"} remediation
+          </Typography>
           {showRemediation && (
-            <p className="mt-1 leading-relaxed" style={{ color: 'rgba(147, 197, 253, 0.8)' }}>{violation.remediation}</p>
+            <Typography
+              variant="caption"
+              sx={{ mt: '4px', lineHeight: 1.5, color: 'rgba(147, 197, 253, 0.8)', fontSize: '8px', display: 'block', textAlign: 'left' }}
+            >
+              {violation.remediation}
+            </Typography>
           )}
-        </button>
+        </Button>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -119,71 +208,155 @@ export default function SecurityPanel() {
   const warnings = violations.filter((v) => v.severity === "warning");
 
   return (
-    <div className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 flex flex-col overflow-hidden">
-      <div className="px-3 py-2.5 border-b border-surface-800 flex items-center gap-2">
-        <Shield className="h-4 w-4" />
-        <span className="text-xs font-semibold" style={{ color: '#f4f4f5' }}>Security Audit</span>
+    <Box
+      sx={{
+        width: 320,
+        flexShrink: 0,
+        bgcolor: '#09090b',
+        borderLeft: '1px solid',
+        borderColor: '#3f3f46',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      <Box
+        sx={{
+          px: '12px',
+          py: '10px',
+          borderBottom: '1px solid',
+          borderColor: '#3f3f46',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}
+      >
+        <Shield size={16} />
+        <Typography variant="caption" sx={{ fontSize: '12px', fontWeight: 600, color: '#f4f4f5' }}>
+          Security Audit
+        </Typography>
         {violations.length > 0 && (
-          <span className="ml-auto text-[9px] bg-red-500/20 px-1.5 py-0.5 rounded-full font-mono" style={{ color: '#ef4444' }}>
+          <Typography
+            variant="caption"
+            sx={{
+              ml: 'auto',
+              fontSize: '9px',
+              bgcolor: 'rgba(239,68,68,0.2)',
+              px: '6px',
+              py: '2px',
+              borderRadius: '9999px',
+              fontFamily: 'monospace',
+              color: '#ef4444',
+            }}
+          >
             {violations.length}
-          </span>
+          </Typography>
         )}
-      </div>
+      </Box>
 
-      <div className="px-3 py-2 border-b border-surface-800">
-        <button
+      <Box sx={{ px: '12px', py: '8px', borderBottom: '1px solid', borderColor: '#3f3f46' }}>
+        <Button
           onClick={handleAudit}
           disabled={auditing}
-          className="w-full py-2 text-[11px] font-medium rounded transition-colors bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-          style={{ color: '#60a5fa' }}
+          fullWidth
+          sx={{
+            py: '8px',
+            fontSize: '11px',
+            fontWeight: 500,
+            borderRadius: '4px',
+            bgcolor: 'rgba(59,130,246,0.2)',
+            color: '#60a5fa',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            '&:hover': { bgcolor: 'rgba(59,130,246,0.3)' },
+            '&.Mui-disabled': { opacity: 0.3, cursor: 'not-allowed' },
+          }}
         >
           {auditing ? (
             <>
-              <span className="inline-block w-3 h-3 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
+              <Box
+                component="span"
+                sx={{
+                  display: 'inline-block',
+                  width: '12px',
+                  height: '12px',
+                  border: '2px solid rgba(96,165,250,0.3)',
+                  borderTopColor: '#60a5fa',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  '@keyframes spin': {
+                    '0%': { transform: 'rotate(0deg)' },
+                    '100%': { transform: 'rotate(360deg)' },
+                  },
+                }}
+              />
               Scanning...
             </>
           ) : (
-            <><Shield className="h-4 w-4" /> Run Security Audit</>
+            <><Shield size={16} /> Run Security Audit</>
           )}
-        </button>
-      </div>
+        </Button>
+      </Box>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-surface-800">
+      <Box
+        sx={{
+          flex: 1,
+          overflowY: 'auto',
+          '&::-webkit-scrollbar': { width: '6px' },
+          '&::-webkit-scrollbar-thumb': { bgcolor: '#3f3f46', borderRadius: '3px' },
+        }}
+      >
         {violations.length === 0 && (
-          <div className="px-3 py-8 text-center">
-            <p className="text-[10px]" style={{ color: '#52525b' }}>No audit results yet</p>
-            <p className="text-[9px] mt-1" style={{ color: '#3f3f46' }}>Click the button above to scan for violations</p>
-          </div>
+          <Box sx={{ px: '12px', py: '32px', textAlign: 'center' }}>
+            <Typography variant="caption" sx={{ fontSize: '10px', color: '#52525b' }}>
+              No audit results yet
+            </Typography>
+            <Typography variant="caption" sx={{ fontSize: '9px', mt: '4px', display: 'block', color: '#3f3f46' }}>
+              Click the button above to scan for violations
+            </Typography>
+          </Box>
         )}
 
         {critical.length > 0 && (
-          <div className="px-3 py-2">
-            <p className="text-[9px] uppercase tracking-wider font-medium mb-2 flex items-center gap-1" style={{ color: '#ef4444' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-              Critical ({critical.length})
-            </p>
-            <div className="space-y-1.5">
+          <Box sx={{ px: '12px', py: '8px' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', mb: '8px' }}>
+              <Box sx={{ width: '6px', height: '6px', borderRadius: '50%', bgcolor: '#f87171' }} />
+              <Typography
+                variant="caption"
+                sx={{ fontSize: '9px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#ef4444' }}
+              >
+                Critical ({critical.length})
+              </Typography>
+            </Box>
+            <Box sx={{ '& > * + *': { mt: '6px' } }}>
               {critical.map((v, i) => (
                 <ViolationRow key={`crit-${i}`} violation={v} onClick={() => {}} />
               ))}
-            </div>
-          </div>
+            </Box>
+          </Box>
         )}
 
         {warnings.length > 0 && (
-          <div className="px-3 py-2 border-t border-surface-800">
-            <p className="text-[9px] uppercase tracking-wider font-medium mb-2 flex items-center gap-1" style={{ color: '#fb923c' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-              Warnings ({warnings.length})
-            </p>
-            <div className="space-y-1.5">
+          <Box sx={{ px: '12px', py: '8px', borderTop: '1px solid', borderColor: '#3f3f46' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', mb: '8px' }}>
+              <Box sx={{ width: '6px', height: '6px', borderRadius: '50%', bgcolor: '#fb923c' }} />
+              <Typography
+                variant="caption"
+                sx={{ fontSize: '9px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fb923c' }}
+              >
+                Warnings ({warnings.length})
+              </Typography>
+            </Box>
+            <Box sx={{ '& > * + *': { mt: '6px' } }}>
               {warnings.map((v, i) => (
                 <ViolationRow key={`warn-${i}`} violation={v} onClick={() => {}} />
               ))}
-            </div>
-          </div>
+            </Box>
+          </Box>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

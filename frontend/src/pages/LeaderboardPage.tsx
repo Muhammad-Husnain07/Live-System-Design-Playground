@@ -2,6 +2,19 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Trophy, Medal, Award, ArrowLeft } from "lucide-react";
 import { useChallengeStore } from "../store/challengeStore";
+import {
+  Box,
+  Typography,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  CircularProgress,
+  IconButton,
+  TableContainer,
+  Paper,
+} from "@mui/material";
 
 export default function LeaderboardPage() {
   const navigate = useNavigate();
@@ -12,64 +25,102 @@ export default function LeaderboardPage() {
   }, [fetchLeaderboard]);
 
   return (
-    <div className="min-h-screen bg-surface-950 flex flex-col" style={{ color: '#f4f4f5' }}>
-      <header className="h-[52px] shrink-0 bg-surface-950 border-b border-surface-800 flex items-center px-6 gap-3">
-        <button
+    <Box sx={{ minHeight: '100vh', bgcolor: '#18181b', display: 'flex', flexDirection: 'column', color: '#f4f4f5' }}>
+      <Box
+        component="header"
+        sx={{
+          height: 52,
+          flexShrink: 0,
+          bgcolor: '#18181b',
+          borderBottom: 1,
+          borderColor: '#3f3f46',
+          display: 'flex',
+          alignItems: 'center',
+          px: 3,
+          gap: 1.5,
+        }}
+      >
+        <IconButton
           onClick={() => navigate("/dashboard")}
-          className="text-sm transition-colors"
-          style={{ color: '#a1a1aa' }}
+          size="small"
+          sx={{ color: '#a1a1aa' }}
         >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
-        <h1 className="text-sm font-semibold">Leaderboard</h1>
-      </header>
+          <ArrowLeft size={16} />
+        </IconButton>
+        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600 }}>Leaderboard</Typography>
+      </Box>
 
-      <main className="flex-1 p-6 max-w-3xl mx-auto w-full">
+      <Box component="main" sx={{ flex: 1, p: 3, maxWidth: 768, mx: 'auto', width: '100%' }}>
         {leaderboardLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin h-8 w-8 border-2 border-surface-400 border-t-blue-500 rounded-full" />
-          </div>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 20 }}>
+            <CircularProgress size={32} sx={{ color: '#3b82f6' }} />
+          </Box>
         ) : leaderboard.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-xs" style={{ color: '#71717a' }}>No submissions yet. Complete a challenge to appear here!</p>
-          </div>
+          <Box sx={{ textAlign: 'center', py: 20 }}>
+            <Typography sx={{ color: '#71717a', fontSize: '0.75rem' }}>No submissions yet. Complete a challenge to appear here!</Typography>
+          </Box>
         ) : (
-          <div className="bg-surface-900 border border-surface-800 rounded-lg overflow-hidden">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-surface-800 text-[10px] uppercase tracking-wider" style={{ color: '#71717a' }}>
-                  <th className="text-left px-4 py-2.5 font-medium w-12">Rank</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Username</th>
-                  <th className="text-right px-4 py-2.5 font-medium w-20">Score</th>
-                  <th className="text-right px-4 py-2.5 font-medium w-16">Status</th>
-                  <th className="text-right px-4 py-2.5 font-medium w-28">Date</th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableContainer component={Paper} sx={{ bgcolor: '#27272a', border: 1, borderColor: '#3f3f46', borderRadius: 2, overflow: 'hidden' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ borderBottom: 1, borderColor: '#3f3f46' }}>
+                  <TableCell sx={{ color: '#71717a', fontSize: '0.625rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', px: 2, py: 1.25, width: 48 }}>Rank</TableCell>
+                  <TableCell sx={{ color: '#71717a', fontSize: '0.625rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', px: 2, py: 1.25 }}>Username</TableCell>
+                  <TableCell sx={{ color: '#71717a', fontSize: '0.625rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', px: 2, py: 1.25, width: 80, textAlign: 'right' }}>Score</TableCell>
+                  <TableCell sx={{ color: '#71717a', fontSize: '0.625rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', px: 2, py: 1.25, width: 64, textAlign: 'right' }}>Status</TableCell>
+                  <TableCell sx={{ color: '#71717a', fontSize: '0.625rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', px: 2, py: 1.25, width: 112, textAlign: 'right' }}>Date</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {leaderboard.map((entry) => (
-                  <tr key={`${entry.rank}-${entry.username}`} className="border-b border-surface-800/50 last:border-b-0 hover:bg-surface-800/30 transition-colors">
-                    <td className="px-4 py-2.5">
-                      {entry.rank === 1 ? <Trophy className="h-5 w-5" style={{ color: '#facc15' }} /> : entry.rank === 2 ? <Medal className="h-5 w-5" style={{ color: '#a1a1aa' }} /> : entry.rank === 3 ? <Award className="h-5 w-5" style={{ color: '#b45309' }} /> : (
-                        <span className="font-mono" style={{ color: '#71717a' }}>{entry.rank}</span>
+                  <TableRow
+                    key={`${entry.rank}-${entry.username}`}
+                    sx={{
+                      borderBottom: 1,
+                      borderColor: 'rgba(39,39,42,0.5)',
+                      '&:last-child td, &:last-child th': { border: 0 },
+                      '&:hover': { bgcolor: 'rgba(39,39,42,0.3)' },
+                    }}
+                  >
+                    <TableCell sx={{ px: 2, py: 1.25 }}>
+                      {entry.rank === 1 ? (
+                        <Trophy size={20} style={{ color: '#facc15' }} />
+                      ) : entry.rank === 2 ? (
+                        <Medal size={20} style={{ color: '#a1a1aa' }} />
+                      ) : entry.rank === 3 ? (
+                        <Award size={20} style={{ color: '#b45309' }} />
+                      ) : (
+                        <Typography sx={{ fontFamily: 'monospace', color: '#71717a' }}>{entry.rank}</Typography>
                       )}
-                    </td>
-                    <td className="px-4 py-2.5 font-medium" style={{ color: '#f4f4f5' }}>{entry.username}</td>
-                    <td className="px-4 py-2.5 text-right font-mono" style={{ color: '#f4f4f5' }}>{entry.score.toFixed(1)}</td>
-                    <td className="px-4 py-2.5 text-right">
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${entry.passed ? "bg-green-500/10" : "bg-red-500/10"}`} style={{ color: entry.passed ? '#22c55e' : '#ef4444' }}>
+                    </TableCell>
+                    <TableCell sx={{ px: 2, py: 1.25, fontWeight: 500, color: '#f4f4f5' }}>{entry.username}</TableCell>
+                    <TableCell sx={{ px: 2, py: 1.25, textAlign: 'right', fontFamily: 'monospace', color: '#f4f4f5' }}>{entry.score.toFixed(1)}</TableCell>
+                    <TableCell sx={{ px: 2, py: 1.25, textAlign: 'right' }}>
+                      <Box
+                        component="span"
+                        sx={{
+                          fontSize: '0.625rem',
+                          fontWeight: 500,
+                          px: 0.75,
+                          py: 0.25,
+                          borderRadius: '4px',
+                          bgcolor: entry.passed ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                          color: entry.passed ? '#22c55e' : '#ef4444',
+                        }}
+                      >
                         {entry.passed ? "PASS" : "FAIL"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-right" style={{ color: '#71717a' }}>
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ px: 2, py: 1.25, textAlign: 'right', color: '#71717a' }}>
                       {new Date(entry.submittedAt).toLocaleDateString()}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
-      </main>
-    </div>
+      </Box>
+    </Box>
   );
 }
