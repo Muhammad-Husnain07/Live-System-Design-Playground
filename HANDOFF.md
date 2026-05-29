@@ -5015,6 +5015,72 @@ Re-ran all builds and cross-checked every file. No regressions found.
 | `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
 | `go build ./...` | ✅ 0 errors |
 
+## Phase UI-1 — Pro Left Sidebar — 2026-05-29
+
+### Objective
+Overhaul the left sidebar (NodePanel) to behave like a professional IDE (VS Code/Figma): resizable, logically categorized with collapsible accordions, and premium drag-and-drop feedback.
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/components/sidebar/NodePanel.tsx` | Full rewrite: resizable container with 4px drag handle (min 200px, max 400px, persisted via localStorage `"sidebarWidth"`); replaced flat category list with 5 MUI Accordion groups (🌐 Network, 🖥️ Compute, 🗄️ Databases, 📨 Messaging, ☁️ External) using `nodeRegistry`'s `category` field; replaced `@dnd-kit/core` `useDraggable` with native HTML5 DnD (`onDragStart`, `setDragImage` with custom styled ghost element); accordion expanded state persisted via localStorage `"sidebar-accordion"`; sticky search filters across all categories in real-time. |
+| `frontend/src/pages/ProjectPage.tsx` | Added `isDraggingOver` state; `onDragOver` sets `isDraggingOver=true` and enables `crosshair` cursor; `onDragLeave`/`onDrop` clear it; ReactFlow wrapper shows `boxShadow: inset 0 0 60px rgba(34,197,94,0.08)` green glow while dragging. |
+
+### Implementation Details
+
+#### 1. Resizable Sidebar
+- **Container**: `Box` wrapping the MUI `Drawer` with `position: relative; display: flex`.
+- **Drag handle**: 4px-wide `Box` absolutely positioned on the right edge (`top: 0; right: 0; bottom: 0; width: 4`). On hover/active, turns green (#22c55e). Contains a subtle 1.5px center line.
+- **Mouse events**: `onMouseDown` on handle captures start X and current width. `document`-level `mousemove` calculates delta and clamps to [200, 400]. `mouseup` persists to `localStorage` and restores body cursor/user-select.
+- **Persistence**: Width saved to `localStorage` key `"sidebarWidth"` on drag end, read on mount via `loadSidebarWidth()`.
+
+#### 2. Accordion Category Groups
+- **5 groups** mapped from `nodeRegistry`'s `NodeCategory` enum:
+  - 🌐 Network (`infrastructure` + `network` registry categories)
+  - 🖥️ Compute (`compute`)
+  - 🗄️ Databases (`data`)
+  - 📨 Messaging (`messaging`)
+  - ☁️ External (`external`)
+- **MUI Accordion**: `disableGutters`, transparent background, no box-shadow, `:before` pseudo-element hidden (removes default divider). ChevronDown expand icon.
+- **Badge count**: Each header shows the number of items in monospace dim text.
+- **State persistence**: `accordionExpanded` state stored in `localStorage` key `"sidebar-accordion"` as JSON `Record<string, boolean>`. All expanded by default on first visit.
+- **Search filtering**: Sticky `<TextField>` at the top filters nodes across all 5 groups in real-time via the `grouped` memo. Groups with zero results are hidden when query is active.
+
+#### 3. Premium Drag-and-Drop (Native HTML5)
+- **Removed `@dnd-kit/core` dependency**: Replaced `useDraggable` with native `draggable` attribute + `onDragStart` handler.
+- **Custom drag image**: `createDragGhost()` function builds a temporary `<div>` with dark card styling, green border/glow, and inline SVG icon + label text. Passed to `event.dataTransfer.setDragImage()`. Removed from DOM via `setTimeout` cleanup.
+- **Data transfer**: `event.dataTransfer.setData("application/node-type", type)` — same key the `onDrop` handler in `ProjectPage.tsx` reads.
+- **Canvas drop feedback**: `isDraggingOver` state in `ProjectPage.tsx` sets `cursor: crosshair` on the ReactFlow wrapper and adds `inset boxShadow` green glow (`rgba(34,197,94,0.08)`) for a subtle "valid drop zone" indicator.
+
+### Key Decisions
+- **Native HTML5 DnD over `@dnd-kit`**: The app only needs simple drag-from-palette-to-canvas behavior. Native DnD avoids a 20KB+ dependency, gives direct access to `setDragImage`, and matches the `onDrop`/`onDragOver` handlers already using native `DragEvent`.
+- **`document`-level mouse listeners for resize**: Standard pattern for drag handles — attaching to `document` ensures smooth operation even when the cursor moves faster than the element or leaves the handle.
+- **Clamp width to [200, 400]**: 200px is the minimum for readable node labels; 400px is the maximum before the sidebar competes with the canvas. Default 220px matches the original width.
+- **Accordion over flat list**: Collapsible categories reduce visual noise; users can keep only relevant sections open. Especially important as the node count grows.
+- **Icon-only drag ghost**: The ghost card uses just the node label + generic circle icon (instead of the specific Lucide icon) to keep `setDragImage` fast and avoid loading icon SVGs into a temporary element.
+
+### Status
+
+**Phase UI-1 complete — Pro Left Sidebar implemented**
+
+| Task | Status |
+|------|--------|
+| Resizable sidebar with drag handle (200–400px, localStorage) | ✅ |
+| 5 MUI Accordion categories (Network, Compute, Databases, Messaging, External) | ✅ |
+| Accordion expanded state persisted in localStorage | ✅ |
+| Sticky search field filtering all categories | ✅ |
+| Native HTML5 drag with custom `setDragImage` ghost card | ✅ |
+| Crosshair cursor + green glow on canvas when dragging | ✅ |
+| Build verification | ✅ |
+
+### Build Results (Phase UI-1)
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ 0 errors |
+---
+
 ### API Endpoints (38 total)
 | Category | Endpoints | Status |
 |---|---|---|

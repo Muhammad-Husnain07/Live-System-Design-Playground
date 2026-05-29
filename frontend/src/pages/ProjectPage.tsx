@@ -277,6 +277,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const setShowFinOpsPanel = useFinOpsStore((s) => s.setShowPanel);
   const [showDrillPanel, setShowDrillPanel] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const reactFlowRef = useRef<any>(null);
   useEffect(() => { reactFlowRef.current = reactFlowInstance; }, [reactFlowInstance]);
   const activeChallenge = useChallengeStore((s) => s.activeChallenge);
@@ -452,6 +453,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const onDrop = useCallback(
     (event: DragEvent) => {
       event.preventDefault();
+      setIsDraggingOver(false);
       const nodeType = event.dataTransfer.getData("application/node-type") as NodeType | "";
       if (!nodeType || !NODE_REGISTRY[nodeType]) return;
       const meta = NODE_REGISTRY[nodeType];
@@ -484,6 +486,11 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const onDragOver = useCallback((event: DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
+    setIsDraggingOver(true);
+  }, []);
+
+  const onDragLeave = useCallback(() => {
+    setIsDraggingOver(false);
   }, []);
 
   const paletteActions = useMemo<CommandAction[]>(() => {
@@ -838,7 +845,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
 
       <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
         <NodePanel onApplyTemplate={applyTemplate} />
-        <Box ref={reactFlowWrapper} sx={{ flex: 1, position: "relative" }} onDrop={onDrop} onDragOver={onDragOver} onMouseMove={handleMouseMove}>
+        <Box ref={reactFlowWrapper} sx={{ flex: 1, position: "relative", cursor: isDraggingOver ? "crosshair" : undefined, "& .react-flow": isDraggingOver ? { boxShadow: "inset 0 0 60px rgba(34,197,94,0.08)", transition: "box-shadow 0.15s" } : {} }} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} onMouseMove={handleMouseMove}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
