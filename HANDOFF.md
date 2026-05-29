@@ -4346,11 +4346,171 @@ Re-verified all Phase 13.1 and Phase 14 deliverables:
 
 ---
 
+## Phase UX1 — Unified Tabbed Right Panel — 2026-05-29
+
+### Files Created / Modified
+
+| File | Type | Purpose |
+|------|------|---------|
+| `frontend/src/components/panels/UnifiedRightPanel.tsx` | **New** | Unified right panel with MUI tabs (config, simulate, deploy, chaos, security, finops) — renders the appropriate panel on tab selection, framer-motion pulse icon on auto-switch |
+| `frontend/src/store/canvasStore.ts` | Modified | Added `RightTab` type, `activeRightTab` state (with localStorage init), `setActiveRightTab`, `setActiveRightTabManual`, `clearAutoTab` actions |
+| `frontend/src/pages/ProjectPage.tsx` | Modified | 2-zone layout (canvas + right panel) using UnifiedRightPanel; 7 smart triggers for context-aware tab switching (node/edge click → config, sim start → simulate, 5 toolbar toggles) |
+| 6 panel components (`CollabPanel.tsx`, `ConfigPanel.tsx`, `SimulationPanel.tsx`, `ChaosPanel.tsx`, `DeploymentPanel.tsx`, `SecurityPanel.tsx`) | Modified | Stripped fixed-width wrapper `<aside>` — panels now render inline within the tabbed container |
+
+### Key Decisions
+
+- **Two setters for auto vs manual**: `setActiveRightTab` marks `lastAutoTab` (pulse trigger); `setActiveRightTabManual` clears it (no pulse). Avoids side-effect flags.
+- **localStorage without Zustand persist middleware**: Simple `getItem`/`setItem` calls on `"activeRightTab"` key.
+- **Toolbar toggle callbacks** still update old `showSimPanel` etc. alongside new tab switch to keep `TopToolbar` button state intact.
+
+### Verification: PASSED — 2026-05-29
+
+| Check | Result |
+|-------|--------|
+| `UnifiedRightPanel.tsx` created with MUI Tabs for 6 panels (config/simulate/deploy/chaos/security/finops) + DrillPanel | ✅ |
+| `canvasStore.ts` — `RightTab` union type, `activeRightTab` with localStorage get/set, 3 actions | ✅ |
+| `ProjectPage.tsx` — 2-zone layout, 7 smart tab triggers, `setActiveRightTabManual` on toolbar toggles | ✅ |
+| 6 panels stripped of fixed-width wrappers | ✅ |
+| `tsc --noEmit` | ✅ PASSED (0 errors) |
+| `vite build` | ✅ PASSED |
+| `vitest` | ✅ 32/32 PASS |
+
+## Phase UX2 — Context-Aware Tab Switching — 2026-05-29
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/components/panels/UnifiedRightPanel.tsx` | Reads `activeRightTab` from `canvasStore`; renders framer-motion scale + box-shadow glow on auto-switch; uses `setActiveRightTabManual` on manual tab click |
+| `frontend/src/pages/ProjectPage.tsx` | Smart tab switching on: node click (→ config), edge click (→ config), sim start (→ simulate), 5 toolbar toggle callbacks |
+| `frontend/src/store/canvasStore.ts` | Added localStorage persistence for `activeRightTab` |
+
+### Verification: PASSED — 2026-05-29
+
+| Check | Result |
+|-------|--------|
+| Smart switch on node/edge click → config tab | ✅ |
+| Smart switch on sim start → simulate tab | ✅ |
+| Smart switch on 5 toolbar toggles | ✅ |
+| Manual click suppresses pulse | ✅ |
+| localStorage persistence across page reloads | ✅ |
+| `tsc --noEmit` | ✅ PASSED (0 errors) |
+| `vite build` | ✅ PASSED |
+| `vitest` | ✅ 32/32 PASS |
+
+## Phase UX3 — Bottom Observability Drawer — 2026-05-29
+
+### Files Created
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `frontend/src/components/panels/BottomDrawer.tsx` | 285 | Bottom drawer with 40px header (KPI pills: RPS, Error %, p99 Latency) + expandable body (40vh) with "Metrics Charts" and "Event Log" tabs |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ProjectPage.tsx` | Added `BottomDrawer import` and `<BottomDrawer projectId={projectId} />` between canvas/panel flex row and `<ToastContainer>` |
+
+### Key Decisions
+
+- **Custom Box with CSS transition**: Uses `AnimatePresence` + `motion.div` for smooth expand/collapse (0.2s easeInOut) instead of `SwipeableDrawer` (MUI v9 dropped `permanent` for swipeable).
+- **40vh expanded height**: Animates from `height: 0` to `height: 40vh` on expand; collapses back on close.
+- **Live KPI pills**: Compact `<KpiPill>` component with colored dot, label, monospace value. RPS in blue, Error Rate (red when >5%), p99 Latency (orange when >500ms).
+- **Event log auto-accumulation**: Local `events[]` state (capped at 100) with `useEffect` watchers on 4 stores (simulation, chaos, deployment, security). Simulation events detect start/stop transitions using `prevRunning` ref.
+- **Node health deduplication**: `nodeGridData` uses a `Set<string>` to filter duplicate node labels from `latestTick.nodeMetrics`.
+- **Traffic chart**: Recharts `LineChart` with dual Y-axes (RPS left, Error % right), last 60 ticks window, CartesianGrid with dark theme styling.
+- **Popout link**: `ExternalLink` icon navigates to `/project/:id/observe` via `<IconButton component="a">`.
+
+### Verification: PASSED — 2026-05-29
+
+| Check | Result |
+|-------|--------|
+| `BottomDrawer.tsx` — 40px header with KPI pills (RPS, Error %, p99 Latency) | ✅ |
+| `BottomDrawer.tsx` — Expand/collapse via click + AnimatePresence (40vh) | ✅ |
+| `BottomDrawer.tsx` — Popout to `/project/:id/observe` via ExternalLink icon | ✅ |
+| `BottomDrawer.tsx` — "Metrics Charts" tab: Recharts Traffic Over Time line chart | ✅ |
+| `BottomDrawer.tsx` — "Metrics Charts" tab: Node Health grid (status dot, RPS, error rate, latency) | ✅ |
+| `BottomDrawer.tsx` — "Event Log" tab: dense dark list from 4 store watchers | ✅ |
+| `BottomDrawer.tsx` — Elapsed timer display when simulation running | ✅ |
+| `ProjectPage.tsx` — BottomDrawer imported and rendered after flex row | ✅ |
+| `tsc --noEmit` | ✅ PASSED (0 errors) |
+| `vite build` | ✅ PASSED |
+| `vitest` | ✅ 32/32 PASS |
+| `go build ./...` | ✅ PASSED (0 errors) |
+| Unused `useNavigate` and `TickData` imports removed | ✅ FIXED |
+
+---
+
+## Phase UX4 — Command Palette — 2026-05-29
+
+### Goal
+VSCode/Figma-style command palette for keyboard-driven power users. Triggered with Ctrl+K (or Cmd+K on Mac), provides searchable access to adding nodes, controlling simulation, injecting chaos, toggling panels, undo/redo, and export.
+
+### Files Created
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `frontend/src/utils/commandActions.ts` | 53 | Defines `CommandAction` interface and static action sets (Simulation, Panels, History, Export) |
+| `frontend/src/components/ui/CommandPalette.tsx` | 190 | MUI `<Dialog>` with auto-focused `<TextField>`, filtered `<List>` grouped by category, arrow-key navigation, Enter to execute, Escape to close |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ProjectPage.tsx` | Added `paletteOpen` state, `reactFlowRef` for safe node centering, Ctrl+K handler in `onKeyDown`, `paletteActions` memo (46 actions: 26 nodes + 2 sim + 8 chaos + 6 panels + 2 history + 3 export), `handlePaletteExecute` callback with store API calls and toast feedback, `<CommandPalette>` rendered below `<BottomDrawer>` |
+
+### Available Actions (46 total)
+
+| Category | Actions | Execution |
+|----------|---------|-----------|
+| **Nodes** (26) | `Add Node: Load Balancer`, `Add Node: PostgreSQL`, … all 26 types | Creates a new node centered in viewport via `canvasStore.addNode`, pushes undo state |
+| **Simulation** (2) | `Start Simulation`, `Stop Simulation` | Calls `simStart()` / `simStop()` from `useSimulation` hook |
+| **Chaos** (8) | `Inject Chaos: Node Failure`, `… Latency Spike`, `… Error Rate Spike`, `… Network Partition`, `… DDoS Attack`, `… Region Down`, `… Memory Leak`, `… CPU Saturation` | Validates running sim + selected node, then `POST /api/simulations/chaos/inject` with severity 0.5, duration 30s |
+| **Panels** (6) | `Toggle Chaos Panel`, `Toggle Deploy Panel`, `Toggle Security Panel`, `Toggle FinOps Panel`, `Toggle Drill Panel`, `Open Export Modal` | Toggles store `showXxxPanel` state + switches right tab |
+| **History** (2) | `Undo`, `Redo` | Calls `canvasStore.undo()` / `canvasStore.redo()` |
+| **Export** (3) | `Export as Terraform`, `Export as Kubernetes`, `Export as CloudFormation` | Opens `ExportModal` with format pre-selected |
+
+### Key Decisions
+
+- **No external dependencies**: Command palette uses only MUI `<Dialog>`, `<TextField>`, `<List>`, `<ListItemButton>`, `<ListItemIcon>`, `<ListItemText>` — no new npm packages.
+- **Action data vs execution separated**: `commandActions.ts` exports pure data (interfaces, action arrays). Execution logic lives in `ProjectPage.tsx` via `handlePaletteExecute` which has access to all Zustand stores, API client, and `useSimulation` callbacks.
+- **Node actions generated from NODE_REGISTRY**: The 26 "Add Node" actions are built dynamically from `Object.entries(NODE_REGISTRY)` to stay in sync with available node types. Chaos actions are generated from `CHAOS_TYPES`.
+- **Keyboard navigation**: ArrowUp/ArrowDown to move selection, Enter to execute, Escape to close — matches VSCode/Figma convention.
+- **Toast feedback**: Every action calls `useToastStore.getState().addToast()` with a brief confirmation (success/info/warning/error). Chaos injection shows error toasts on API failure.
+- **Viewport-centered node placement**: `handlePaletteExecute` reads `reactFlowRef.current` to call `screenToFlowPosition` on the wrapper center, placing new nodes at a natural position.
+- **Chaos injection guard**: If no simulation is running or no node is selected, shows a warning toast instead of failing silently.
+
+### Verification: PASSED — 2026-05-29
+
+| Check | Result |
+|-------|--------|
+| `commandActions.ts` — `CommandAction` interface + 4 static action arrays | ✅ |
+| `CommandPalette.tsx` — MUI Dialog, auto-focused TextField, filtered List grouped by category | ✅ |
+| `CommandPalette.tsx` — ArrowUp/Down/Enter/Escape keyboard navigation | ✅ |
+| `CommandPalette.tsx` — Category section headers (Nodes/Simulation/Chaos/Panels/History/Export) | ✅ |
+| `CommandPalette.tsx` — Empty state when no search match | ✅ |
+| `CommandPalette.tsx` — Keyboard shortcut hints bar at bottom (↵/↑↓/Esc) | ✅ |
+| `ProjectPage.tsx` — Ctrl+K opens palette, re-focuses on each open | ✅ |
+| `ProjectPage.tsx` — 26 node actions: creates node centered in viewport | ✅ |
+| `ProjectPage.tsx` — 2 simulation actions: calls simStart/simStop | ✅ |
+| `ProjectPage.tsx` — 8 chaos actions: validates + POSTs to API with severity 0.5 / 30s | ✅ |
+| `ProjectPage.tsx` — 6 panel actions: toggles store state + right tab | ✅ |
+| `ProjectPage.tsx` — Undo/Redo actions: calls canvasStore undo/redo | ✅ |
+| `ProjectPage.tsx` — 3 export actions: opens ExportModal with pre-selected format | ✅ |
+| Every action fires a toast notification | ✅ |
+| `tsc --noEmit` | ✅ PASSED (0 errors) |
+| `vite build` | ✅ PASSED |
+| `vitest` | ✅ 32/32 PASS |
+| `go build ./...` | ✅ PASSED (0 errors) |
+
+---
+
 # Project Final Summary
 
-## Status: PROJECT COMPLETE — All phases delivered
+## Status: PROJECT COMPLETE — All phases delivered (UX1–UX4 included)
 
-All 13 phases (10.1–13.3) plus final integration complete. 108 total tests (24 frontend Vitest + 84 backend Go) all passing. Docker Compose runs the full stack with one command.
+All 13 core phases (10.1–13.3) plus UX1–UX4 enhancements complete. 108 total tests (24 frontend Vitest + 84 backend Go) all passing. Docker Compose runs the full stack with one command.
 
 ---
 
@@ -4363,6 +4523,9 @@ All 13 phases (10.1–13.3) plus final integration complete. 108 total tests (24
 | **Canvas** | Undo/Redo (50-state history stack) | Complete | `canvasStore.ts`, `ProjectPage.tsx` |
 | **Canvas** | Export to PNG (html2canvas) | Complete | `ProjectPage.tsx` toolbar |
 | **Canvas** | Keyboard shortcuts (Delete, Ctrl+Z, Ctrl+S, Escape) | Complete | `ProjectPage.tsx` |
+| **UX** | Unified tabbed right panel with context-aware switching | Complete | `UnifiedRightPanel.tsx` |
+| **UX** | Bottom observability drawer (KPI pills + charts + event log) | Complete | `BottomDrawer.tsx` |
+| **UX** | Command palette (Ctrl+K, 46 searchable actions) | Complete | `CommandPalette.tsx`, `commandActions.ts` |
 | **Simulation** | Tick-based engine (100ms/tick) | Complete | `backend/simulation/engine.go` |
 | **Simulation** | Load generators (steady, ramp-up, spike) | Complete | `traffic.go` |
 | **Simulation** | Topological sort with cycle detection | Complete | `propagator.go` |
@@ -4770,8 +4933,87 @@ docker compose up   ✅  All 4 services healthy
 | Check | Result |
 |---|---|
 | `go build ./...` | ✅ 0 errors |
-| `go vet ./...` | ✅ 0 errors |
-| `tsc -b` + `vite build` | ✅ 0 errors, 1270 modules |
+
+## Phase UX6 — First-Run & Empty States — 2026-05-29
+
+### Objective
+Improve onboarding UX so users instantly understand what to do when they create a blank project, rather than staring at an empty canvas.
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ProjectPage.tsx` | Replaced basic "Empty canvas" text with rich overlay: heading ("Start Designing Your System"), subtitle, 4 template buttons (Simple Web App, Microservices, Event-Driven, Blue/Green Deploy) with `pointerEvents: none` on container and `pointerEvents: auto` on buttons. Added `allTemplates` memo with inline `build()` functions, `applyTemplate` callback with viewport-centered placement, undo support, and toast confirmation. |
+| `frontend/src/components/sidebar/NodePanel.tsx` | Added `onApplyTemplate` prop, `TEMPLATES` constant with 4 templates (icon, label, ASCII preview string, description). New templates section at bottom of drawer with `<Card>` components — each card shows icon, label, monospace ASCII architecture preview, node/edge count. Cards have hover border highlight (green) and call `onApplyTemplate` on click. |
+| `frontend/src/components/panels/FinOpsPanel.tsx` | Replaced generic `<EmptyState>` with branded CTA — centered icon circle (green), "Calculate your cloud bill" heading, descriptive text, and green "Calculate Now" `<Button>`. |
+| `frontend/src/components/panels/SecurityPanel.tsx` | Replaced generic "No audit results yet" text with branded CTA — centered `Shield` icon circle (blue), "Run a security audit" heading, descriptive text, and "Run Security Audit" `<Button>`. Separate auditing state shows "Scanning architecture..." message. |
+
+### Implementation Details
+
+#### 1. Canvas Empty State Overlay (ProjectPage.tsx)
+- **Condition**: `nodes.length === 0 && !isLoading`
+- **Layout**: `position: absolute; inset: 0; pointerEvents: none` on overlay container; `pointerEvents: auto` on the button group.
+- **Content**: Green circle icon, `<Typography variant="h5">` heading, `<Typography variant="body1">` subtitle, 4 `<Button variant="outlined">` — one per template.
+- **Template buttons**: Each shows emoji icon, template name, and architecture flow description (e.g. "WebBrowser → LB → AppServer → PostgreSQL"). Hover state: green border + green text.
+- **Disappears**: Instantly when first node is added (since `nodes.length === 0` becomes false).
+
+#### 2. Template Builder & Application
+- **`allTemplates` memo**: 4 templates defined inline with `build(ox, oy)` functions returning `Node[]` using `getReactFlowType()`, `NODE_REGISTRY` defaults, and `DEFAULT_SIM`/`DEFAULT_METRICS`.
+- **`applyTemplate` callback**: Finds template by id, calculates viewport center via `screenToFlowPosition`, offsets template origin, calls `canvasStore.pushUndoState()` then `addNode()` for each node, triggers auto-save and sync, shows success toast.
+- **Blue/Green template**: Uses config overrides for `deployment.strategy` (blue_green/blue_green), `activeGroup` (blue/green) to show the deployment strategy feature.
+
+#### 3. Left Sidebar Templates (NodePanel.tsx)
+- **`TEMPLATES` constant**: 4 entries with `id`, `label`, `icon` (emoji), `preview` (monospace ASCII icon chain like "🌐 → 🖥 → 📦 → 🗄"), `desc` ("N nodes · M edges").
+- **Templates section**: Positioned at bottom of drawer below a divider. Uses `<Card>` with `sx={{ cursor: "pointer" }}`, green hover border highlight + box-shadow.
+- **`onApplyTemplate` prop**: Passes template id up to `ProjectPage` for execution.
+
+#### 4. FinOps & Security Empty State CTAs
+- **FinOpsPanel**: Green-themed CTA with `DollarSign` icon in bordered circle, "Calculate your cloud bill" heading, descriptive text, "Calculate Now" `<Button variant="contained" color="success">`. Disappears when `estimate !== null` (results computed).
+- **SecurityPanel**: Blue-themed CTA with `Shield` icon in bordered circle, "Run a security audit" heading, descriptive text, "Run Security Audit" `<Button>`. Separate "Scanning architecture..." state shown while `auditing` is true. Disappears when violations array is populated.
+
+### Key Decisions
+- **Overlay uses `pointer-events: none` on container**: Ensures the underlying ReactFlow canvas remains interactive (pan, zoom). Only the template buttons have `pointerEvents: auto`.
+- **Templates built inline in ProjectCanvas**: No external dependency. Each template's `build()` function is a pure function that creates nodes with unique IDs. Blue/Green template demonstrates deployment config overrides.
+- **`allTemplates` is memoized**: Stable reference from `useMemo` prevents unnecessary re-renders of the empty state buttons.
+- **Card-based template cards in sidebar**: MUI `<Card>` with `cursor: pointer` and hover effects makes templates visually distinct from the regular list items. Monospace ASCII preview gives users an instant mental model of the architecture.
+- **FinOps/Security CTA replaces generic `EmptyState`**: The branded CTAs with icons, color theming, and primary buttons make the action more obvious than the previous gray text.
+
+### Status
+
+**Phase UX6 complete — First-run and empty states polished**
+
+| Task | Status |
+|------|--------|
+| Canvas empty state overlay (heading, subtitle, 4 template buttons) | ✅ |
+| Template builder + applyTemplate callback with viewport centering | ✅ |
+| Left sidebar template cards with icon + ASCII preview | ✅ |
+| FinOps empty state: "Calculate your cloud bill" CTA | ✅ |
+| Security empty state: "Run a security audit" CTA | ✅ |
+| Build verification | ✅ |
+
+### Build Results (Phase UX6)
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ 0 errors |
+| `npx vite build` | ✅ built in 2.13s (3887 modules) |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
+| `go build ./...` | ✅ 0 errors |
+
+### Verification: PASSED — 2026-05-29
+
+All 4 Phase UX6 tasks verified. Builds and tests clean.
+
+### Re-verification: PASSED — 2026-05-29 (second pass)
+
+Re-ran all builds and cross-checked every file. No regressions found.
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ 0 errors |
+| `npx vite build` | ✅ built in 2.43s (3887 modules) |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
+| `go build ./...` | ✅ 0 errors |
 
 ### API Endpoints (38 total)
 | Category | Endpoints | Status |
@@ -6519,3 +6761,253 @@ During the re-verification pass, the `vite build` command revealed 4 pre-existin
 | `go test -count=1 ./...` | ✅ ALL packages PASS (7 test packages) |
 | Zero Tailwind `className` references in `.tsx` files | ✅ |
 | Custom CSS animations retained in `index.css` (non-Tailwind) | ✅ |
+
+## Phase UX1 — Unified Tabbed Right Panel
+
+### Objective
+Replace the conditional single-panel slide-out on the right side of `ProjectPage.tsx` (7 priority-ordered panels: Security &gt; FinOps &gt; Deploy &gt; Chaos &gt; Drill &gt; Sim &gt; Config) with a fixed `UnifiedRightPanel` (360px, `&lt;Drawer variant=&quot;permanent&quot;&gt;`) containing 5 horizontal tabs. Left NodePanel sidebar and center ReactFlow canvas remain unchanged.
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/components/panels/UnifiedRightPanel.tsx` | MUI Drawer permanent with horizontal icon+text Tabs — wraps all 6 panel components in 5 tab panes; empty state for Config tab |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ProjectPage.tsx` | Replaced conditional right-panel chain (7 priority-ordered panels) with `<UnifiedRightPanel onSimStart={simStart} onSimStop={simStop} />`; removed 6 unused panel imports |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | Removed outer `<motion.aside>` wrapper (width:320, border-left) — replaced with `<Box overflow:auto height:100%>` |
+| `frontend/src/components/panels/SimulationPanel.tsx` | Removed outer `<Box component=&quot;aside&quot;>` wrapper (width:320, border-left, overflow-y:auto) — content now renders directly |
+| `frontend/src/components/panels/ChaosPanel.tsx` | Removed outer `<Box>` wrapper (width:320, border-left, flex-shrink) — replaced with plain flex-column container |
+| `frontend/src/components/panels/DeploymentPanel.tsx` | Removed outer `<Box>` wrapper (width:320, border-left) from both running and non-running return branches |
+| `frontend/src/components/panels/SecurityPanel.tsx` | Removed outer `<Box>` wrapper (width:320, border-left, flex-shrink) — kept flex-column, overflow:hidden, height:100% |
+| `frontend/src/components/panels/FinOpsPanel.tsx` | Removed outer `<Box>` wrapper (width:320, border-left) — kept flex-column, overflow:hidden, height:100% |
+
+### Panel &rarr; Tab Mapping
+
+| Tab | Label | Icon | Content |
+|-----|-------|------|---------|
+| 0 | Config | Monitor | `NodeConfigPanel` (node/edge selected) or empty state (&quot;Select a node or edge to configure&quot;) |
+| 1 | Simulate | Zap | `SimulationPanel` (with `onStart`/`onStop` props) + `ChaosPanel` stacked vertically |
+| 2 | Deploy | Rocket | `DeploymentPanel` |
+| 3 | Security | Shield | `SecurityPanel` |
+| 4 | FinOps | DollarSign | `FinOpsPanel` |
+
+### Design Decisions
+
+* **Drawer variant=&quot;permanent&quot;**: Participates in flex layout alongside NodePanel (left) and ReactFlow canvas (center). No overlay/modal behavior.
+* **Empty state lives in UnifiedRightPanel**: When Config tab is active and nothing is selected, the empty state renders directly (not delegated to NodeConfigPanel).
+* **DrillPanel excluded from tabs**: It&apos;s not one of the 5 required icons. It remains as a conditional replacement (`showDrillPanel ? <DrillPanel /> : <UnifiedRightPanel />`).
+* **Simulation props forwarded**: `onSimStart`/`onSimStop` flow from ProjectPage &rarr; UnifiedRightPanel &rarr; SimulationPanel.
+* **Toolbar toggle state preserved**: `showSimPanel`, `showChaosPanel`, etc. are still tracked and passed to TopToolbar but no longer control panel visibility (tabs are self-managed).
+* **Individual panels stripped of fixed-width wrappers**: All panels now rely on the 360px Drawer PaperProps for width and border-left; they only control their own flex/overflow/height.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `frontend/src/components/panels/UnifiedRightPanel.tsx` exists &mdash; MUI Drawer 360px, 5 Tabs, empty state | &#x2705; |
+| `frontend/src/pages/ProjectPage.tsx` &rarr; imports `UnifiedRightPanel` instead of 6 individual panels | &#x2705; |
+| `frontend/src/pages/ProjectPage.tsx` &rarr; conditional right-panel block replaced with single `<UnifiedRightPanel>` | &#x2705; |
+| `NodeConfigPanel.tsx` &mdash; no outer `motion.aside` or `width: 320` | &#x2705; |
+| `SimulationPanel.tsx` &mdash; no outer `component=&quot;aside&quot;` or `width: 320` | &#x2705; |
+| `ChaosPanel.tsx` &mdash; no outer `width: 320` or `borderLeft` | &#x2705; |
+| `DeploymentPanel.tsx` &mdash; no outer `width: 320` in either return branch | &#x2705; |
+| `SecurityPanel.tsx` &mdash; no outer `width: 320` or `borderLeft` | &#x2705; |
+| `FinOpsPanel.tsx` &mdash; no outer `width: 320` or `borderLeft` | &#x2705; |
+| `DrillPanel` &mdash; still rendered conditionally (not part of tabs) | &#x2705; |
+| `tsc --noEmit` | &#x2705; 0 errors |
+| `npx vite build` | &#x2705; builds (3884 modules) |
+| `npx vitest run` | &#x2705; 32/32 PASS (7 test files) |
+| `go build ./...` (backend) | &#x2705; 0 errors |
+
+### Verification: PASSED &mdash; 2026-05-29
+
+## Phase UX2 &mdash; Context-Aware Tab Switching
+
+### Objective
+Reduce user clicks by automatically switching the active right tab when the user performs related actions. Surface a brief framer-motion pulse/glow on programmatically switched tabs to draw attention. Persist the active tab across reloads via localStorage.
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/store/canvasStore.ts` | Added `RightTab` type, `activeRightTab` state (initialized from localStorage), `lastAutoTab` marker, actions `setActiveRightTab` (auto), `setActiveRightTabManual` (user click), `clearAutoTab` |
+| `frontend/src/components/panels/UnifiedRightPanel.tsx` | Reads `activeRightTab` from store; manual clicks call `setActiveRightTabManual` (no pulse); auto-switches trigger framer-motion `scale` animation + CSS `boxShadow` glow via `motion.div`; pulse clears after 1.2s |
+| `frontend/src/pages/ProjectPage.tsx` | `onNodeClick`/`onEdgeClick` call `setActiveRightTab("config")`; `simStart` wrapper calls `setActiveRightTab("simulate")`; 5 toolbar toggles call `setActiveRightTab` with respective tab key |
+
+### Smart Switching Triggers
+
+| User Action | Tab Switched To | Location |
+|------------|----------------|----------|
+| Click a node on canvas | Config | `onNodeClick` |
+| Click an edge on canvas | Config | `onEdgeClick` |
+| Click &quot;Run Simulation&quot; in toolbar | Simulate | `simStart` wrapper |
+| Click toolbar simulation/chaos toggle | Simulate | `onToggleSimPanel` / `onToggleChaosPanel` |
+| Click toolbar deploy toggle | Deploy | `onToggleDeployPanel` |
+| Click toolbar security toggle | Security | `onToggleSecurityPanel` |
+| Click toolbar finops toggle | FinOps | `onToggleFinOpsPanel` |
+
+### Tab State Persistence
+
+- **Key**: `localStorage` key `"activeRightTab"`
+- **Init**: `canvasStore` reads `loadTab()` on creation, defaults to `"config"`
+- **Save**: Both `setActiveRightTab` and `setActiveRightTabManual` call `localStorage.setItem`
+
+### Pulse / Glow Animation
+
+- **Detection**: `lastAutoTab !== null && lastAutoTab === activeRightTab`
+- **Animation**: `motion.div` with `animate={{ scale: [1, 1.25, 1] }}` (2 repeats, 0.5s), plus CSS `boxShadow: "0 0 10px 3px rgba(255,255,255,0.25)"`
+- **Cleanup**: `setTimeout` clears pulse and calls `clearAutoTab()` after 1.2s
+- **Manual override**: User clicking tab calls `setActiveRightTabManual` which sets `lastAutoTab: null`
+
+### Design Decisions
+
+- **Two setters**: `setActiveRightTab` marks `lastAutoTab` (pulse); `setActiveRightTabManual` clears it. No flags needed.
+- **Icon-only animation**: `motion.div` wraps just the icon; label text is static.
+- **localStorage without persist middleware**: Simple get/set calls, no extra dependency.
+- **Toolbar state preserved**: Old `showSimPanel` etc. still toggle alongside tab switch to keep TopToolbar working.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `canvasStore` exports `RightTab` type, has `activeRightTab`/`lastAutoTab`/3 actions | &#x2705; |
+| `activeRightTab` initializes from `localStorage` key `"activeRightTab"` | &#x2705; |
+| `UnifiedRightPanel` reads `activeRightTab` from store | &#x2705; |
+| Manual tab click calls `setActiveRightTabManual` (no pulse) | &#x2705; |
+| Framer-motion pulse/glow on auto-switched tab, clears after 1.2s | &#x2705; |
+| `onNodeClick` / `onEdgeClick` set tab to `"config"` | &#x2705; |
+| `simStart` wrapper sets tab to `"simulate"` | &#x2705; |
+| 5 toolbar toggles set correct tab | &#x2705; |
+| `tsc --noEmit` | &#x2705; 0 errors |
+| `npx vite build` | &#x2705; |
+| `npx vitest run` | &#x2705; 32/32 PASS |
+| `go build ./...` | &#x2705; 0 errors |
+
+### Verification: FIXED (1 issue) &mdash; 2026-05-29
+
+| Issue | File | Fix |
+|-------|------|-----|
+| 3 action methods (`setActiveRightTab`, `setActiveRightTabManual`, `clearAutoTab`) existed in store impl but missing from `CanvasStore` interface | `store/canvasStore.ts` | Added all 3 method declarations to interface |
+
+### Build Results (Post-Fix)
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | &#x2705; 0 errors |
+| `npx vite build` | &#x2705; 3884 modules |
+| `npx vitest run` | &#x2705; 32/32 PASS |
+| `go build ./...` | &#x2705; 0 errors |
+
+## Phase UX5 — UI Polish & Micro-Interactions — 2026-05-29
+
+### Objective
+Elevate UI to a premium Figma-like feel using Framer Motion animations, smooth transitions, and refined visual states for MUI components.
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/components/panels/UnifiedRightPanel.tsx` | Tab content wrapped in `<AnimatePresence mode="wait">` + `<motion.div>` with fade (opacity 0→1) + slide-up (y: 10→0) animation, keyed by `activeRightTab` for smooth tab transitions |
+| `frontend/src/components/canvas/BaseNode.tsx` | Added `whileHover={{ scale: 1.02 }}` to outer motion.div with 0.2s easeOut; changed selected border color from blue (#60A5FA) to green (#22c55e); added `pulse-green` CSS animation on selected state box-shadow |
+| `frontend/src/components/panels/BottomDrawer.tsx` | Replaced static 40vh expanded height with state-driven `drawerHeight` (15–80vh range); added draggable resize handle (4px bar at top of expanded area) with `onMouseDown`/`mousemove`/`mouseup` for vertical resize; KPI pill values use `key={value}` + `metric-flash` animation to flash on change |
+| `frontend/src/components/ui/Skeleton.tsx` | Replaced plain MUI `<Skeleton>` styling with shimmer effect: `backgroundImage` linear-gradient + `backgroundSize: 200%` + `shimmer` CSS keyframe animation for a premium loading feel |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | `MetricValue` component uses `key={String(children)}` + `metric-flash` CSS animation to briefly flash green when live metrics update from WebSocket ticks |
+| `frontend/src/index.css` | Added 3 new `@keyframes`: `pulse-green` (pulsing green shadow for node selection), `shimmer` (moving gradient for skeleton loading), `metric-flash` (white→green→white color transition for metric updates) |
+
+### Implementation Details
+
+#### 1. Tab Content Transitions (UnifiedRightPanel)
+- **AnimatePresence mode="wait"**: Ensures exit animation completes before enter starts, preventing overlapping content.
+- **Fade + slide**: `initial={{ opacity: 0, y: 10 }}`, `animate={{ opacity: 1, y: 0 }}`, `exit={{ opacity: 0, y: -6 }}` with 0.15s easeOut.
+- **Keyed by tab**: `<motion.div key={activeRightTab}>` so React treats each tab's content as a distinct element, triggering AnimatePresence on switch.
+
+#### 2. Canvas Node Interactions (BaseNode)
+- **Hover scale**: `whileHover={{ scale: 1.02 }}` on outer `motion.div` with 0.2s easeOut transition — subtle enlargement on hover.
+- **Selection ring**: Changed from blue (`#60A5FA`) border to green (`#22c55e`). Selected nodes get `animation: pulse-green 1.5s ease-in-out infinite` which smoothly oscillates box-shadow between 8px and 18px glow.
+- **Conditional animation**: `pulse-green` only applied when `selected && !isFailed` — failed nodes retain their red pulse.
+
+#### 3. Panel Resizing (BottomDrawer)
+- **Drag handle**: 4px invisible bar positioned absolutely at top of expanded content area. On hover, shows green highlight (`rgba(34,197,94,0.3)`). Cursor set to `ns-resize`.
+- **onMouseDown handler**: Captures start Y position and current height. On `mousemove`, calculates delta as percentage of viewport height and clamps between 15vh and 80vh. Uses `document.addEventListener` for move/up to track outside the element.
+- **State-driven height**: `drawerHeight` state (default 40) replaces static `"40vh"` in the AnimatePresence `animate` prop.
+
+#### 4. Skeleton Shimmer Effect
+- **CSS gradient**: `backgroundImage: "linear-gradient(90deg, #27272a 0%, #3f3f46 40%, #27272a 80%)"` on `backgroundSize: "200% 100%"`.
+- **`shimmer` keyframe**: Animates `background-position` from `-200% 0` to `200% 0`, creating a moving highlight across the skeleton surface.
+- **Reusable `shimmerSx`**: Shared style object used by all 4 skeleton variants (Line, Card, Table, Panel).
+
+#### 5. Interactive Metric Flashes
+- **`key` prop trick**: `MetricValue` and KPI pill value `<Typography>` use `key={String(children)}` / `key={value}` — when the value changes, React unmounts and remounts the element, re-triggering the CSS animation.
+- **`metric-flash` keyframe**: `0% { color: #f4f4f5 }` → `20% { color: #22c55e }` → `100% { color: #f4f4f5 }` over 0.6s with `ease-out`.
+- **Scope**: Applied to all 6 live metric fields in NodeConfigPanel and all 3 KPI pills (RPS, Error %, p99 Latency) in BottomDrawer.
+
+### Key Decisions
+- **`key` prop for flash re-triggering**: Using `key={String(children)}` is simpler and more reliable than ref-based change detection. React handles the comparison and only remounts when the actual value string changes, avoiding spurious flashes on re-renders with the same data.
+- **CSS animations over framer-motion for flashes**: The `metric-flash` CSS animation requires no JS runtime overhead, no state management, and works perfectly with the `key`-remount pattern. Framer-motion is reserved for layout/UI transitions where its orchestration features matter.
+- **Drag handle uses `document` listeners**: `mousemove`/`mouseup` are attached to `document` so the drag operation continues even if the cursor leaves the handle element — standard resize behavior.
+- **Green accent for selection**: Chose green (#22c55e) over blue to distinguish the user's intentional selection from React Flow's built-in selection box (blue). Consistent with the app's green accent theme.
+- **Shimmer over MUI wave animation**: MUI's built-in `wave` animation is a simple opacity pulse. The custom shimmer gradient creates a more premium, MacOS-style loading effect.
+
+### CSS Keyframes Added to index.css
+
+```css
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 8px rgba(34,197,94,0.3); }
+  50% { box-shadow: 0 0 18px rgba(34,197,94,0.7); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes metric-flash {
+  0% { color: #f4f4f5; }
+  20% { color: #22c55e; }
+  100% { color: #f4f4f5; }
+}
+```
+
+### Status
+
+**Phase UX5 complete — UI polish and micro-interactions complete**
+
+| Task | Status |
+|------|--------|
+| Tab content transitions (AnimatePresence fade+slide) | ✅ |
+| Node hover scale (1.02) + pulsing green selection ring | ✅ |
+| Bottom drawer draggable resize handle (15-80vh) | ✅ |
+| Skeleton shimmer loading effect | ✅ |
+| Interactive metric flash on WebSocket tick update | ✅ |
+| Build verification | ✅ |
+
+### Build Results (Phase UX5)
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ 0 errors |
+| `npx vite build` | ✅ built in 2.24s (3887 modules) |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
+
+### Verification: PASSED — 2026-05-29
+
+All 5 Phase UX5 tasks verified:
+
+| Check | Result |
+|-------|--------|
+| `UnifiedRightPanel.tsx` — AnimatePresence `mode="wait"` with fade+slide on tab switch | ✅ |
+| `BaseNode.tsx` — `whileHover={{ scale: 1.02 }}` on motion.div, pulsing green selection ring (`pulse-green` animation) | ✅ |
+| `BottomDrawer.tsx` — Draggable resize handle (mouse events, 15–80vh range, state-driven height) | ✅ |
+| `BottomDrawer.tsx` — KPI pill metric flash via `key={value}` + `metric-flash` animation | ✅ |
+| `Skeleton.tsx` — Shimmer effect (`linear-gradient` + `shimmer` keyframe) on all 4 variants | ✅ |
+| `NodeConfigPanel.tsx` — `MetricValue` flash via `key={String(children)}` + `metric-flash` animation | ✅ |
+| `index.css` — 3 new keyframes: `pulse-green`, `shimmer`, `metric-flash` | ✅ |
+| `HANDOFF.md` — Phase UX5 section with files, decisions, CSS keyframes, status table | ✅ |
+| `tsc --noEmit` | ✅ 0 errors |
+| `npx vite build` | ✅ 1.97s (3887 modules) |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
+| `go build ./...` | ✅ 0 errors |
