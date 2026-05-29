@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowLeft, Play, Square, Share2, Shield, DollarSign, Download, ChevronDown, Camera, FileText, Building2, BarChart3 } from "lucide-react";
+import { ArrowLeft, Play, Square, Share2, Shield, DollarSign, Download, Camera, FileText, Building2, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useProjectStore } from "../../store/projectStore";
@@ -8,7 +8,7 @@ import { useExportStore } from "../../store/exportStore";
 import ImportModal from "../panels/ImportModal";
 import {
   AppBar, Toolbar, IconButton, Tooltip, Menu, MenuItem, Typography, Box, Divider,
-  ToggleButtonGroup, ToggleButton, Avatar, AvatarGroup, InputBase, Badge, Paper,
+  ToggleButtonGroup, ToggleButton, Avatar, AvatarGroup, InputBase, Paper,
 } from "@mui/material";
 
 interface TopToolbarProps {

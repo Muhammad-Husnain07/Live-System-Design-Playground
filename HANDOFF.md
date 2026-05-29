@@ -5168,6 +5168,32 @@ Rebuild the TopToolbar into a sleek, 3-zone Command Center NavBar that clearly s
 
 All 10 Phase UI-2 tasks verified. No regressions.
 
+### Re-verification: FIXED — 2026-05-29
+
+Cross-checked all 3 zones against the spec. Ran full build suite.
+
+**Fixes applied:**
+- Removed unused `Badge` import from `@mui/material` and unused `ChevronDown` import from `lucide-react`
+
+| Check | Result |
+|-------|--------|
+| Zone 1: Back arrow (`ArrowLeft` → `/dashboard`) | ✅ |
+| Zone 1: Inline-editable project name (`Typography` ↔ `InputBase`, blur/Enter saves, Escape cancels) | ✅ |
+| Zone 1: Role badge (`currentProject.role` chip) | ✅ |
+| Zone 1: `SaveDot` — pulsing 6px circle (green=saved, yellow=saving, orange=unsaved) | ✅ |
+| Zone 2: `Paper` pill with `borderRadius: "20px"` | ✅ |
+| Zone 2: Play/Stop `IconButton` (green/red with bg fill) | ✅ |
+| Zone 2: `ToggleButtonGroup` 1×/2×/5×, exclusive, green tint selected | ✅ |
+| Zone 2: Monospaced `HH:MM:SS` elapsed time, always visible | ✅ |
+| Zone 3: `Share2`, `Shield` (blue), `DollarSign` (green), `Download` (export menu) tooltip-wrapped | ✅ |
+| Zone 3: `AvatarGroup max={4}` with colored avatars | ✅ |
+| Zone 3: User avatar + dropdown (email, Settings, Sign Out) | ✅ |
+| `tsc --noEmit` | ✅ 0 errors |
+| `npx vite build` | ✅ built in 2.63s (3884 modules) |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
+| `go build ./...` | ✅ 0 errors |
+| Unused imports cleaned | ✅ `Badge`, `ChevronDown` removed |
+
 ---
 
 ### API Endpoints (38 total)
