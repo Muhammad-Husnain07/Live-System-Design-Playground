@@ -49,21 +49,15 @@ export default function NodeConfigPanel() {
   );
 
   return (
-    <motion.aside style={{ width: 320, flexShrink: 0, backgroundColor: "#18181b", borderLeft: "1px solid #3f3f46", overflowY: "auto", overflowX: "hidden" }}>
+    <Box sx={{ overflow: "auto", height: "100%" }}>
       <AnimatePresence mode="wait">
         {selectedNode ? (
           <NodeConfigContent key="node" node={selectedNode} onUpdate={onUpdateNode} onUpdateLabel={onUpdateLabel} simRunning={isSimRunning} nodes={nodes} />
         ) : selectedEdge ? (
           <EdgeConfigContent key="edge" edge={selectedEdge} onUpdate={onUpdateEdgeData} nodes={nodes} />
-        ) : (
-          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <Box sx={{ p: 2, textAlign: "center", mt: 4, color: "text.disabled", fontSize: "0.75rem" }}>
-              Select a node or edge to configure
-            </Box>
-          </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
-    </motion.aside>
+    </Box>
   );
 }
 
@@ -354,7 +348,15 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
 }
 
 function MetricValue({ children }: { children: React.ReactNode }) {
-  return <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.primary", fontSize: "0.65rem" }}>{children}</Typography>;
+  return (
+    <Typography
+      key={String(children)}
+      variant="caption"
+      sx={{ fontFamily: "monospace", color: "text.primary", fontSize: "0.65rem", animation: "metric-flash 0.6s ease-out" }}
+    >
+      {children}
+    </Typography>
+  );
 }
 
 /* ------------------------------------------------------------------ */

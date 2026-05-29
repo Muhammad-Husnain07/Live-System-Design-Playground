@@ -254,7 +254,7 @@ export default function FinOpsPanel() {
   const hasResults = estimate !== null;
 
   return (
-    <Box sx={{ width: 320, flexShrink: 0, backgroundColor: "#18181b", borderLeft: "1px solid #3f3f46", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", overflow: "hidden", height: "100%" }}>
       <Box sx={{ px: 1.5, py: 1.25, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "center", gap: 1 }}>
         <DollarSign size={16} style={{ color: "#22c55e" }} />
         <Typography variant="caption" sx={{ color: "text.primary", fontWeight: 600, fontSize: "0.75rem" }}>Cost Estimation</Typography>
@@ -303,11 +303,26 @@ export default function FinOpsPanel() {
           )}
 
           {!hasResults && !error && (
-            <EmptyState
-              icon="$"
-              title="No estimate yet"
-              description="Configure your architecture on the canvas, then estimate monthly costs."
-            />
+            <Box sx={{ textAlign: "center", py: 3 }}>
+              <Box sx={{ width: 48, height: 48, mx: "auto", mb: 1.5, borderRadius: "50%", bgcolor: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <DollarSign size={20} style={{ color: "#22c55e" }} />
+              </Box>
+              <Typography variant="caption" sx={{ color: "#a1a1aa", fontSize: "0.7rem", display: "block", mb: 0.5, fontWeight: 500 }}>
+                Calculate your cloud bill
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#52525b", fontSize: "0.6rem", display: "block", mb: 2, lineHeight: 1.4, px: 2 }}>
+                Configure your architecture on the canvas, then set monthly users and calculate.
+              </Typography>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleCalculate}
+                disabled={loading}
+                sx={{ fontSize: "0.7rem" }}
+              >
+                {loading ? "Calculating..." : "Calculate Now"}
+              </Button>
+            </Box>
           )}
 
           {hasResults && (

@@ -210,14 +210,10 @@ export default function SecurityPanel() {
   return (
     <Box
       sx={{
-        width: 320,
-        flexShrink: 0,
-        bgcolor: '#09090b',
-        borderLeft: '1px solid',
-        borderColor: '#3f3f46',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        height: '100%',
       }}
     >
       <Box
@@ -308,14 +304,33 @@ export default function SecurityPanel() {
           '&::-webkit-scrollbar-thumb': { bgcolor: '#3f3f46', borderRadius: '3px' },
         }}
       >
-        {violations.length === 0 && (
+        {violations.length === 0 && !auditing && (
           <Box sx={{ px: '12px', py: '32px', textAlign: 'center' }}>
-            <Typography variant="caption" sx={{ fontSize: '10px', color: '#52525b' }}>
-              No audit results yet
+            <Box sx={{ width: 48, height: 48, mx: "auto", mb: 1.5, borderRadius: "50%", bgcolor: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Shield size={20} style={{ color: "#60a5fa" }} />
+            </Box>
+            <Typography variant="caption" sx={{ color: "#a1a1aa", fontSize: "0.7rem", display: "block", mb: 0.5, fontWeight: 500 }}>
+              Run a security audit
             </Typography>
-            <Typography variant="caption" sx={{ fontSize: '9px', mt: '4px', display: 'block', color: '#3f3f46' }}>
-              Click the button above to scan for violations
+            <Typography variant="caption" sx={{ color: "#52525b", fontSize: "0.6rem", display: "block", mb: 2, lineHeight: 1.4, px: 2 }}>
+              Scan your architecture for vulnerabilities, exposed data, and policy violations.
             </Typography>
+            <Button
+              onClick={handleAudit}
+              variant="contained"
+              sx={{
+                fontSize: "0.7rem", fontWeight: 500, px: 2, py: 0.75,
+                bgcolor: "rgba(59,130,246,0.2)", color: "#60a5fa",
+                "&:hover": { bgcolor: "rgba(59,130,246,0.3)" },
+              }}
+            >
+              {auditing ? "Scanning..." : "Run Security Audit"}
+            </Button>
+          </Box>
+        )}
+        {auditing && violations.length === 0 && (
+          <Box sx={{ px: '12px', py: '32px', textAlign: 'center' }}>
+            <Typography variant="caption" sx={{ color: "#52525b", fontSize: "0.6rem" }}>Scanning architecture...</Typography>
           </Box>
         )}
 
