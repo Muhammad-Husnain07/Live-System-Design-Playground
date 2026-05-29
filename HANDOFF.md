@@ -7,7 +7,7 @@ A collaborative web application for designing, simulating, and analyzing system 
 ### Frontend (React + TypeScript + Vite)
 - **Vite**: Fast dev server and build tool for modern web apps
 - **TypeScript**: Type safety and better developer experience
-- **Tailwind CSS** (zinc palette): Utility-first CSS for dark engineering theme
+- **Material-UI (MUI)**: Component library with Zinc-based dark theme (<code>#18181b</code>/<code>#27272a</code>)
 - **React Flow**: Node-based canvas for system architecture diagrams
 - **Zustand**: Lightweight state management
 - **D3.js**: Data visualization for metrics and charts
@@ -6328,3 +6328,194 @@ Issues found and fixed during re-verification:
 | Unused `hovStyle` variable (CSS custom properties) | BaseNode.tsx | Removed |
 
 All Tailwind classes eliminated from all 5 custom node files. The only remaining `className` in the canvas directory is `animate-chaos-flash` on CustomEdge.tsx — a legitimate CSS class defined in `index.css:129-131`.
+
+---
+
+## Phase M6 — Feedback & Data Display Migration to MUI
+
+**Prompt:** Phase M6 — Migration of feedback mechanisms (Toast, Skeleton, EmptyState) and data display (ChaosPanel, ObservabilityPage) from Tailwind classes to Material-UI components.
+
+**Status: Phase M6 complete — Feedback and data display migrated to MUI**
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `frontend/src/components/ui/Toast.tsx` | **Rewrite** — Replaced raw `<div>` toast container with `<Snackbar>`; each toast rendered as `<Alert variant="filled">` with severity-based colors (success/error/info/warning); `anchorOrigin={{ vertical: "bottom", horizontal: "right" }}`; slide-up animation via MUI's built-in Slide transition; dismiss button uses `<IconButton>` inside Alert `action` slot |
+| `frontend/src/components/ui/Skeleton.tsx` | **Rewrite** — All `<div className="animate-pulse ...">` replaced with MUI `<Skeleton variant="rectangular">` with custom `sx` for borderRadius, bgcolor, and dimensions; `SkeletonLine`, `SkeletonCard`, `SkeletonTable`, `SkeletonPanel` exports preserved; wrapper containers use `<Box>` instead of raw `<div>` |
+| `frontend/src/components/ui/EmptyState.tsx` | **Rewrite** — Outer container `<Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>`; icon rendered in `<Box>` with `borderRadius: "50%"` circle; text → `<Typography align="center" color="text.secondary">`; optional action prop rendered directly |
+| `frontend/src/components/panels/ChaosPanel.tsx` | **Rewrite** — "Danger Zone" header → `<Alert severity="warning" icon={<Skull />}>`; chaos event cards → `<Card variant="outlined">` + `<CardContent>`; active event rows → `<Box>`+`<Typography>`; icons remain lucide-react; countdown timers use `<Typography>` |
+| `frontend/src/pages/ObservabilityPage.tsx` | **Rewrite** — Trace explorer table → `<Table>`+`<TableHead>`+`<TableBody>`+`<TableRow>`+`<TableCell>` with `size="small"`; structured log entries → `<List dense disablePadding>`+`<ListItem>`+`<ListItemText>`; event log → `<List>`+`<ListItemText>`; RED metrics cards → `<Paper>` with `<Typography>`; remaining `<div>` containers → `<Box>`; stat labels → `<Typography>` |
+| `frontend/src/test/Skeleton.test.tsx` | **Update** — Assert `.MuiSkeleton-root` class presence instead of `.animate-pulse`; changed `tagName` expectation from `"DIV"` to `"SPAN"` (MUI Skeleton renders as `<span>`) |
+| `frontend/src/test/Toast.test.tsx` | **Update** — Adapted assertions for MUI Snackbar+Alert rendering; dismiss button lookup via `getByRole("button")` (unchanged — MUI Alert's close button renders as `<button>`) |
+| `frontend/src/test/EmptyState.test.tsx` | **Update** — Removed assertion checking `rounded-full` class on icon container (MUI Box with `borderRadius: "50%"` via `sx` doesn't produce a CSS class); kept all other assertions (title, description, action) |
+
+### Component Mapping
+
+| File | Old Element(s) | MUI Component(s) |
+|------|---------------|------------------|
+| Toast | `<div className="toast-container">` | `<Snackbar>` + `<Alert variant="filled">` |
+| Toast | `<span>` title/message | `<Alert>` children (Typography inside) |
+| Toast | `<button>` dismiss | `<IconButton>` in Alert `action` |
+| Skeleton | `<div className="animate-pulse ...">` | `<Skeleton variant="rectangular">` |
+| Skeleton | Wrapper `<div>` | `<Box>` |
+| EmptyState | `<div className="flex flex-col items-center ...">` | `<Box sx={{ display: "flex", ... }}>` |
+| EmptyState | `<span>` icon circle | `<Box sx={{ borderRadius: "50%" }}>` |
+| EmptyState | `<p>` text | `<Typography>` |
+| ChaosPanel | `<div>` "Danger Zone" | `<Alert severity="warning">` |
+| ChaosPanel | `<div>` event cards | `<Card variant="outlined">` + `<CardContent>` |
+| ChaosPanel | `<span>` countdown text | `<Typography>` |
+| ObservabilityPage | `<table>` trace table | `<Table>` + `<TableHead>` + `<TableBody>` + `<TableRow>` + `<TableCell>` |
+| ObservabilityPage | `<div>` log entries | `<List>` + `<ListItem>` + `<ListItemText>` |
+| ObservabilityPage | `<div>` KPI cards | `<Paper>` |
+| ObservabilityPage | `<span>` labels | `<Typography>` |
+
+### Key Decisions
+
+- **Toast uses `<Snackbar>`+`<Alert>` stacking**: Each toast is an `<Alert variant="filled">` rendered inside a `<Snackbar>`. Multiple toasts are stacked vertically with `marginBottom` spacing. MUI's `<Alert>` provides built-in severity coloring (success=green, error=red, info=blue, warning=orange) and a dismiss `IconButton` via the `action` prop. The `anchorOrigin` is set to bottom-right.
+- **MUI `<Skeleton variant="rectangular">`**: Tailwind's `animate-pulse` is replaced by MUI's native skeleton animation. Each skeleton uses `variant="rectangular"` with custom `sx` for `borderRadius: 4px` and `bgcolor: "#27272a"` (Zinc-800) to match the dark theme.
+- **EmptyState uses centered `<Box>` layout**: The flexbox centering is done via MUI `sx` props. The icon circle uses `borderRadius: "50%"` with a fixed size `Box`. Text content uses `<Typography>` with `align="center"` and `color="text.secondary"`.
+- **ChaosPanel "Danger Zone" uses `<Alert severity="warning">`**: The warning-style Alert with Skull icon replaces the previous red-bordered header div. Chaos event cards use `<Card variant="outlined">` for consistent dark border styling.
+- **ObservabilityPage uses `<Table size="small">`**: The trace explorer table uses MUI's compact table variant. Log entries use `<List dense disablePadding>` for a tight vertical layout that matches the original custom-css log display.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Toast — `<Snackbar>` renders with `anchorOrigin` bottom-right | ✅ |
+| Toast — `<Alert variant="filled">` with severity-based coloring | ✅ |
+| Toast — Dismiss `<IconButton>` in Alert `action` slot | ✅ |
+| Toast — Multiple toasts stacked with spacing | ✅ |
+| Skeleton — `SkeletonLine` uses `<Skeleton>` with custom `sx` width/height | ✅ |
+| Skeleton — `SkeletonCard` renders `<Skeleton>` × (lines + 1) wrapped in `<Box>` | ✅ |
+| Skeleton — `SkeletonTable` renders correct rows × cols `<Skeleton>` elements | ✅ |
+| Skeleton — `SkeletonPanel` renders 3 `<Skeleton>` elements in `<Box>` | ✅ |
+| EmptyState — Centered `<Box>` layout | ✅ |
+| EmptyState — `<Typography>` for title, description | ✅ |
+| EmptyState — Icon rendered in `borderRadius: "50%"` `<Box>` | ✅ |
+| EmptyState — Optional `action` prop rendered | ✅ |
+| ChaosPanel — `<Alert severity="warning">` for "Danger Zone" header | ✅ |
+| ChaosPanel — `<Card variant="outlined">` for chaos event cards | ✅ |
+| ChaosPanel — Active event countdown via `<Typography>` | ✅ |
+| ChaosPanel — Empty state via `<EmptyState>` component | ✅ |
+| ObservabilityPage — `<Table size="small">` for trace explorer | ✅ |
+| ObservabilityPage — `<List dense disablePadding>` for structured logs | ✅ |
+| ObservabilityPage — `<List>` for event log | ✅ |
+| ObservabilityPage — `<Paper>` for KPI cards | ✅ |
+| ObservabilityPage — `<Typography>` for all stat labels | ✅ |
+| Skeleton test — `.MuiSkeleton-root` assertions, SPAN tag expectation | ✅ |
+| Toast test — Snackbar+Alert rendering, dismiss via button role | ✅ |
+| EmptyState test — No `rounded-full` CSS class assertion; title/description/action still tested | ✅ |
+| No raw `<table>`, `<div>` skeletons, or `<p>` text in migrated files | ✅ |
+
+### Build & Test Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` (backend) | ✅ PASSED (0 errors) |
+| `go vet ./...` | ✅ PASSED (0 errors) |
+| `go test -count=1 ./...` (backend) | ✅ all packages PASS |
+| `tsc --noEmit` | ✅ PASSED (0 errors) |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
+
+### Verification: PASSED — 2026-05-29
+
+All 8 M6 files confirmed present and correctly migrated. Builds and tests clean. No remaining Tailwind classes in feedback or data-display components.
+
+---
+
+## Phase M7 — Final Tailwind Purge (Global Cleanup)
+
+**Prompt:** Final sweep to ensure ZERO Tailwind CSS remnants remain anywhere in the frontend codebase.
+
+**Status: Phase M7 complete — Zero Tailwind class references remain across all 42+ .tsx files**
+
+### Summary
+
+Audited every `.tsx` file under `frontend/src/` and removed the last 319+ Tailwind CSS utility class references across 15 files. The largest remaining holdout (`DeploymentPanel.tsx` with 81 `className` Tailwind classes) was fully converted to MUI `<Box>`/`<Typography>`/`<Button>`/`<Slider>`/`<Select>` components.
+
+### Files Converted
+
+| File | Tailwind Classes | MUI Replacement |
+|------|-----------------|-----------------|
+| `frontend/src/components/panels/DeploymentPanel.tsx` | 81 | `<Box>`/`<Typography>`/`<Button>`/`<Slider>`/`<Select>`/`<MenuItem>` |
+| `frontend/src/pages/ProjectPage.tsx` | 57 | `<Box>`/`<Typography>`/`<Button>`/`<LinearProgress>`/`<CircularProgress>` |
+| `frontend/src/components/panels/ImportModal.tsx` | 39 | `<Dialog>`/`<DialogTitle>`/`<DialogContent>`/`<DialogActions>`/`<Button>`/`<Typography>` |
+| `frontend/src/pages/ProfilePage.tsx` | 33 | `<Box>`/`<Typography>`/`<TextField>`/`<Button>` |
+| `frontend/src/components/panels/SecurityPanel.tsx` | 33 | `<Box>`/`<Typography>`/`<Button>` |
+| `frontend/src/components/panels/DrillPanel.tsx` | 28 | `<Box>`/`<Typography>`/`<Button>`/`<TextField select>` |
+| `frontend/src/pages/LeaderboardPage.tsx` | 27 | `<Table>`/`<TableHead>`/`<TableBody>`/`<TableRow>`/`<TableCell>`/`<CircularProgress>` |
+| `frontend/src/pages/ChallengesPage.tsx` | 24 | `<Grid2>`/`<Box>`/`<Typography>`/`<Button>`/`<CircularProgress>` |
+| `frontend/src/components/ui/ErrorBoundary.tsx` | 7 | `<Box>`/`<Typography>`/`<Button>` |
+| `frontend/src/App.tsx` | 2 | `<Box>`/`<CircularProgress>` |
+| `frontend/src/components/ui/ProtectedRoute.tsx` | 2 | `<Box>`/`<CircularProgress>` |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | 2 | MUI `sx` props + lucide `size={12}` |
+| `frontend/src/components/panels/FinOpsPanel.tsx` | 2 | MUI `sx` props + `rgba()` colors |
+| `frontend/src/components/panels/SimulationPanel.tsx` | 1 | `<Box component="aside">` |
+| `frontend/src/components/canvas/CustomEdge.tsx` | 1 | Kept `animate-chaos-flash` (custom CSS animation in `index.css`, not Tailwind) |
+
+### Notable Conversions
+
+| Tailwind Pattern | MUI Replacement |
+|-----------------|-----------------|
+| `className="w-80 shrink-0 bg-surface-950 border-l border-surface-800 overflow-y-auto"` | `<Box sx={{ width: 320, flexShrink: 0, bgcolor: "#18181b", borderLeft: "1px solid #3f3f46", overflowY: "auto" }}>` |
+| `className="h-screen w-screen bg-surface-950 flex items-center justify-center"` | `<Box sx={{ height: "100vh", width: "100vw", display: "flex", alignItems: "center", justifyContent: "center" }}>` |
+| `className="animate-spin h-8 w-8 border-2 border-surface-400 border-t-blue-500 rounded-full"` | `<CircularProgress sx={{ color: "#60a5fa" }}>` |
+| `className="grid grid-cols-1 md:grid-cols-2 gap-4"` | `<Grid container spacing={2}><Grid size={{ xs: 12, md: 6 }}>...` |
+| `className="bg-{color}-500/{opacity}"` | `rgba(R,G,B,opacity)` via MUI `sx` |
+| `className="scrollbar-thin scrollbar-thumb-surface-800"` | `sx={{ "&::-webkit-scrollbar": { width: 6 }, "&::-webkit-scrollbar-thumb": { bgcolor: "#3f3f46", borderRadius: "4px" } }}` |
+| `className="hover:bg-surface-800/30"` | `sx={{ "&:hover": { bgcolor: "rgba(39,39,42,0.3)" } }}` |
+| `className="focus:outline-none focus:border-blue-500"` | `sx={{ "&:focus": { outline: "none", borderColor: "#3b82f6" } }}` |
+| `<div>` backdrop modal | `<Dialog>` with `slotProps.backdrop.sx` |
+
+### Retained Custom CSS (Not Tailwind)
+
+These classes in `frontend/src/index.css` are custom keyframe animations, not Tailwind utilities:
+
+- `.animate-pulse-red` — custom pulse animation (used by chaos elements)
+- `.animate-slide-up` — custom slide animation (used by chaos elements)
+- `.animate-chaos-flash` — custom flash animation (used by CustomEdge SVG during chaos)
+- `.animate-security-pulse` — custom pulse animation (used by security audit alerts)
+- `.emoji-icon` — MUI `sx` selector in NodePanel.tsx (not a CSS file)
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Zero Tailwind `className` references across all 42+ `.tsx` files | ✅ |
+| `tsc --noEmit` | ✅ 0 errors |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
+| `go build ./...` (backend) | ✅ 0 errors |
+| `go vet ./...` | ✅ 0 errors |
+| Tailwind dependencies removed from `package.json` | ✅ (Phase M1) |
+| Tailwind config files deleted | ✅ (Phase M1) |
+| `@tailwind` directives removed from `index.css` | ✅ (Phase M1) |
+| Tech Stack in `HANDOFF.md` updated to MUI | ✅ |
+| `frontend/README.md` — generic Vite template (no project tech stack) | ✅ |
+
+### Verification: PASSED — 2026-05-29
+
+### Re-Verification: FIXED (4 issues found and fixed) — 2026-05-29
+
+During the re-verification pass, the `vite build` command revealed 4 pre-existing issues not caught by `tsc --noEmit`:
+
+| Issue | File | Fix |
+|-------|------|-----|
+| `@mui/material/Grid2` not exported in MUI v9 | `ChallengesPage.tsx` | Changed import to `@mui/material/Grid` (Grid2 was merged into Grid in v9) |
+| `../../utils/iacExporter` module missing | `ExportModal.tsx` | Created `frontend/src/utils/iacExporter.ts` with `exportTerraform`, `exportKubernetes`, `exportCloudFormation` generators |
+| `nodeRegistry` not exported (only `NODE_REGISTRY` existed) | `NodePanel.tsx` → `nodeRegistry.ts` | Added `export const nodeRegistry = NODE_REGISTRY` alias |
+| `@dnd-kit/core` dependency not installed | `NodePanel.tsx` | Ran `npm install @dnd-kit/core` (3 packages added) |
+| `isOpen` used but store has `showModal` | `ExportModal.tsx` | Changed `isOpen` → `showModal` in destructured store |
+
+### Final Build & Test Results (Post-Fix)
+
+| Check | Result |
+|-------|--------|
+| `npx vite build` | ✅ Built in 1.38s (3883 modules) |
+| `tsc --noEmit` | ✅ 0 errors |
+| `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
+| `go build ./...` | ✅ 0 errors |
+| `go vet ./...` | ✅ 0 errors |
+| `go test -count=1 ./...` | ✅ ALL packages PASS (7 test packages) |
+| Zero Tailwind `className` references in `.tsx` files | ✅ |
+| Custom CSS animations retained in `index.css` (non-Tailwind) | ✅ |
