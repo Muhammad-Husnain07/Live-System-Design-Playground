@@ -267,12 +267,23 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   clearAutoTab: () => set({ lastAutoTab: null }),
 
   clearSimulationMetrics: () => {
+    const { nodes, edges } = get();
     set({
-      nodes: get().nodes.map((n) => {
+      nodes: nodes.map((n) => {
         const { metrics, ...restData } = n.data;
         const { isBottleneck, isFailed, ...restConfig } = restData.config ?? {};
         return { ...n, data: { ...restData, config: restConfig } };
       }),
+      edges: edges.map((e) => ({
+        ...e,
+        data: {
+          ...e.data,
+          isAnimated: false,
+          isSaturated: false,
+          throughputRPS: 0,
+          latencyMs: 0,
+        },
+      })),
       isSimulationRunning: false,
       isDirty: true,
     });

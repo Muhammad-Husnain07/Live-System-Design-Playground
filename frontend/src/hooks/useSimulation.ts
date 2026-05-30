@@ -21,6 +21,8 @@ export function useSimulation(projectId: string) {
   const reconnectAttemptRef = useRef(0);
   const tickQueueRef = useRef<TickData[]>([]);
   const rafRef = useRef<number | null>(null);
+  const durationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopRef = useRef<(() => void) | null>(null);
 
   const runId = useSimulationStore((s) => s.runId);
   const isRunning = useSimulationStore((s) => s.isRunning);
@@ -196,7 +198,7 @@ export function useSimulation(projectId: string) {
 
   const start = useCallback(
     async (overrides?: Partial<SimConfig>) => {
-      if (startingRef.current || useSimulationStore.getState().isRunning) return;
+      if (startingRef.current || useSimulationStore.getState().isRunning || useCanvasStore.getState().isSimulationRunning) return;
       startingRef.current = true;
       try {
         const cfg = { ...useSimulationStore.getState().config, ...overrides };
@@ -221,6 +223,14 @@ export function useSimulation(projectId: string) {
         }, 1000);
 
         useCanvasStore.getState().setSimulationRunning(true);
+
+        const realDurationMs = (cfg.durationSeconds * 1000) / cfg.speedMultiplier;
+        if (durationTimerRef.current) clearTimeout(durationTimerRef.current);
+        durationTimerRef.current = setTimeout(() => {
+          if (useSimulationStore.getState().isRunning) {
+            stopRef.current?.();
+          }
+        }, realDurationMs);
       } catch (err) {
         useSimulationStore.getState().setRunning(false);
         console.error("sim start error:", err);
@@ -232,6 +242,7 @@ export function useSimulation(projectId: string) {
   );
 
   const stop = useCallback(async () => {
+    if (durationTimerRef.current) { clearTimeout(durationTimerRef.current); durationTimerRef.current = null; }
     const currentRunId = useSimulationStore.getState().runId;
     if (currentRunId) {
       try { await api.post(`/simulations/${currentRunId}/stop`); } catch { /* ignore */ }
@@ -247,6 +258,8 @@ export function useSimulation(projectId: string) {
     useSecurityStore.getState().reset();
   }, [closeWs]);
 
+  stopRef.current = stop;
+
   useEffect(() => {
     if (runId && projectId) connectWsRef.current?.();
   }, [runId, projectId]);
@@ -254,6 +267,7 @@ export function useSimulation(projectId: string) {
   useEffect(() => {
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      if (durationTimerRef.current) clearTimeout(durationTimerRef.current);
       closeWs();
       if (elapsedTimer.current) clearInterval(elapsedTimer.current);
     };
