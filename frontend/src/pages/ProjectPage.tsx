@@ -796,7 +796,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   }
 
   return (
-    <Box sx={{ height: "100vh", bgcolor: "#09090b", display: "flex", flexDirection: "column", color: "#f4f4f5" }}>
+    <Box sx={{ height: "100vh", bgcolor: "#09090b", display: "flex", flexDirection: "column", overflow: "hidden", color: "#f4f4f5" }}>
       <TopToolbar
         projectId={projectId}
         saving={saving}
@@ -845,9 +845,9 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         />
       )}
 
-      <Box sx={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
+      <Box sx={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
         <NodePanel onApplyTemplate={applyTemplate} />
-        <Box ref={reactFlowWrapper} sx={{ flex: 1, minWidth: 0, position: "relative", cursor: isDraggingOver ? "crosshair" : undefined, "& .react-flow": isDraggingOver ? { boxShadow: "inset 0 0 60px rgba(34,197,94,0.08)", transition: "box-shadow 0.15s" } : {}, "& .react-flow__selection": { background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.4)" } }} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} onMouseMove={handleMouseMove}>
+        <Box ref={reactFlowWrapper} sx={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative", cursor: isDraggingOver ? "crosshair" : undefined, "& .react-flow": isDraggingOver ? { boxShadow: "inset 0 0 60px rgba(34,197,94,0.08)", transition: "box-shadow 0.15s" } : {}, "& .react-flow__selection": { background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.4)" } }} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} onMouseMove={handleMouseMove}>
           <ReactFlow
             nodes={nodes}
             edges={edges}

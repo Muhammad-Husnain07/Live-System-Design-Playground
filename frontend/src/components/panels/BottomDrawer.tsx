@@ -217,27 +217,29 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
               <Tab label="Event Log" />
             </Tabs>
 
-            <Box sx={{ flex: 1, overflow: "hidden" }}>
+            <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
               {activeTab === 0 && (
-                <Box sx={{ display: "flex", height: "100%", gap: 2, p: 2 }}>
-                  <Box sx={{ flex: 1, bgcolor: "background.elevated", borderRadius: 1, border: 1, borderColor: "divider", p: 2 }}>
+                <Box sx={{ display: "flex", flex: 1, gap: 2, p: 2, minHeight: 0 }}>
+                  <Box sx={{ flex: 1, display: "flex", flexDirection: "column", bgcolor: "background.elevated", borderRadius: 1, border: 1, borderColor: "divider", p: 2, minHeight: 0 }}>
                     <Typography variant="caption" sx={{ fontSize: "0.6rem", fontWeight: 500, color: "#a1a1aa", display: "block", mb: 1 }}>Traffic Over Time</Typography>
                     {chartData.length <= 1 ? (
-                      <Box sx={{ height: "calc(100% - 20px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <Typography variant="caption" sx={{ color: "#52525b", fontSize: "0.6rem" }}>Waiting for data…</Typography>
                       </Box>
                     ) : (
-                      <ResponsiveContainer width="100%" height="calc(100% - 20px)">
-                        <LineChart data={chartData}>
-                          <CartesianGrid {...CHART_GRID} />
-                          <XAxis dataKey="tick" tick={CHART_TICK} axisLine={false} tickLine={false} />
-                          <YAxis yAxisId="rps" tick={CHART_TICK} axisLine={false} tickLine={false} width={36} />
-                          <YAxis yAxisId="err" orientation="right" tick={CHART_TICK} axisLine={false} tickLine={false} width={28} />
-                          <Tooltip contentStyle={TOOLTIP_STYLE} />
-                          <Line yAxisId="rps" type="monotone" dataKey="rps" stroke="#3b82f6" strokeWidth={1.5} dot={false} name="RPS" />
-                          <Line yAxisId="err" type="monotone" dataKey="errors" stroke="#ef4444" strokeWidth={1.5} dot={false} name="Error %" />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <Box sx={{ flex: 1, minHeight: 0 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={chartData}>
+                            <CartesianGrid {...CHART_GRID} />
+                            <XAxis dataKey="tick" tick={CHART_TICK} axisLine={false} tickLine={false} />
+                            <YAxis yAxisId="rps" tick={CHART_TICK} axisLine={false} tickLine={false} width={36} />
+                            <YAxis yAxisId="err" orientation="right" tick={CHART_TICK} axisLine={false} tickLine={false} width={28} />
+                            <Tooltip contentStyle={TOOLTIP_STYLE} />
+                            <Line yAxisId="rps" type="monotone" dataKey="rps" stroke="#3b82f6" strokeWidth={1.5} dot={false} name="RPS" />
+                            <Line yAxisId="err" type="monotone" dataKey="errors" stroke="#ef4444" strokeWidth={1.5} dot={false} name="Error %" />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </Box>
                     )}
                   </Box>
                   <Box sx={{ width: 280, flexShrink: 0, bgcolor: "background.elevated", borderRadius: 1, border: 1, borderColor: "divider", p: 2, overflowY: "auto" }}>
@@ -274,7 +276,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
               )}
 
               {activeTab === 1 && (
-                <Box sx={{ height: "100%", overflowY: "auto", px: 1.5, py: 1 }}>
+                <Box sx={{ flex: 1, overflowY: "auto", px: 1.5, py: 1 }}>
                   {events.length === 0 ? (
                     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
                       <Typography variant="caption" sx={{ color: "#52525b", fontSize: "0.6rem" }}>No events yet — start a simulation</Typography>
