@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { BaseEdge, getBezierPath, type EdgeProps } from "reactflow";
+import { BaseEdge, getSmoothStepPath, type EdgeProps } from "reactflow";
 import { useShallow } from "zustand/react/shallow";
 import { useChaosStore } from "../../store/chaosStore";
 import { useSecurityStore } from "../../store/securityStore";
@@ -37,9 +37,10 @@ function CustomEdge({
   selected,
 }: EdgeProps<CustomEdgeData>) {
   const [hovered, setHovered] = useState(false);
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX, sourceY, sourcePosition,
     targetX, targetY, targetPosition,
+    borderRadius: 12,
   });
 
   const routing = data?.routing;

@@ -17,6 +17,7 @@ export const nodeTypes: NodeTypes = {
 
 export const edgeTypes: EdgeTypes = {
   default: CustomEdge,
+  smoothstep: CustomEdge,
 };
 
 export function getReactFlowType(nodeType: NodeType): string {
