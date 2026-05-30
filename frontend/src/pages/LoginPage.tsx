@@ -3,8 +3,10 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { Box, Paper, Typography, TextField, Button } from "@mui/material";
 
+import { useShallow } from "zustand/react/shallow";
+
 export default function LoginPage() {
-  const { login, isAuthenticated, isLoading, error, clearError } = useAuthStore();
+  const { login, isAuthenticated, isLoading, error, clearError } = useAuthStore(useShallow((s) => ({ login: s.login, isAuthenticated: s.isAuthenticated, isLoading: s.isLoading, error: s.error, clearError: s.clearError })));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");

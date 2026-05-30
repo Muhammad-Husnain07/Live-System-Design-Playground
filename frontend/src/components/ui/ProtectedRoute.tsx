@@ -3,7 +3,8 @@ import { useAuthStore } from "../../store/authStore";
 import { Box, CircularProgress } from "@mui/material";
 
 export default function ProtectedRoute() {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
 
   if (isLoading) {
     return (

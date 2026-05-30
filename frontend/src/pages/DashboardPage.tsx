@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 import { useAuthStore } from "../store/authStore";
 import { useProjectStore } from "../store/projectStore";
 import ProjectCard from "../components/ui/ProjectCard";
@@ -13,9 +14,9 @@ import { Box, Typography, Button, Grid, Avatar, Menu, MenuItem } from "@mui/mate
 const PAGE_SIZE = 20;
 
 export default function DashboardPage() {
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useAuthStore(useShallow((s) => ({ user: s.user, logout: s.logout })));
   const navigate = useNavigate();
-  const { projects, totalProjects, currentPage, isLoading, error, fetchProjects, createProject, deleteProject } = useProjectStore();
+  const { projects, totalProjects, currentPage, isLoading, error, fetchProjects, createProject, deleteProject } = useProjectStore(useShallow((s) => ({ projects: s.projects, totalProjects: s.totalProjects, currentPage: s.currentPage, isLoading: s.isLoading, error: s.error, fetchProjects: s.fetchProjects, createProject: s.createProject, deleteProject: s.deleteProject })));
   const [showNewModal, setShowNewModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);

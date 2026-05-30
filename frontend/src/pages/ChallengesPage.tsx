@@ -111,9 +111,11 @@ function ChallengeCard({ challenge, onStart }: { challenge: Challenge; onStart: 
   );
 }
 
+import { useShallow } from "zustand/react/shallow";
+
 export default function ChallengesPage() {
   const navigate = useNavigate();
-  const { challenges, challengesLoading, challengesError, fetchChallenges, startChallenge } = useChallengeStore();
+  const { challenges, challengesLoading, challengesError, fetchChallenges, startChallenge } = useChallengeStore(useShallow((s) => ({ challenges: s.challenges, challengesLoading: s.challengesLoading, challengesError: s.challengesError, fetchChallenges: s.fetchChallenges, startChallenge: s.startChallenge })));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

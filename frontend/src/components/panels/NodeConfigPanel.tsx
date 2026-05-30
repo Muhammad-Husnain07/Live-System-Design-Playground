@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCanvasStore } from "../../store/canvasStore";
@@ -99,6 +99,14 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
   const metrics: NodeMetrics | undefined = node.data?.metrics;
   const label = node.data?.label as string | undefined;
 
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedUpdate = useCallback((patch: Partial<NodeConfig>) => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => onUpdateRef.current(patch), 300);
+  }, []);
+
   if (!cfg) return <Box sx={{ p: 2, color: "error.main", fontSize: "0.75rem" }}>Missing config</Box>;
 
   return (
@@ -133,21 +141,21 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
         </Field>
       </Section>
 
-      <Divider sx={{ borderColor: "#3f3f46" }} />
+      <Divider />
 
       {/* Section 2 — Capacity */}
       <Section title="Capacity">
         <Field label="Instances">
           <TextField type="number" size="small" value={cfg.instances} slotProps={{ htmlInput: { min: 1, max: 100 } }}
-            onChange={(e) => onUpdate({ instances: Math.max(1, Number(e.target.value)) })} sx={sxField} />
+            onChange={(e) => debouncedUpdate({ instances: Math.max(1, Number(e.target.value)) })} sx={sxField} />
         </Field>
         <Field label="Max RPS">
           <TextField type="number" size="small" value={cfg.maxRPS} slotProps={{ htmlInput: { min: 0 } }}
-            onChange={(e) => onUpdate({ maxRPS: Math.max(0, Number(e.target.value)) })} sx={sxField} />
+            onChange={(e) => debouncedUpdate({ maxRPS: Math.max(0, Number(e.target.value)) })} sx={sxField} />
         </Field>
         <Field label="Avg Latency">
           <TextField type="number" size="small" value={cfg.latencyMs} slotProps={{ htmlInput: { min: 0 } }}
-            onChange={(e) => onUpdate({ latencyMs: Math.max(0, Number(e.target.value)) })} sx={sxField} />
+            onChange={(e) => debouncedUpdate({ latencyMs: Math.max(0, Number(e.target.value)) })} sx={sxField} />
         </Field>
         <Field label="Compute Tier">
           <FormControl fullWidth size="small" sx={sxField}>
@@ -160,7 +168,7 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
         </Field>
       </Section>
 
-      <Divider sx={{ borderColor: "#3f3f46" }} />
+      <Divider />
 
       {/* Section 3 — Reliability */}
       <Section title="Reliability">
@@ -172,7 +180,7 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
         <FormControlLabel control={<Switch size="small" checked={cfg.isBottleneck} onChange={(e) => onUpdate({ isBottleneck: e.target.checked })} />} label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Bottleneck</Typography>} />
       </Section>
 
-      <Divider sx={{ borderColor: "#3f3f46" }} />
+      <Divider />
 
       {/* Section 4 — Replication */}
       {cfg.replicationRole !== undefined && (
@@ -190,11 +198,11 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
             {cfg.replicationRole === "replica" && (
               <Field label="Replication Lag">
                 <TextField type="number" size="small" value={cfg.replicationLagMs} slotProps={{ htmlInput: { min: 0, max: 5000, step: 10 } }}
-                  onChange={(e) => onUpdate({ replicationLagMs: Number(e.target.value) })} sx={sxField} />
+                  onChange={(e) => debouncedUpdate({ replicationLagMs: Number(e.target.value) })} sx={sxField} />
               </Field>
             )}
           </Section>
-          <Divider sx={{ borderColor: "#3f3f46" }} />
+          <Divider />
         </>
       )}
 
@@ -206,11 +214,11 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
           <>
             <Field label="Min Instances">
               <TextField type="number" size="small" value={cfg.autoScaling?.minInstances ?? 1} slotProps={{ htmlInput: { min: 1, max: 100 } }}
-                onChange={(e) => onUpdate({ autoScaling: { ...cfg.autoScaling, minInstances: Number(e.target.value) } })} sx={sxField} />
+                onChange={(e) => debouncedUpdate({ autoScaling: { ...cfg.autoScaling, minInstances: Number(e.target.value) } })} sx={sxField} />
             </Field>
             <Field label="Max Instances">
               <TextField type="number" size="small" value={cfg.autoScaling?.maxInstances ?? 10} slotProps={{ htmlInput: { min: 1, max: 500 } }}
-                onChange={(e) => onUpdate({ autoScaling: { ...cfg.autoScaling, maxInstances: Number(e.target.value) } })} sx={sxField} />
+                onChange={(e) => debouncedUpdate({ autoScaling: { ...cfg.autoScaling, maxInstances: Number(e.target.value) } })} sx={sxField} />
             </Field>
             <Box sx={{ px: 1 }}>
               <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>CPU Target: {cfg.autoScaling?.targetCPUPercent ?? 70}%</Typography>
@@ -222,21 +230,21 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
             </Box>
             <Field label="Cooldown (ticks)">
               <TextField type="number" size="small" value={cfg.autoScaling?.cooldownTicks ?? 3} slotProps={{ htmlInput: { min: 1, max: 50 } }}
-                onChange={(e) => onUpdate({ autoScaling: { ...cfg.autoScaling, cooldownTicks: Number(e.target.value) } })} sx={sxField} />
+                onChange={(e) => debouncedUpdate({ autoScaling: { ...cfg.autoScaling, cooldownTicks: Number(e.target.value) } })} sx={sxField} />
             </Field>
             <Field label="Scale Up Factor">
               <TextField type="number" size="small" value={cfg.autoScaling?.scaleUpFactor ?? 1.5} slotProps={{ htmlInput: { min: 1.1, max: 5, step: 0.1 } }}
-                onChange={(e) => onUpdate({ autoScaling: { ...cfg.autoScaling, scaleUpFactor: Number(e.target.value) } })} sx={sxField} />
+                onChange={(e) => debouncedUpdate({ autoScaling: { ...cfg.autoScaling, scaleUpFactor: Number(e.target.value) } })} sx={sxField} />
             </Field>
             <Field label="Scale Down Factor">
               <TextField type="number" size="small" value={cfg.autoScaling?.scaleDownFactor ?? 0.5} slotProps={{ htmlInput: { min: 0.1, max: 0.9, step: 0.05 } }}
-                onChange={(e) => onUpdate({ autoScaling: { ...cfg.autoScaling, scaleDownFactor: Number(e.target.value) } })} sx={sxField} />
+                onChange={(e) => debouncedUpdate({ autoScaling: { ...cfg.autoScaling, scaleDownFactor: Number(e.target.value) } })} sx={sxField} />
             </Field>
           </>
         )}
       </Section>
 
-      <Divider sx={{ borderColor: "#3f3f46" }} />
+      <Divider />
 
       {/* Section 6 — Deployment Strategy */}
       <Section title="Deployment Strategy">
@@ -255,12 +263,12 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
         )}
         {cfg.deployment.strategy === "blue_green" && (
           <Field label="Blue/Green Group">
-            <TextField size="small" value={cfg.deployment.blueGreenGroup || ""} onChange={(e) => onUpdate({ deployment: { ...cfg.deployment, blueGreenGroup: e.target.value } })} placeholder="blue or green" sx={sxField} />
+            <TextField size="small" value={cfg.deployment.blueGreenGroup || ""} onChange={(e) => debouncedUpdate({ deployment: { ...cfg.deployment, blueGreenGroup: e.target.value } })} placeholder="blue or green" sx={sxField} />
           </Field>
         )}
         {cfg.deployment.strategy !== "rolling" && (
           <Field label="Canary Version">
-            <TextField size="small" value={cfg.deployment.canaryVersion} onChange={(e) => onUpdate({ deployment: { ...cfg.deployment, canaryVersion: e.target.value } })} placeholder="e.g. v2" sx={sxField} />
+            <TextField size="small" value={cfg.deployment.canaryVersion} onChange={(e) => debouncedUpdate({ deployment: { ...cfg.deployment, canaryVersion: e.target.value } })} placeholder="e.g. v2" sx={sxField} />
           </Field>
         )}
         {cfg.deployment.strategy !== "blue_green" && (
@@ -269,7 +277,7 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
         )}
       </Section>
 
-      <Divider sx={{ borderColor: "#3f3f46" }} />
+      <Divider />
 
       {/* Section 7 — Security */}
       <Section title="Security">
@@ -278,7 +286,7 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
         <FormControlLabel control={<Switch size="small" checked={cfg.security.requiresTLS} onChange={(e) => onUpdate({ security: { ...cfg.security, requiresTLS: e.target.checked } })} />}
           label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Requires TLS</Typography>} />
         <Field label="VPC ID">
-          <TextField size="small" value={cfg.security.vpcId} onChange={(e) => onUpdate({ security: { ...cfg.security, vpcId: e.target.value } })} placeholder="vpc-xxxx" sx={sxField} />
+          <TextField size="small" value={cfg.security.vpcId} onChange={(e) => debouncedUpdate({ security: { ...cfg.security, vpcId: e.target.value } })} placeholder="vpc-xxxx" sx={sxField} />
         </Field>
         <Box>
           <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>Allowed Inbound</Typography>
@@ -302,7 +310,7 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
         </Box>
       </Section>
 
-      <Divider sx={{ borderColor: "#3f3f46" }} />
+      <Divider />
 
       {/* Section 8 — Live Metrics */}
       {simRunning && (
@@ -404,7 +412,7 @@ function EdgeConfigContent({ edge, onUpdate, nodes }: {
           <Slider size="small" value={routing.trafficPercent} onChange={(_, v) => onUpdate({ routing: { ...routing, trafficPercent: v as number } })} valueLabelDisplay="auto" />
         </Box>
 
-        <Divider sx={{ borderColor: "#3f3f46" }} />
+        <Divider />
 
         <Typography variant="caption" sx={{ color: "text.disabled", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "0.6rem" }}>Network Physics</Typography>
 
@@ -418,7 +426,7 @@ function EdgeConfigContent({ edge, onUpdate, nodes }: {
             onChange={(e) => onUpdate({ routing: { ...routing, jitterMs: Number(e.target.value) } })} sx={sxField} />
         </Field>
 
-        <Divider sx={{ borderColor: "#3f3f46" }} />
+        <Divider />
 
         <Typography variant="caption" sx={{ color: "text.disabled", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "0.6rem" }}>Stats</Typography>
 

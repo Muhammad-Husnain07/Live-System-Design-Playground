@@ -16,9 +16,11 @@ import {
   Paper,
 } from "@mui/material";
 
+import { useShallow } from "zustand/react/shallow";
+
 export default function LeaderboardPage() {
   const navigate = useNavigate();
-  const { leaderboard, leaderboardLoading, fetchLeaderboard } = useChallengeStore();
+  const { leaderboard, leaderboardLoading, fetchLeaderboard } = useChallengeStore(useShallow((s) => ({ leaderboard: s.leaderboard, leaderboardLoading: s.leaderboardLoading, fetchLeaderboard: s.fetchLeaderboard })));
 
   useEffect(() => {
     fetchLeaderboard();

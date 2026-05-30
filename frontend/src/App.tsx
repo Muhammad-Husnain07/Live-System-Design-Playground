@@ -12,9 +12,10 @@ import ChallengesPage from "./pages/ChallengesPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import { Box, CircularProgress } from "@mui/material";
+import { useShallow } from "zustand/react/shallow";
 
 function App() {
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const { isAuthenticated, isLoading, checkAuth } = useAuthStore(useShallow((s) => ({ isAuthenticated: s.isAuthenticated, isLoading: s.isLoading, checkAuth: s.checkAuth })));
 
   useEffect(() => {
     checkAuth();

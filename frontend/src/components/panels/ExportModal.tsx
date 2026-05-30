@@ -10,8 +10,10 @@ interface IaCTab {
   generator: () => string;
 }
 
+import { useShallow } from "zustand/react/shallow";
+
 export default function ExportModal() {
-  const { showModal, closeExport } = useExportStore();
+  const { showModal, closeExport } = useExportStore(useShallow((s) => ({ showModal: s.showModal, closeExport: s.closeExport })));
   const [tabIndex, setTabIndex] = useState(0);
   const [copied, setCopied] = useState(false);
   const [iacError, setIacError] = useState<string | null>(null);

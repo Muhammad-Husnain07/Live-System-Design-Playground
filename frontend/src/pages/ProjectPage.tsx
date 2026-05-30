@@ -18,6 +18,7 @@ import "reactflow/dist/style.css";
 import { Sword, Trophy, Frown } from "lucide-react";
 import { useProjectStore } from "../store/projectStore";
 import { useCanvasStore } from "../store/canvasStore";
+import { useShallow } from "zustand/react/shallow";
 import { nodeTypes, edgeTypes, getReactFlowType } from "../components/canvas/nodeTypes";
 import { NODE_REGISTRY } from "../utils/nodeRegistry";
 import NodePanel from "../components/sidebar/NodePanel";
@@ -238,20 +239,13 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const canvasExtent = useMemo<[[number, number], [number, number]]>(
-    () => [[-10000, -10000], [10000, 10000]],
+    () => [[0, 0], [5000, 5000]],
     [],
   );
 
-  const { currentProject, isLoading, error, getProject, saveCanvas } = useProjectStore();
+  const { currentProject, isLoading, error, getProject, saveCanvas } = useProjectStore(useShallow((s) => ({ currentProject: s.currentProject, isLoading: s.isLoading, error: s.error, getProject: s.getProject, saveCanvas: s.saveCanvas })));
 
-  const store = useCanvasStore();
-  const {
-    nodes, edges, isDirty,
-    setNodes, setEdges, addNode, removeNode, removeEdge,
-    selectNode, selectEdge, markDirty, markSaved,
-    pushUndoState, undo, redo, addEdge,
-    setActiveRightTab,
-  } = store;
+  const { nodes, edges, isDirty, setNodes, setEdges, addNode, removeNode, removeEdge, selectNode, selectEdge, markDirty, markSaved, pushUndoState, undo, redo, addEdge, setActiveRightTab } = useCanvasStore(useShallow((s) => ({ nodes: s.nodes, edges: s.edges, isDirty: s.isDirty, setNodes: s.setNodes, setEdges: s.setEdges, addNode: s.addNode, removeNode: s.removeNode, removeEdge: s.removeEdge, selectNode: s.selectNode, selectEdge: s.selectEdge, markDirty: s.markDirty, markSaved: s.markSaved, pushUndoState: s.pushUndoState, undo: s.undo, redo: s.redo, addEdge: s.addEdge, setActiveRightTab: s.setActiveRightTab })));
 
   const nodesRef = useRef(nodes);
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
@@ -393,7 +387,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         target: params.target,
         sourceHandle: params.sourceHandle ?? undefined,
         targetHandle: params.targetHandle ?? undefined,
-        type: "default",
+        type: "smoothstep",
         data: {
           routing: { protocol: "HTTP", isSync: true, trafficPercent: 100, requiresTLS: false },
           throughputRPS: 0, latencyMs: 0, isAnimated: false, isSaturated: false, isSecure: true,
@@ -740,13 +734,21 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         else simStart();
         return;
       }
+      const isInput = document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA" || (document.activeElement as HTMLElement).isContentEditable);
+      if ((event.key === "Delete" || event.key === "Backspace") && !isInput) {
+        const st = useCanvasStore.getState();
+        if (st.selectedNodeId) { pushUndoState(); removeNode(st.selectedNodeId); }
+        else if (st.selectedEdgeId) { pushUndoState(); removeEdge(st.selectedEdgeId); }
+        event.preventDefault();
+        return;
+      }
       if (event.key === "Escape") {
         selectNode(null);
         selectEdge(null);
         return;
       }
     },
-    [undo, redo, doAutoSave, simStart, simStop, selectNode, selectEdge],
+    [undo, redo, doAutoSave, simStart, simStop, selectNode, selectEdge, pushUndoState, removeNode, removeEdge],
   );
 
   useEffect(() => {
@@ -843,9 +845,9 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         />
       )}
 
-      <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <Box sx={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
         <NodePanel onApplyTemplate={applyTemplate} />
-        <Box ref={reactFlowWrapper} sx={{ flex: 1, position: "relative", cursor: isDraggingOver ? "crosshair" : undefined, "& .react-flow": isDraggingOver ? { boxShadow: "inset 0 0 60px rgba(34,197,94,0.08)", transition: "box-shadow 0.15s" } : {} }} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} onMouseMove={handleMouseMove}>
+        <Box ref={reactFlowWrapper} sx={{ flex: 1, minWidth: 0, position: "relative", cursor: isDraggingOver ? "crosshair" : undefined, "& .react-flow": isDraggingOver ? { boxShadow: "inset 0 0 60px rgba(34,197,94,0.08)", transition: "box-shadow 0.15s" } : {}, "& .react-flow__selection": { background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.4)" } }} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} onMouseMove={handleMouseMove}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -861,12 +863,13 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
             onNodeDragStop={onNodeDragStop}
             isValidConnection={isValidConnection}
             fitView
+            panOnScroll
             elevateNodesOnSelect
             nodeExtent={canvasExtent}
             translateExtent={canvasExtent}
+            onlyRenderVisibleElements
             snapToGrid
             snapGrid={[16, 16]}
-            deleteKeyCode={["Backspace", "Delete"]}
             onNodesDelete={(deleted) => {
               deleted.forEach((n) => removeNode(n.id));
               scheduleAutoSave();
@@ -879,7 +882,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
             }}
           >
             <VpcBoundaries nodes={nodes} />
-            <Background color="#27272a" gap={20} />
+            <Background variant="dots" gap={20} size={1} color="#27272a" />
             <Box sx={{
               "& .react-flow__controls": {
                 background: "transparent !important",

@@ -4,8 +4,10 @@ import { Box, Typography, TextField, Button } from "@mui/material";
 import api from "../utils/api";
 import { useAuthStore } from "../store/authStore";
 
+import { useShallow } from "zustand/react/shallow";
+
 export default function ProfilePage() {
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useAuthStore(useShallow((s) => ({ user: s.user, logout: s.logout })));
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");

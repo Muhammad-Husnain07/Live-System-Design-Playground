@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowLeft, Play, Square, Share2, Shield, DollarSign, Download, Camera, FileText, Building2, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useProjectStore } from "../../store/projectStore";
 import { useAuthStore } from "../../store/authStore";
@@ -54,8 +55,8 @@ function SaveDot({ saving, isDirty }: { saving: boolean; isDirty: boolean }) {
 
 export default function TopToolbar({ projectId, saving, onStart, onStop, collabConnected, remoteUsers }: TopToolbarProps) {
   const navigate = useNavigate();
-  const { currentProject, updateProject } = useProjectStore();
-  const { user, logout } = useAuthStore();
+  const { currentProject, updateProject } = useProjectStore(useShallow((s) => ({ currentProject: s.currentProject, updateProject: s.updateProject })));
+  const { user, logout } = useAuthStore(useShallow((s) => ({ user: s.user, logout: s.logout })));
 
   const isDirty = useCanvasStore((s) => s.isDirty);
   const lastSaved = useCanvasStore((s) => s.lastSaved);
@@ -118,7 +119,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, collabC
   const saveLabel = saving ? "Saving" : isDirty ? "Unsaved" : lastSaved ? "Saved" : "";
 
   return (
-    <AppBar position="static" color="transparent" elevation={0} sx={{ bgcolor: "#09090b", borderBottom: 1, borderColor: "#27272a" }}>
+    <AppBar position="static" color="transparent" elevation={0} sx={{ bgcolor: "background.default", borderBottom: 1, borderColor: "divider" }}>
       <Toolbar variant="dense" sx={{ minHeight: 48, px: 2, gap: 0, display: "flex", alignItems: "center" }}>
         {/* ═══ Zone 1: Navigation & Context (flex:1) ═══ */}
         <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
@@ -140,7 +141,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, collabC
               }}
               sx={{
                 color: "#f4f4f5", fontSize: "0.875rem", fontWeight: 700, lineHeight: 1.2,
-                bgcolor: "#27272a", borderRadius: "4px", px: 1, py: 0.25,
+                bgcolor: "background.elevated", borderRadius: "4px", px: 1, py: 0.25,
                 "& .MuiInputBase-input": { p: 0 },
                 width: 200,
               }}
@@ -151,7 +152,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, collabC
                 {currentProject?.name || "Project"}
               </Typography>
               {currentProject?.role && (
-                <Typography variant="caption" sx={{ color: "#71717a", bgcolor: "#18181b", px: 0.75, py: 0.25, borderRadius: "4px", fontSize: "0.6rem", fontWeight: 500, flexShrink: 0 }}>
+                <Typography variant="caption" sx={{ color: "#71717a", bgcolor: "background.paper", px: 0.75, py: 0.25, borderRadius: "4px", fontSize: "0.6rem", fontWeight: 500, flexShrink: 0 }}>
                   {currentProject.role}
                 </Typography>
               )}
@@ -169,7 +170,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, collabC
 
         {/* ═══ Zone 2: Simulation Status & Controls (flex:0) ═══ */}
         <Box sx={{ flex: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Paper sx={{ px: 1.5, py: 0.5, borderRadius: "20px", display: "flex", alignItems: "center", gap: 1, bgcolor: "#27272a" }}>
+          <Paper sx={{ px: 1.5, py: 0.5, borderRadius: "20px", display: "flex", alignItems: "center", gap: 1, bgcolor: "background.elevated" }}>
             <Tooltip title={isSimRunning ? "Stop Simulation" : "Start Simulation"} arrow>
               <IconButton
                 size="small"
@@ -261,7 +262,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, collabC
             </AvatarGroup>
           )}
 
-          <Divider orientation="vertical" flexItem sx={{ borderColor: "#3f3f46", mx: 0.5 }} />
+          <Divider orientation="vertical" flexItem sx={{ borderColor: "divider", mx: 0.5 }} />
 
           <Tooltip title="Observability" arrow>
             <IconButton size="small" onClick={() => navigate(`/project/${projectId}/observe`)} sx={{ color: "#a1a1aa" }}>

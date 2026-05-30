@@ -55,7 +55,7 @@ function ChaosConfigPopover({
   return (
     <Card
       variant="outlined"
-      sx={{ position: "absolute", left: 0, top: "100%", mt: 0.5, width: 256, zIndex: 50, p: 1.5, display: "flex", flexDirection: "column", gap: 1.5, bgcolor: "#18181b", borderColor: "#3f3f46" }}
+      sx={{ position: "absolute", left: 0, top: "100%", mt: 0.5, width: 256, zIndex: 50, p: 1.5, display: "flex", flexDirection: "column", gap: 1.5, bgcolor: "background.paper", borderColor: "divider" }}
     >
       <Typography variant="caption" sx={{ color: "#a1a1aa", lineHeight: 1.4 }}>{definition.description}</Typography>
 
@@ -67,7 +67,7 @@ function ChaosConfigPopover({
           size="small"
           displayEmpty
           fullWidth
-          sx={{ fontSize: "0.7rem", bgcolor: "#27272a", color: "#f4f4f5", "& .MuiOutlinedInput-notchedOutline": { borderColor: "#3f3f46" }, "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#ef4444" } }}
+          sx={{ fontSize: "0.7rem", bgcolor: "background.elevated", color: "#f4f4f5", "& .MuiOutlinedInput-notchedOutline": { borderColor: "divider" }, "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#ef4444" } }}
         >
           <MenuItem value="" disabled sx={{ fontSize: "0.7rem" }}>Select a node...</MenuItem>
           {nodes.map((n) => (
@@ -103,7 +103,7 @@ function ChaosConfigPopover({
           value={durationSec}
           onChange={(e) => setDurationSec(Math.max(1, Math.min(300, Number(e.target.value) || 1)))}
           slotProps={{ htmlInput: { min: 1, max: 300, style: { fontSize: "0.7rem", color: "#f4f4f5" } } }}
-          sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: "#3f3f46" }, "& .MuiInputBase-root": { bgcolor: "#27272a" }, "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#ef4444" } }}
+          sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: "divider" }, "& .MuiInputBase-root": { bgcolor: "background.elevated" }, "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#ef4444" } }}
         />
       </Box>
 
@@ -128,8 +128,8 @@ function ChaosCard({ definition }: { definition: (typeof CHAOS_TYPES)[number] })
         variant="outlined"
         onClick={() => setOpen((v) => !v)}
         sx={{
-          p: 1.25, cursor: "pointer", bgcolor: "#18181b", borderColor: "#27272a",
-          transition: "all 0.15s", "&:hover": { borderColor: "rgba(239,68,68,0.4)", bgcolor: "#27272a" },
+          p: 1.25, cursor: "pointer", bgcolor: "background.paper", borderColor: "divider",
+          transition: "all 0.15s", "&:hover": { borderColor: "rgba(239,68,68,0.4)", bgcolor: "background.elevated" },
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -176,7 +176,7 @@ function ActiveEventRow({ event, onRemove }: { event: ChaosEventData; onRemove: 
   const severityPct = Math.round(event.severity * 100);
 
   return (
-    <Card variant="outlined" sx={{ p: 1, bgcolor: "#18181b", borderColor: "#27272a" }}>
+    <Card variant="outlined" sx={{ p: 1, bgcolor: "background.paper", borderColor: "divider" }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}>
           {def ? <def.icon size={16} /> : <Typography variant="caption">?</Typography>}
@@ -189,7 +189,7 @@ function ActiveEventRow({ event, onRemove }: { event: ChaosEventData; onRemove: 
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 0.25 }}>
         <Typography variant="caption" sx={{ fontSize: "0.6rem", color: "#71717a" }}>{nodeLabel}</Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box sx={{ width: 64, height: 6, bgcolor: "#27272a", borderRadius: "999px", overflow: "hidden" }}>
+          <Box sx={{ width: 64, height: 6, bgcolor: "background.elevated", borderRadius: "999px", overflow: "hidden" }}>
             <Box sx={{ height: "100%", borderRadius: "999px", transition: "width 0.5s", bgcolor: def?.color ?? "#EF4444", width: `${severityPct}%` }} />
           </Box>
           <Button onClick={() => onRemove(event.id)} size="small" sx={{ minWidth: 0, p: 0, color: "#52525b", fontSize: "0.6rem" }}>x</Button>
@@ -199,8 +199,10 @@ function ActiveEventRow({ event, onRemove }: { event: ChaosEventData; onRemove: 
   );
 }
 
+import { useShallow } from "zustand/react/shallow";
+
 export default function ChaosPanel() {
-  const { activeEvents, setActiveEvents, removeActiveEvent } = useChaosStore();
+  const { activeEvents, setActiveEvents, removeActiveEvent } = useChaosStore(useShallow((s) => ({ activeEvents: s.activeEvents, setActiveEvents: s.setActiveEvents, removeActiveEvent: s.removeActiveEvent })));
   const runId = useSimulationStore((s) => s.runId);
   const isRunning = useSimulationStore((s) => s.isRunning);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -227,7 +229,7 @@ export default function ChaosPanel() {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column" }}>
-      <Box sx={{ px: 1.5, py: 1.25, borderBottom: 1, borderColor: "#27272a", display: "flex", alignItems: "center", gap: 1 }}>
+      <Box sx={{ px: 1.5, py: 1.25, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "center", gap: 1 }}>
         <Skull size={16} />
         <Typography variant="caption" sx={{ fontWeight: 600, color: "#f4f4f5", fontSize: "0.75rem" }}>Chaos Engineering</Typography>
         {activeEvents.length > 0 && (
@@ -253,7 +255,7 @@ export default function ChaosPanel() {
       </Box>
 
       {activeEvents.length > 0 && (
-        <Box sx={{ px: 1.5, py: 1, borderTop: 1, borderColor: "#27272a" }}>
+        <Box sx={{ px: 1.5, py: 1, borderTop: 1, borderColor: "divider" }}>
           <Typography variant="caption" sx={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, color: "#52525b", display: "block", mb: 1 }}>
             Active Events ({activeEvents.length})
           </Typography>

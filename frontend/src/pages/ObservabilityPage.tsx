@@ -211,7 +211,7 @@ export default function ObservabilityPage() {
   const chaosEvents = useChaosStore((s) => s.activeEvents);
   const deployStates = useDeployStore((s) => s.nodeStates);
   const violations = useSecurityStore((s) => s.violations);
-  const { currentProject } = useProjectStore();
+  const currentProject = useProjectStore((s) => s.currentProject);
 
   const [events, setEvents] = useState<EventEntry[]>([]);
   const [screenshotting, setScreenshotting] = useState(false);
