@@ -1,11 +1,28 @@
 import { createTheme } from '@mui/material/styles';
 
+declare module '@mui/material/styles' {
+  interface TypeBackground {
+    elevated: string;
+  }
+  interface Palette {
+    borderColor: Palette['primary'];
+  }
+  interface PaletteOptions {
+    borderColor?: PaletteOptions['primary'];
+  }
+}
+
 const theme = createTheme({
   palette: {
     mode: 'dark',
     background: {
-      default: '#18181b',
-      paper: '#27272a',
+      default: '#09090b',
+      paper: '#18181b',
+      elevated: '#27272a',
+    },
+    divider: '#3f3f46',
+    borderColor: {
+      main: '#3f3f46',
     },
     primary: {
       main: '#22c55e',
@@ -22,7 +39,7 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
   },
   components: {
     MuiButton: {
