@@ -1,10 +1,9 @@
-import { useState, useCallback, useMemo, memo } from "react";
+import { useState, useCallback, useMemo, memo, useRef } from "react";
 import { ChevronUp, ChevronDown, DollarSign } from "lucide-react";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useFinOpsStore, type CostReport, type CostCategory } from "../../store/finopsStore";
 import { useToastStore } from "../../store/toastStore";
 import EmptyState from "../ui/EmptyState";
-import api from "../../utils/api";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -201,6 +200,7 @@ export default function FinOpsPanel() {
   const [error, setError] = useState<string | null>(null);
 
   const nodes = useCanvasStore((s) => s.nodes);
+  const edges = useCanvasStore((s) => s.edges);
   const estimate = useFinOpsStore((s) => s.estimate);
   const setEstimate = useFinOpsStore((s) => s.setEstimate);
   const setNodeCosts = useFinOpsStore((s) => s.setNodeCosts);
@@ -210,19 +210,30 @@ export default function FinOpsPanel() {
     ? window.location.pathname.match(/\/project\/([^/]+)/)?.[1] ?? null
     : null;
 
-  const handleCalculate = useCallback(async () => {
+  const workerRef = useRef<Worker | null>(null);
+
+  const handleCalculate = useCallback(() => {
     if (!projectIdFromUrl) {
       addToast({ type: "error", title: "No project", message: "Open a project to estimate costs", duration: 4000 });
       return;
     }
     setLoading(true);
     setError(null);
-    try {
-      const resp = await api.post("/finops/estimate", {
-        projectId: projectIdFromUrl,
-        monthlyUsers,
-      });
-      const report = resp.data as CostReport;
+
+    if (workerRef.current) workerRef.current.terminate();
+
+    const worker = new Worker(new URL("../../workers/finOps.worker.ts", import.meta.url), { type: "module" });
+    workerRef.current = worker;
+
+    worker.onmessage = (e) => {
+      if (e.data.type === "error") {
+        setError(e.data.error);
+        addToast({ type: "error", title: "Estimation failed", message: e.data.error, duration: 5000 });
+        setLoading(false);
+        return;
+      }
+
+      const report = e.data.report as CostReport;
       setEstimate(report);
 
       const costs: { nodeId: string; label: string; monthlyCost: number }[] = [];
@@ -235,6 +246,7 @@ export default function FinOpsPanel() {
         }
       }
       setNodeCosts(costs);
+      setLoading(false);
 
       addToast({
         type: "success",
@@ -242,14 +254,32 @@ export default function FinOpsPanel() {
         message: `${report.currentEstimate.breakdown.length} cost categories — $${Math.round(report.currentEstimate.totalMonthlyCost).toLocaleString()}/mo`,
         duration: 5000,
       });
-    } catch (err: any) {
-      const msg = err?.response?.data?.error ?? "Estimation failed";
-      setError(msg);
-      addToast({ type: "error", title: "Estimation failed", message: msg, duration: 5000 });
-    } finally {
+    };
+
+    worker.onerror = () => {
+      setError("Worker calculation failed");
+      addToast({ type: "error", title: "Estimation failed", message: "Worker calculation failed", duration: 5000 });
       setLoading(false);
-    }
-  }, [projectIdFromUrl, monthlyUsers, nodes, setEstimate, setNodeCosts, addToast]);
+    };
+
+    const workerNodes = nodes.map((n) => ({
+      id: n.id,
+      nodeType: n.data?.nodeType ?? "",
+      label: n.data?.label ?? "",
+      instances: n.data?.config?.instances ?? 1,
+      region: n.data?.config?.region ?? "us-east-1",
+      maxRPS: n.data?.config?.maxRPS ?? 1000,
+      computeTier: n.data?.config?.computeTier ?? "on_demand",
+    }));
+
+    const workerEdges = edges.map((e) => ({
+      source: e.source,
+      target: e.target,
+      trafficPercent: e.data?.routing?.trafficPercent ?? 100,
+    }));
+
+    worker.postMessage({ type: "calculate", projectId: projectIdFromUrl, nodes: workerNodes, edges: workerEdges, monthlyUsers });
+  }, [projectIdFromUrl, monthlyUsers, nodes, edges, setEstimate, setNodeCosts, addToast]);
 
   const hasResults = estimate !== null;
 

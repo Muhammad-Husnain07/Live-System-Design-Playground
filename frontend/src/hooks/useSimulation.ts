@@ -143,13 +143,14 @@ export function useSimulation(projectId: string) {
           const msg = JSON.parse(event.data);
           if (msg.type === "tick") {
             const tick = msg.tick as TickData;
-            useSimulationStore.getState().onTick(tick);
             tickQueueRef.current.push(tick);
             if (rafRef.current === null) {
               rafRef.current = requestAnimationFrame(() => {
-                const latest = tickQueueRef.current[tickQueueRef.current.length - 1];
+                const batch = tickQueueRef.current;
                 tickQueueRef.current = [];
                 rafRef.current = null;
+                useSimulationStore.getState().appendTicks(batch);
+                const latest = batch[batch.length - 1];
                 if (latest) applyTickToCanvas(latest);
               });
             }

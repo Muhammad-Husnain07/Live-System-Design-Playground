@@ -99,6 +99,11 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
   setElapsed: (elapsed) => set({ elapsed }),
 
+  appendTicks: (newTicks) => {
+    const { ticks } = get();
+    set({ ticks: [...ticks, ...newTicks].slice(-5000), latestTick: newTicks[newTicks.length - 1] });
+  },
+
   onTick: (tick) => {
     const { ticks } = get();
     set({ ticks: [...ticks, tick].slice(-5000), latestTick: tick });

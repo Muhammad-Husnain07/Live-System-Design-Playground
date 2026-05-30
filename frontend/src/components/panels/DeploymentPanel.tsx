@@ -194,7 +194,7 @@ export default function DeploymentPanel() {
   if (!isRunning) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <Box sx={{ px: '12px', py: '10px', borderBottom: '1px solid', borderColor: '#3f3f46', display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ px: '12px', py: '10px', borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
           <Rocket size={16} />
           <Typography component="span" sx={{ fontSize: '12px', fontWeight: 600, color: '#f4f4f5' }}>Deployment</Typography>
         </Box>
@@ -209,7 +209,7 @@ export default function DeploymentPanel() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'auto', height: '100%' }}>
-      <Box sx={{ px: '12px', py: '10px', borderBottom: '1px solid', borderColor: '#3f3f46', display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ px: '12px', py: '10px', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
         <Rocket size={16} />
         <Typography component="span" sx={{ fontSize: '12px', fontWeight: 600, color: '#f4f4f5' }}>Deployment</Typography>
         {isBlueGreen && activeGroup && (
@@ -237,7 +237,7 @@ export default function DeploymentPanel() {
       <Box sx={{
         flex: 1, overflowY: 'auto', p: '12px', '& > * + *': { mt: '16px' },
         '&::-webkit-scrollbar': { width: '6px' },
-        '&::-webkit-scrollbar-thumb': { bgcolor: '#27272a', borderRadius: '3px' },
+        '&::-webkit-scrollbar-thumb': { bgcolor: 'background.elevated', borderRadius: '3px' },
         '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
       }}>
         <Box>
@@ -252,8 +252,8 @@ export default function DeploymentPanel() {
               onChange={(e) => setSelectedNodeId(e.target.value)}
               size="small"
               sx={{
-                width: '100%', bgcolor: '#27272a', fontSize: '11px', color: '#f4f4f5', borderRadius: '4px',
-                '& .MuiOutlinedInput-notchedOutline': { borderColor: '#3f3f46', borderWidth: '1px' },
+                width: '100%', bgcolor: 'background.elevated', fontSize: '11px', color: '#f4f4f5', borderRadius: '4px',
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider', borderWidth: '1px' },
                 '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#a78bfa' },
                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#a78bfa' },
                 '& .MuiSelect-icon': { color: '#a1a1aa' },
@@ -278,7 +278,7 @@ export default function DeploymentPanel() {
 
         {selectedNodeId && deployCfg && isBlueGreen && (
           <>
-            <Box sx={{ bgcolor: '#18181b', borderRadius: '8px', border: '1px solid', borderColor: '#3f3f46', p: '12px', '& > * + *': { mt: '12px' } }}>
+            <Box sx={{ bgcolor: 'background.paper', borderRadius: '8px', border: '1px solid', borderColor: 'divider', p: '12px', '& > * + *': { mt: '12px' } }}>
               <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500, color: '#71717a' }}>
                 Blue/Green Status
               </Typography>
@@ -333,7 +333,7 @@ export default function DeploymentPanel() {
                     {activeGroup || "blue (default)"}
                   </Typography>
                 </Box>
-                <Box sx={{ height: '8px', bgcolor: '#27272a', borderRadius: '999px', overflow: 'hidden', display: 'flex' }}>
+                <Box sx={{ height: '8px', bgcolor: 'background.elevated', borderRadius: '999px', overflow: 'hidden', display: 'flex' }}>
                   <Box
                     sx={{
                       height: '100%', transition: 'all 0.3s',
@@ -346,13 +346,13 @@ export default function DeploymentPanel() {
             </Box>
 
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
-              <Box sx={{ bgcolor: '#18181b', borderRadius: '4px', border: '1px solid', borderColor: '#3f3f46', p: '8px' }}>
+              <Box sx={{ bgcolor: 'background.paper', borderRadius: '4px', border: '1px solid', borderColor: 'divider', p: '8px' }}>
                 <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#71717a' }}>Total RPS</Typography>
                 <Typography sx={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 500, fontVariantNumeric: 'tabular-nums', mt: '2px', color: '#f4f4f5' }}>
                   {Math.round(totalRPS).toLocaleString()}
                 </Typography>
               </Box>
-              <Box sx={{ bgcolor: '#18181b', borderRadius: '4px', border: '1px solid', borderColor: '#3f3f46', p: '8px' }}>
+              <Box sx={{ bgcolor: 'background.paper', borderRadius: '4px', border: '1px solid', borderColor: 'divider', p: '8px' }}>
                 <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#71717a' }}>Error Rate</Typography>
                 <Typography sx={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 500, fontVariantNumeric: 'tabular-nums', mt: '2px', color: errorRate > 0.1 ? '#ef4444' : '#f4f4f5' }}>
                   {(errorRate * 100).toFixed(1)}%
@@ -378,7 +378,7 @@ export default function DeploymentPanel() {
                 disabled={shifting}
                 sx={{
                   width: '100%', py: '8px', fontSize: '11px', fontWeight: 500, borderRadius: '4px', textTransform: 'none',
-                  bgcolor: '#27272a', color: '#a1a1aa',
+                  bgcolor: 'background.elevated', color: '#a1a1aa',
                   '&:hover': { bgcolor: '#3f3f46' },
                   '&.Mui-disabled': { opacity: 0.3, cursor: 'not-allowed' },
                 }}
@@ -391,7 +391,7 @@ export default function DeploymentPanel() {
 
         {selectedNodeId && deployCfg && !isBlueGreen && (
           <>
-            <Box sx={{ bgcolor: '#18181b', borderRadius: '8px', border: '1px solid', borderColor: '#3f3f46', p: '12px', '& > * + *': { mt: '8px' } }}>
+            <Box sx={{ bgcolor: 'background.paper', borderRadius: '8px', border: '1px solid', borderColor: 'divider', p: '12px', '& > * + *': { mt: '8px' } }}>
               <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500, color: '#71717a' }}>
                 Traffic Split
               </Typography>
@@ -403,7 +403,7 @@ export default function DeploymentPanel() {
                 <Typography component="span" sx={{ color: '#a1a1aa' }}>{canaryPct}%</Typography>
               </Box>
 
-              <Box sx={{ height: '10px', bgcolor: '#27272a', borderRadius: '999px', overflow: 'hidden', display: 'flex' }}>
+              <Box sx={{ height: '10px', bgcolor: 'background.elevated', borderRadius: '999px', overflow: 'hidden', display: 'flex' }}>
                 <Box sx={{ height: '100%', bgcolor: '#3b82f6', transition: 'all 0.3s', width: `${stablePct}%` }} />
                 <Box sx={{ height: '100%', bgcolor: '#a855f7', transition: 'all 0.3s', width: `${canaryPct}%` }} />
               </Box>
@@ -423,7 +423,7 @@ export default function DeploymentPanel() {
                   step={5}
                   disabled={shifting}
                   size="small"
-                  sx={{ color: '#a78bfa', width: '100%', py: 0, '& .MuiSlider-thumb': { width: 12, height: 12 }, '& .MuiSlider-rail': { bgcolor: '#3f3f46' } }}
+                  sx={{ color: '#a78bfa', width: '100%', py: 0, '& .MuiSlider-thumb': { width: 12, height: 12 }, '& .MuiSlider-rail': { bgcolor: 'divider' } }}
                 />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: '2px' }}>
                   <Typography component="span" sx={{ fontSize: '8px', color: '#52525b' }}>0% (stable)</Typography>
@@ -433,25 +433,25 @@ export default function DeploymentPanel() {
             </Box>
 
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
-              <Box sx={{ bgcolor: '#18181b', borderRadius: '4px', border: '1px solid', borderColor: '#3f3f46', p: '8px' }}>
+              <Box sx={{ bgcolor: 'background.paper', borderRadius: '4px', border: '1px solid', borderColor: 'divider', p: '8px' }}>
                 <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#71717a' }}>Stable RPS</Typography>
                 <Typography sx={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 500, fontVariantNumeric: 'tabular-nums', mt: '2px', color: '#60a5fa' }}>
                   {Math.round(stableRPS).toLocaleString()}
                 </Typography>
               </Box>
-              <Box sx={{ bgcolor: '#18181b', borderRadius: '4px', border: '1px solid', borderColor: '#3f3f46', p: '8px' }}>
+              <Box sx={{ bgcolor: 'background.paper', borderRadius: '4px', border: '1px solid', borderColor: 'divider', p: '8px' }}>
                 <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#71717a' }}>Canary RPS</Typography>
                 <Typography sx={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 500, fontVariantNumeric: 'tabular-nums', mt: '2px', color: '#a78bfa' }}>
                   {Math.round(canaryRPS).toLocaleString()}
                 </Typography>
               </Box>
-              <Box sx={{ bgcolor: '#18181b', borderRadius: '4px', border: '1px solid', borderColor: '#3f3f46', p: '8px' }}>
+              <Box sx={{ bgcolor: 'background.paper', borderRadius: '4px', border: '1px solid', borderColor: 'divider', p: '8px' }}>
                 <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#71717a' }}>Error Rate</Typography>
                 <Typography sx={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 500, fontVariantNumeric: 'tabular-nums', mt: '2px', color: isFailing ? '#ef4444' : (errorRate > 0.1 ? '#fb923c' : '#f4f4f5') }}>
                   {(errorRate * 100).toFixed(1)}%
                 </Typography>
               </Box>
-              <Box sx={{ bgcolor: '#18181b', borderRadius: '4px', border: '1px solid', borderColor: '#3f3f46', p: '8px' }}>
+              <Box sx={{ bgcolor: 'background.paper', borderRadius: '4px', border: '1px solid', borderColor: 'divider', p: '8px' }}>
                 <Typography sx={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#71717a' }}>Status</Typography>
                 <Typography sx={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 500, mt: '2px' }}>
                   {deployCfg.isCanaryActive ? (

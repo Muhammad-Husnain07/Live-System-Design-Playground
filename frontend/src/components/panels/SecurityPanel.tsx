@@ -40,12 +40,12 @@ function ViolationRow({
   return (
     <Box
       sx={{
-        bgcolor: '#18181b',
-        border: '1px solid',
+        bgcolor: 'background.paper',
+        border: 1,
         borderRadius: '8px',
         p: '10px',
         transition: 'all 0.15s',
-        borderColor: isActive ? 'rgba(239,68,68,0.5)' : '#3f3f46',
+        borderColor: isActive ? 'rgba(239,68,68,0.5)' : 'divider',
         boxShadow: isActive ? '0 0 0 1px rgba(239,68,68,0.2)' : 'none',
       }}
     >
@@ -220,8 +220,8 @@ export default function SecurityPanel() {
         sx={{
           px: '12px',
           py: '10px',
-          borderBottom: '1px solid',
-          borderColor: '#3f3f46',
+          borderBottom: 1,
+          borderColor: 'divider',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
@@ -354,7 +354,7 @@ export default function SecurityPanel() {
         )}
 
         {warnings.length > 0 && (
-          <Box sx={{ px: '12px', py: '8px', borderTop: '1px solid', borderColor: '#3f3f46' }}>
+          <Box sx={{ px: '12px', py: '8px', borderTop: 1, borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', mb: '8px' }}>
               <Box sx={{ width: '6px', height: '6px', borderRadius: '50%', bgcolor: '#fb923c' }} />
               <Typography
