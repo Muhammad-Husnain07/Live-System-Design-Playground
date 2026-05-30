@@ -4,7 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { nodeRegistry } from "../../utils/nodeRegistry";
 import type { NodeType } from "../../types/canvas";
 import {
-  Drawer, TextField, InputAdornment, Typography, Box, Card, CardContent,
+  TextField, InputAdornment, Typography, Box, Card, CardContent,
   Accordion, AccordionSummary, AccordionDetails,
 } from "@mui/material";
 
@@ -169,19 +169,20 @@ export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
   }, [registry, query]);
 
   return (
-    <Box sx={{ position: "relative", display: "flex", flexShrink: 0, alignSelf: "stretch" }}>
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: sidebarWidth,
-          flexShrink: 0,
-          "& .MuiDrawer-paper": {
-            width: sidebarWidth, boxSizing: "border-box", bgcolor: "background.paper",
-            borderRight: 1, borderColor: "divider", overflow: "hidden",
-            display: "flex", flexDirection: "column",
-          },
-        }}
-      >
+    <Box
+      sx={{
+        width: sidebarWidth,
+        height: "100%",
+        flexShrink: 0,
+        bgcolor: "background.paper",
+        borderRight: 1,
+        borderColor: "divider",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+      }}
+    >
         <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider", flexShrink: 0 }}>
           <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", display: "block", mb: 1, fontSize: "0.65rem" }}>
             Components
@@ -277,8 +278,6 @@ export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
             </Card>
           ))}
         </Box>
-      </Drawer>
-
       <Box
         onMouseDown={onHandleMouseDown}
         sx={{

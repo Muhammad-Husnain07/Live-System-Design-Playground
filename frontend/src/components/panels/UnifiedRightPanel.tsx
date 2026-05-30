@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Monitor, Zap, Rocket, Shield, DollarSign } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Drawer, Tabs, Tab, Box } from "@mui/material";
+import { Tabs, Tab, Box } from "@mui/material";
 import NodeConfigPanel from "./NodeConfigPanel";
 import SimulationPanel from "./SimulationPanel";
 import ChaosPanel from "./ChaosPanel";
@@ -77,15 +77,19 @@ export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRigh
   };
 
   return (
-    <Drawer
-      variant="permanent"
-      anchor="right"
-      sx={{ width: 360, flexShrink: 0 }}
-      PaperProps={{
-        sx: { width: 360, bgcolor: "background.paper", borderLeft: 1, borderColor: "divider", position: "relative" },
+    <Box
+      sx={{
+        width: 360,
+        height: "100%",
+        flexShrink: 0,
+        bgcolor: "background.paper",
+        borderLeft: 1,
+        borderColor: "divider",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
       }}
     >
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
         <Tabs
           value={tabIndex}
           onChange={handleTabChange}
@@ -141,7 +145,6 @@ export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRigh
             </motion.div>
           </AnimatePresence>
         </Box>
-      </Box>
-    </Drawer>
+    </Box>
   );
 }
