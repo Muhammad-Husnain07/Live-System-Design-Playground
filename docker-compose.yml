@@ -69,7 +69,7 @@ services:
       - "5173:5173"
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - frontend-node-modules:/app/node_modules
     networks:
       - playground-net
     depends_on:
@@ -78,6 +78,7 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  frontend-node-modules:
 
 networks:
   playground-net:
