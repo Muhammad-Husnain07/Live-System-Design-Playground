@@ -80,8 +80,9 @@ export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRigh
     <Drawer
       variant="permanent"
       anchor="right"
+      sx={{ width: 360, flexShrink: 0 }}
       PaperProps={{
-        sx: { width: 360, bgcolor: "#18181b", borderLeft: "1px solid #3f3f46", position: "relative" },
+        sx: { width: 360, bgcolor: "background.paper", borderLeft: 1, borderColor: "divider", position: "relative" },
       }}
     >
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -91,7 +92,7 @@ export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRigh
           variant="fullWidth"
           sx={{
             minHeight: 48,
-            borderBottom: "1px solid #3f3f46",
+            borderBottom: 1, borderColor: "divider",
             "& .MuiTab-root": { minHeight: 48, fontSize: "0.6rem", color: "#71717a", textTransform: "none", py: 0 },
             "& .Mui-selected": { color: "#f4f4f5" },
             "& .MuiTabs-indicator": { bgcolor: "#f4f4f5" },

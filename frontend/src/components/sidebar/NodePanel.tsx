@@ -85,7 +85,7 @@ function DraggableNode({ type, label, icon: IconComponent }: { type: string; lab
       sx={{
         display: "flex", alignItems: "center", gap: 1.5, px: 1.5, py: 0.75, mx: 0.5, mb: 0.25,
         borderRadius: "6px", cursor: "grab", userSelect: "none",
-        "&:hover": { bgcolor: "#27272a" },
+        "&:hover": { bgcolor: "background.elevated" },
         "&:active": { cursor: "grabbing", bgcolor: "#1a1a2e" },
         "&:active .drag-node-icon": { color: "#22c55e" },
       }}
@@ -169,21 +169,21 @@ export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
   }, [registry, query]);
 
   return (
-    <Box sx={{ position: "relative", display: "flex", flexShrink: 0, height: "100%" }}>
+    <Box sx={{ position: "relative", display: "flex", flexShrink: 0, alignSelf: "stretch" }}>
       <Drawer
         variant="permanent"
         sx={{
           width: sidebarWidth,
           flexShrink: 0,
           "& .MuiDrawer-paper": {
-            width: sidebarWidth, boxSizing: "border-box", bgcolor: "#09090b",
-            borderRight: 1, borderColor: "#27272a", overflow: "hidden",
+            width: sidebarWidth, boxSizing: "border-box", bgcolor: "background.paper",
+            borderRight: 1, borderColor: "divider", overflow: "hidden",
             display: "flex", flexDirection: "column",
           },
         }}
       >
-        <Box sx={{ px: 1.5, py: 1.25, borderBottom: 1, borderColor: "#27272a", flexShrink: 0 }}>
-          <Typography variant="caption" sx={{ color: "text.disabled", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", display: "block", mb: 0.75 }}>
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider", flexShrink: 0 }}>
+          <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", display: "block", mb: 1, fontSize: "0.65rem" }}>
             Components
           </Typography>
           <TextField
@@ -199,7 +199,7 @@ export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
                     <Search size={14} />
                   </InputAdornment>
                 ),
-                sx: { fontSize: "0.75rem", color: "#a1a1aa", "&:before": { borderColor: "#3f3f46 !important" }, "&:after": { borderColor: "#22c55e !important" } },
+                sx: { fontSize: "0.75rem", color: "#a1a1aa", bgcolor: "background.elevated", borderRadius: 1, px: 0.5, "&:before": { borderColor: "#3f3f46 !important" }, "&:after": { borderColor: "#22c55e !important" } },
               },
             }}
           />
@@ -221,7 +221,7 @@ export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
                   "&:before": { display: "none" },
                   "&.Mui-expanded": { my: 0 },
                   borderBottom: items.length > 0 ? "1px solid" : "none",
-                  borderColor: "#27272a",
+                  borderColor: "divider",
                 }}
               >
                 <AccordionSummary
@@ -229,7 +229,7 @@ export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
                   sx={{
                     minHeight: 36, px: 1.5, py: 0, "&.Mui-expanded": { minHeight: 36 },
                     "& .MuiAccordionSummary-content": { my: 0.5 },
-                    "&:hover": { bgcolor: "#18181b" },
+                    "&:hover": { bgcolor: "background.paper" },
                     cursor: "pointer",
                   }}
                 >
@@ -250,8 +250,8 @@ export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
           })}
         </Box>
 
-        <Box sx={{ borderTop: 1, borderColor: "#27272a", px: 1.5, py: 1, flexShrink: 0 }}>
-          <Typography variant="caption" sx={{ color: "text.disabled", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", display: "block", mb: 1, fontSize: "0.65rem" }}>
+        <Box sx={{ borderTop: 1, borderColor: "divider", p: 2, flexShrink: 0 }}>
+          <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", display: "block", mb: 1, fontSize: "0.65rem" }}>
             <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
               <LayoutTemplate size={12} /> Templates
             </Box>
@@ -261,7 +261,7 @@ export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
               key={tpl.id}
               onClick={() => onApplyTemplate?.(tpl.id)}
               sx={{
-                cursor: "pointer", mb: 1, bgcolor: "#18181b", border: "1px solid #27272a",
+                cursor: "pointer", mb: 1, bgcolor: "background.paper", border: 1, borderColor: "divider",
                 transition: "border-color 0.15s, box-shadow 0.15s",
                 "&:hover": { borderColor: "#22c55e", boxShadow: "0 0 0 1px rgba(34,197,94,0.15)" },
               }}
@@ -290,7 +290,7 @@ export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
           display: "flex", alignItems: "center", justifyContent: "center",
         }}
       >
-        <Box sx={{ width: 1.5, height: 24, borderRadius: 1, bgcolor: "#3f3f46", transition: "background 0.15s" }} />
+        <Box sx={{ width: 1.5, height: 24, borderRadius: 1, bgcolor: "divider", transition: "background 0.15s" }} />
       </Box>
     </Box>
   );

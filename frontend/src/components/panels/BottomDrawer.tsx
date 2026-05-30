@@ -147,12 +147,12 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
   }, [drawerHeight]);
 
   return (
-    <Box sx={{ flexShrink: 0, bgcolor: "#18181b", borderTop: "1px solid #3f3f46", display: "flex", flexDirection: "column" }}>
+    <Box sx={{ flexShrink: 0, minHeight: 0, bgcolor: "background.paper", borderTop: 1, borderColor: "divider", display: "flex", flexDirection: "column" }}>
       <Box
         onClick={() => setExpanded((v) => !v)}
         sx={{
-          height: 40, px: 2, display: "flex", alignItems: "center", cursor: "pointer",
-          borderBottom: expanded ? "1px solid #3f3f46" : "none",
+          height: 40, p: 2, display: "flex", alignItems: "center", cursor: "pointer",
+          borderBottom: expanded ? 1 : 0, borderColor: "divider",
           "&:hover": { bgcolor: "rgba(255,255,255,0.02)" },
           userSelect: "none",
         }}
@@ -192,7 +192,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
             animate={{ height: `${drawerHeight}vh` }}
             exit={{ height: 0 }}
             transition={{ duration: 0.2, ease: "easeInOut" }}
-            style={{ overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}
+            style={{ overflow: "hidden", display: "flex", flexDirection: "column", position: "relative", flexShrink: 0 }}
           >
             <Box
               onMouseDown={handleResizeStart}
@@ -207,7 +207,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
               value={activeTab}
               onChange={(_, v) => setActiveTab(v)}
               sx={{
-                minHeight: 36, px: 2, borderBottom: "1px solid #3f3f46", flexShrink: 0,
+                minHeight: 36, px: 2, borderBottom: 1, borderColor: "divider", flexShrink: 0,
                 "& .MuiTab-root": { minHeight: 36, fontSize: "0.65rem", color: "#71717a", textTransform: "none", py: 0 },
                 "& .Mui-selected": { color: "#f4f4f5" },
                 "& .MuiTabs-indicator": { bgcolor: "#f4f4f5" },
@@ -219,8 +219,8 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
 
             <Box sx={{ flex: 1, overflow: "hidden" }}>
               {activeTab === 0 && (
-                <Box sx={{ display: "flex", height: "100%", gap: 1, p: 1 }}>
-                  <Box sx={{ flex: 1, bgcolor: "#09090b", borderRadius: 1, border: "1px solid #27272a", p: 1.5 }}>
+                <Box sx={{ display: "flex", height: "100%", gap: 2, p: 2 }}>
+                  <Box sx={{ flex: 1, bgcolor: "background.elevated", borderRadius: 1, border: 1, borderColor: "divider", p: 2 }}>
                     <Typography variant="caption" sx={{ fontSize: "0.6rem", fontWeight: 500, color: "#a1a1aa", display: "block", mb: 1 }}>Traffic Over Time</Typography>
                     {chartData.length <= 1 ? (
                       <Box sx={{ height: "calc(100% - 20px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -240,7 +240,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
                       </ResponsiveContainer>
                     )}
                   </Box>
-                  <Box sx={{ width: 280, flexShrink: 0, bgcolor: "#09090b", borderRadius: 1, border: "1px solid #27272a", p: 1.5, overflowY: "auto" }}>
+                  <Box sx={{ width: 280, flexShrink: 0, bgcolor: "background.elevated", borderRadius: 1, border: 1, borderColor: "divider", p: 2, overflowY: "auto" }}>
                     <Typography variant="caption" sx={{ fontSize: "0.6rem", fontWeight: 500, color: "#a1a1aa", display: "block", mb: 1 }}>Node Health</Typography>
                     {nodeGridData.length === 0 ? (
                       <Box sx={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -251,7 +251,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
                         {nodeGridData.map((m) => {
                           const statusColor = m.isFailed ? "#ef4444" : m.isBottleneck ? "#fb923c" : m.errorRate > 0.05 ? "#facc15" : "#22c55e";
                           return (
-                            <Paper key={m.nodeId} variant="outlined" sx={{ p: 0.75, bgcolor: "#18181b", borderColor: "#27272a", display: "flex", alignItems: "center", gap: 1 }}>
+                            <Paper key={m.nodeId} variant="outlined" sx={{ p: 0.75, bgcolor: "background.paper", borderColor: "divider", display: "flex", alignItems: "center", gap: 1 }}>
                               <Box sx={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, bgcolor: statusColor }} />
                               <Box sx={{ minWidth: 0, flex: 1 }}>
                                 <Typography variant="caption" sx={{ fontSize: "0.6rem", fontWeight: 500, color: "#f4f4f5", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
