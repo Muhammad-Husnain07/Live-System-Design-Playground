@@ -6518,7 +6518,27 @@ Replaced Tailwind utility classes with MUI layout components across auth pages, 
 | `HANDOFF.md` — Phase M2 section at line 5994 with status at line 6082 | ✅ |
 | `go build ./...` (backend) | ✅ |
 | `go vet ./...` | ✅ |
- | `tsc --noEmit` | ✅ 0 errors |
+| `tsc --noEmit` | ✅ 0 errors |
+| `go build ./...` | ✅ 0 errors |
+| `vite build` | ✅ built in 2.69s (3884 modules) |
+
+### Verification: PASSED — 2026-05-30
+
+All Phase UI-4 spec items cross-checked against actual file contents. No issues found.
+
+| Check | Result |
+|-------|--------|
+| `ProjectPage.tsx` — Background `variant="dots" gap={20} size={1} color="#27272a"` | ✅ |
+| `ProjectPage.tsx` — Selection box CSS (`.react-flow__selection` green bg + border) | ✅ |
+| `ProjectPage.tsx` — `panOnScroll` enabled | ✅ |
+| `ProjectPage.tsx` — `deleteKeyCode` removed from ReactFlow props | ✅ |
+| `ProjectPage.tsx` — Delete/Backspace onKeyDown with input guard + `pushUndoState()` | ✅ |
+| `ProjectPage.tsx` — Edge type `"smoothstep"` in onConnect | ✅ |
+| `CustomEdge.tsx` — `getSmoothStepPath` replaces `getBezierPath`, `borderRadius: 12` | ✅ |
+| `nodeTypes.ts` — `smoothstep: CustomEdge` registered in edgeTypes | ✅ |
+| `tsc --noEmit` — 0 errors | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `vite build` — 3884 modules, 2.69s | ✅ |
 | `npx vitest run --pool forks` | ✅ 32/32 PASS |
 
 
@@ -7192,3 +7212,314 @@ All 5 Phase UX5 tasks verified:
 | `npx vite build` | ✅ 1.97s (3887 modules) |
 | `npx vitest run --pool forks` | ✅ 32/32 PASS (7 test files) |
 | `go build ./...` | ✅ 0 errors |
+
+---
+
+## Phase UI-3 — Global UI Consistency — 2026-05-29
+
+### Objective
+Polish the app-level design to professional standards: define 3-layer background depth, consistent spacing/density across all panels, visual hierarchy borders, and proper TextField input styling. Apply these via the centralized MUI theme.
+
+### Theme Changes (`frontend/src/theme.ts`)
+
+| Token | Value | MUI Mapping |
+|-------|-------|-------------|
+| `background.default` | `#09090b` | Canvas surface (outermost) |
+| `background.paper` | `#18181b` | Panels, drawers, sidebar surfaces |
+| `background.elevated` | `#27272a` | Cards, inputs, elevated containers |
+| `borderColor.main` | `#3f3f46` | Custom palette entry for borders |
+| `divider` | `#3f3f46` | MUI divider color for `borderColor: "divider"` |
+| Typography | `"Inter"` font family | Global sans-serif stack |
+
+**Type augmentation**: Extended `TypeBackground` with `elevated` and `Palette` with `borderColor` to make theme tokens fully typed in MUI `sx` props.
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `frontend/src/theme.ts` | Added `background.default: #09090b`, `background.paper: #18181b`, `background.elevated: #27272a`, `borderColor.main: #3f3f46`, `divider: #3f3f46`, Inter font family |
+| `frontend/src/components/sidebar/NodePanel.tsx` | Drawer paper `bgcolor: "background.paper"` + `borderColor: "divider"`; search header `p: 2`, borderColor `"divider"`; TextField input `bgcolor: "background.elevated"`, `borderRadius: 1`; accordion borders → `"divider"`; templates section `p: 2` |
+| `frontend/src/components/panels/UnifiedRightPanel.tsx` | Drawer `bgcolor: "background.paper"`, `borderLeft: 1, borderColor: "divider"`; Tabs `borderBottom: 1, borderColor: "divider"` |
+| `frontend/src/components/panels/BottomDrawer.tsx` | Outer `bgcolor: "background.paper"`, `borderColor: "divider"`; header `p: 2`; chart tabs `borderColor: "divider"`; chart cards `bgcolor: "background.elevated"`, `borderColor: "divider"`, `gap: 2, p: 2`; node health `Paper bgcolor: "background.paper"`, `borderColor: "divider"` |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | AppBar `bgcolor: "background.default"`, `borderColor: "divider"`; simulation pill `bgcolor: "background.elevated"` |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | All `Divider` sections use MUI default borderColor (inherits theme divider); removed explicit `#3f3f46` overrides |
+| `frontend/src/components/panels/DeploymentPanel.tsx` | All `borderColor: '#3f3f46'` → `"divider"`; `bgcolor: '#18181b'` → `"background.paper"`; `bgcolor: '#27272a'` → `"background.elevated"` |
+| `frontend/src/components/panels/ChaosPanel.tsx` | Section borders → `"divider"`; Cards `bgcolor: "background.paper"`, `borderColor: "divider"`; Config popover `bgcolor: "background.paper"`, `borderColor: "divider"` |
+| `frontend/src/components/panels/SecurityPanel.tsx` | Violation row `bgcolor: "background.paper"`, `borderColor: "divider"`; headers → `borderColor: "divider"` |
+
+### Background Depth Hierarchy
+
+```
+background.default (#09090b)       Canvas — outermost surface
+    └─ background.paper (#18181b)  Panels & Drawers (NodePanel, UnifiedRightPanel, BottomDrawer, TopToolbar)
+         └─ background.elevated (#27272a)  Cards & Inputs inside panels (TextFields, chart cards, simulation pill, search bar)
+```
+
+### Spacing & Density Conventions
+
+| Rule | Applied To |
+|------|------------|
+| `p: 2` (16px) for panel padding | NodePanel search header, templates section, BottomDrawer header |
+| `Stack spacing: 2` (16px) for vertical component gaps | BottomDrawer chart cards |
+| `gap: 2` for inline layout gaps | BottomDrawer metrics container |
+| Compact `p: 1.5` for tight sections | NodePanel accordion contents, chart card internal padding |
+| TextField `bgcolor: "background.elevated"` + `borderRadius: 1` | NodePanel search input, ChaosPanel config inputs |
+
+### Design Decisions
+
+- **Three-tier background depth**: `default` → `paper` → `elevated` follows a clear visual hierarchy where each level nests inside the previous, creating depth through contrast.
+- **`borderColor: "divider"` over `borderColor.main`**: Using MUI's built-in `divider` palette key is cleaner and works automatically with any theme swap. The `borderColor.main` custom entry remains available as an API.
+- **`border: 1` shorthand**: MUI `sx` supports `border: 1` which expands to `1px solid` + the `divider` color — shorter than repeating `borderBottom: "1px solid #..."`.
+- **Inter font**: Set as the primary font family in the theme's `typography` object, falling back to Roboto/Helvetica/Arial.
+
+### Status
+
+**Phase UI-3 complete — Global UI consistency applied**
+
+| Task | Status |
+|------|--------|
+| Theme: 3 background depths, borderColor, typography | ✅ |
+| NodePanel: bgcolor, border, TextField elevated bg | ✅ |
+| UnifiedRightPanel: bgcolor, border to theme | ✅ |
+| BottomDrawer: bgcolor, spacing, elevated cards | ✅ |
+| TopToolbar: border, elevated pill | ✅ |
+| Panel consistency: borderColor, bgcolor across all panels | ✅ |
+| Build verification | ✅ |
+
+### Build Results (Phase UI-3)
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ 0 errors |
+| `npx vite build` | ✅ built in 1.66s (3884 modules) |
+
+### Cross-Check: Files Modified
+
+| File | Changes | Status |
+|------|---------|--------|
+| `frontend/src/theme.ts` | 3 background depths, borderColor, divider, Inter font, TS module augmentation | ✅ |
+| `frontend/src/components/sidebar/NodePanel.tsx` | Drawer bgcolor/border, search p:2, TextField elevated bg, accordion borders, templates p:2 | ✅ |
+| `frontend/src/components/panels/UnifiedRightPanel.tsx` | Drawer bgcolor/border, tabs borderColor divider | ✅ |
+| `frontend/src/components/panels/BottomDrawer.tsx` | Drawer bgcolor/border, header p:2, chart cards elevated+gap:2+p:2, node health Paper theme tokens | ✅ |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | AppBar bgcolor/border, simulation pill elevated bg | ✅ |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | All Divider hardcoded #3f3f46 removed (10 instances) | ✅ |
+| `frontend/src/components/panels/DeploymentPanel.tsx` | All borderColor #3f3f46 → divider, bgcolor #18181b → paper, bgcolor #27272a → elevated, slider rail divider | ✅ |
+| `frontend/src/components/panels/ChaosPanel.tsx` | Section borders divider, cards paper/elevated, config popover theme tokens, progress bar elevated | ✅ |
+| `frontend/src/components/panels/SecurityPanel.tsx` | Violation row paper/divider, header borders divider | ✅ |
+
+### Verification: FIXED — 2026-05-29
+
+**Fixes applied during cross-check:**
+
+| File | Line | Issue | Fix |
+|------|------|-------|-----|
+| `ChaosPanel.tsx` | 70 | `bgcolor: "#27272a"`, `borderColor: "#3f3f46"` on Select | `background.elevated`, `"divider"` |
+| `ChaosPanel.tsx` | 106 | `bgcolor: "#27272a"`, `borderColor: "#3f3f46"` on TextField | `background.elevated`, `"divider"` |
+| `ChaosPanel.tsx` | 192 | `bgcolor: "#27272a"` on progress bar track | `background.elevated` |
+| `TopToolbar.tsx` | 143 | `bgcolor: "#27272a"` on inline-editable name input | `background.elevated` |
+| `TopToolbar.tsx` | 154 | `bgcolor: "#18181b"` on role badge | `background.paper` |
+| `TopToolbar.tsx` | 264 | `borderColor: "#3f3f46"` on Divider | `"divider"` |
+| `NodePanel.tsx` | 88 | `bgcolor: "#27272a"` on ListItemButton hover | `background.elevated` |
+| `NodePanel.tsx` | 232 | `bgcolor: "#18181b"` on template item hover | `background.paper` |
+| `NodePanel.tsx` | 264 | `bgcolor: "#18181b"`, `border: "1px solid #27272a"` on template cards | `background.paper`, `border: 1, borderColor: "divider"` |
+| `NodePanel.tsx` | 293 | `bgcolor: "#3f3f46"` on resize handle | `"divider"` |
+| `DeploymentPanel.tsx` | 426 | `bgcolor: '#3f3f46'` on Slider rail | `'divider'` |
+
+All 9 files modified in Phase UI-3 confirmed present with correct theme token usage post-fix. Zero hardcoded `#09090b`, `#18181b`, `#27272a`, or `#3f3f46` remain in structural borders/backgrounds across these files.
+
+### Build Results (Post-Fix)
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ 0 errors |
+| `npx vite build` | ✅ built in 2.62s (3884 modules) |
+| `go build ./...` | ✅ 0 errors |
+
+## Phase UI-4 — Canvas UX Optimization — 2026-05-30
+
+### Goal
+Optimize the visual and interactive UX of the ReactFlow canvas to feel like a professional diagramming tool.
+
+### Changes
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ProjectPage.tsx` | Background → dots variant with `gap={20} size={1}`; green selection box CSS; `panOnScroll` enabled; `deleteKeyCode` removed, deletion handled manually via `onKeyDown` using Zustand store actions; edge type changed to `"smoothstep"` |
+| `frontend/src/components/canvas/CustomEdge.tsx` | Replaced `getBezierPath` with `getSmoothStepPath`, added `borderRadius: 12` |
+| `frontend/src/components/canvas/nodeTypes.ts` | Registered `smoothstep: CustomEdge` in edgeTypes |
+| `frontend/src/pages/ProjectPage.tsx` | Delete/Backspace key handling added to `onKeyDown` — prevents deletion when input is focused, calls `pushUndoState()` before `removeNode`/`removeEdge` |
+
+### Detail
+
+**Canvas Styling:**
+- Background: Changed from default line grid to `variant="dots"` with `gap={20}`, `size={1}`, `color="#27272a"` for a cleaner, modern aesthetic
+- Selection box: `.react-flow__selection` styled with green background (`rgba(34,197,94,0.08)`) and green border (`rgba(34,197,94,0.4)`) matching the app's accent color
+- MiniMap: Already has proper `nodeColor` function, `maskColor`, and dark-themed styling
+
+**Edge Routing:**
+- Changed from bezier to smoothstep paths (`getSmoothStepPath` with `borderRadius: 12`) for sharper, more architectural-looking connections
+- New edges default to `type: "smoothstep"` via the `onConnect` handler
+
+**Canvas Interaction:**
+- Added `panOnScroll` for scroll-wheel canvas panning (matches tools like Figma, Draw.io)
+- Removed `deleteKeyCode` from ReactFlow props (disables built-in delete)
+- Custom Delete/Backspace handler in `onKeyDown`: checks `document.activeElement` to avoid deleting while typing in inputs/textareas/contentEditable; calls `pushUndoState()` before `removeNode()`/`removeEdge()` for undo support
+- `elevateNodesOnSelect` was already enabled
+
+**Edge Type Registration:**
+- `edgeTypes` now maps both `"default"` and `"smoothstep"` to `CustomEdge`, so loading existing canvases with `"default"` edges still works, while new edges use `"smoothstep"`
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ 0 errors |
+| `go build ./...` | ✅ 0 errors |
+| `vite build` | ✅ built in 2.69s (3884 modules) |
+
+### Verification: PASSED — 2026-05-30
+
+| Check | Result |
+|-------|--------|
+| Background `variant="dots" gap={20} size={1}` | ✅ |
+| Green selection box CSS | ✅ |
+| `panOnScroll` enabled | ✅ |
+| `deleteKeyCode` removed | ✅ |
+| Delete key handler with input guard + undo | ✅ |
+| Edge type `"smoothstep"` | ✅ |
+| `getSmoothStepPath` + `borderRadius: 12` | ✅ |
+| `smoothstep: CustomEdge` registered | ✅ |
+| `tsc --noEmit` ✅ · `go build ./...` ✅ · `vite build` ✅ | ✅ |
+
+## Phase UI-5 — Component Rendering Performance — 2026-05-30
+
+### Goal
+Aggressively optimize frontend rendering performance so complex simulations don't drop frames or cause UI stuttering.
+
+### Changes
+
+| File | Change |
+|------|--------|
+| `frontend/src/App.tsx` | Refactored `useAuthStore()` to `useShallow` selector |
+| `frontend/src/pages/LoginPage.tsx` | Refactored `useAuthStore()` to `useShallow` selector |
+| `frontend/src/pages/RegisterPage.tsx` | Refactored `useAuthStore()` to `useShallow` selector |
+| `frontend/src/pages/DashboardPage.tsx` | Refactored `useAuthStore()` + `useProjectStore()` to `useShallow` selectors |
+| `frontend/src/pages/ProfilePage.tsx` | Refactored `useAuthStore()` to `useShallow` selector |
+| `frontend/src/pages/ProjectPage.tsx` | Refactored `useProjectStore()` + `useCanvasStore()` to `useShallow` selectors |
+| `frontend/src/pages/ObservabilityPage.tsx` | Refactored `useProjectStore()` to individual selector |
+| `frontend/src/pages/LeaderboardPage.tsx` | Refactored `useChallengeStore()` to `useShallow` selector |
+| `frontend/src/pages/ChallengesPage.tsx` | Refactored `useChallengeStore()` to `useShallow` selector |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | Refactored `useProjectStore()` + `useAuthStore()` to `useShallow` selectors |
+| `frontend/src/components/ui/ProtectedRoute.tsx` | Refactored `useAuthStore()` to individual selectors |
+| `frontend/src/components/panels/ChaosPanel.tsx` | Refactored `useChaosStore()` to `useShallow` selector |
+| `frontend/src/components/panels/ExportModal.tsx` | Refactored `useExportStore()` to `useShallow` selector |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | Added 300ms debounce on all TextField onChange handlers; ref-based callback to avoid stale closures |
+
+### Zustand Selector Optimization
+
+**Problem:** `const { nodes, edges } = useCanvasStore()` subscribes to every state field. A simulation tick updating metrics on one node triggers re-render in every component using the whole store.
+
+**Fix:** Refactored all 14 bad subscriptions across 13 files to use:
+- `useShallow` from `zustand/react/shallow` - shallow-compares returned objects so components only re-render when their specific slices change
+- Individual selectors where only 1-2 fields are needed
+
+### ReactFlow Node Memoization
+
+All 6 canvas node/edge components already wrapped in React.memo - no changes needed.
+
+### Recharts Memoization
+
+All chart components and data arrays already memoized with React.memo + useMemo - no changes needed.
+
+### Debounce Config Inputs
+
+**Problem:** Every keystroke in NodeConfigPanel TextField inputs called `updateNodeConfig()`, updating Zustand state, marking isDirty, and cascading re-renders.
+
+**Fix:** Added 300ms debounce wrapper inside NodeConfigContent using ref-based callback to avoid stale closures when switching selected nodes while a debounce is pending. Only TextField handlers debounced; selects/sliders/switches bypass debounce.
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ 0 errors |
+| `vite build` | ✅ 2.12s (3884 modules) |
+| `go build ./...` | ✅ 0 errors |
+
+### Verification: PASSED — 2026-05-30
+
+| Check | Result |
+|-------|--------|
+| 14 bad Zustand subscriptions refactored across 13 files | ✅ |
+| NodeConfigPanel - 12 TextField onChange handlers debounced at 300ms | ✅ |
+| Ref-based callback prevents stale closure on node switch | ✅ |
+| `tsc --noEmit` - 0 errors | ✅ |
+| `vite build` - 3884 modules, 2.12s | ✅ |
+| `go build ./...` - 0 errors | ✅ |
+
+### Re-Verification: PASSED — 2026-05-30
+
+All Phase UI-6 items verified. No additional fixes needed.
+
+| Check | Result |
+|-------|--------|
+| `useSimulation.ts` — `onTick` removed from WS `onmessage`, ticks buffered via `tickQueueRef`, `appendTicks(batch)` called per rAF frame | ✅ |
+| `simulationStore.ts` — `appendTicks(newTicks)` action with batch append, 5000 max | ✅ |
+| `ProjectPage.tsx` — `onlyRenderVisibleElements=true`, `canvasExtent=[[0,0],[5000,5000]]` | ✅ |
+| `finOps.worker.ts` — Created with complete pricing rules, node cost calc, per-request/storage/egress costs, scaling projections, recommendations | ✅ |
+| `FinOpsPanel.tsx` — API call replaced with Web Worker, `useRef` for worker lifecycle, `edges` from store | ✅ |
+| `tsc --noEmit` — 0 errors | ✅ |
+| `vite build` — 3884 modules, 8.78KB worker chunk | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+
+## Phase UI-6 — High-Frequency Data & Canvas Performance — 2026-05-30
+
+### Goal
+Optimize WebSocket tick batching to eliminate unnecessary Zustand updates, add ReactFlow virtualization for large canvases, and offload FinOps cost calculations to a Web Worker.
+
+### Changes
+
+| File | Change |
+|------|--------|
+| `frontend/src/hooks/useSimulation.ts` | Moved `onTick()` call inside rAF callback — ticks are buffered in `tickQueueRef`, then `appendTicks(batch)` called once per frame + `applyTickToCanvas(latest)` only for latest tick |
+| `frontend/src/store/simulationStore.ts` | Added `appendTicks(newTicks)` action — batch-appends multiple ticks to history in a single `set()` call |
+| `frontend/src/pages/ProjectPage.tsx` | Added `onlyRenderVisibleElements` prop to `<ReactFlow>`; tightened `canvasExtent` from `[[-10000,-10000],[10000,10000]]` to `[[0,0],[5000,5000]]` |
+| `frontend/src/workers/finOps.worker.ts` | **New** — Web Worker with complete cost estimation logic (pricing rules, tier multipliers, per-request/storage/egress costs, scaling projections) matching backend calculator |
+| `frontend/src/components/panels/FinOpsPanel.tsx` | Replaced API call with Web Worker: posts canvas data to worker via `postMessage`, receives `CostReport` as response; removed `api` import |
+
+### WS Tick Batching
+
+**Problem:** `onTick(tick)` was called on every WebSocket message (up to 100msg/s at 10× speed), immediately updating Zustand state and triggering N re-renders per frame.
+
+**Fix:** Ticks are pushed to `tickQueueRef` on each WS message; `requestAnimationFrame` fires at ~60fps, consumes the entire batch with a single `appendTicks(batch)` store call, and `applyTickToCanvas(latest)` updates canvas nodes/edges only for the last (latest) tick. This reduces subscription notifications from N-per-frame to 1-per-frame.
+
+### ReactFlow Virtualization
+
+- `onlyRenderVisibleElements={true}` — ReactFlow skips rendering off-screen nodes, improving scroll/pan performance on large canvases
+- `nodeExtent` / `translateExtent` tightened to `[[0,0],[5000,5000]]` — prevents infinite panning and enables correct viewport culling
+
+### FinOps Web Worker
+
+- `finOps.worker.ts` implements the full AWS-style cost calculation: compute tiers (on_demand/reserved/spot), per-request DB pricing, tiered S3 storage, CDN/DNS usage, edge egress (inter-region/internet)
+- Worker receives `WorkerNodeData[]` + `WorkerEdge[]` + `monthlyUsers`, posts back a full `CostReport` with 4 scaling projections and recommendations
+- FinOpsPanel creates the worker on each `handleCalculate` call, terminates previous worker (avoids stale results), and updates the store from the worker response
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ 0 errors |
+| `vite build` | ✅ 1.84s (3884 modules, worker chunk: 8.78KB) |
+| `go build ./...` | ✅ 0 errors |
+
+### Verification: PASSED — 2026-05-30
+
+| Check | Result |
+|-------|--------|
+| `useSimulation.ts` — `onTick` removed from WS `onmessage`, ticks buffered via `tickQueueRef`, `appendTicks(batch)` called once per rAF frame | ✅ |
+| `simulationStore.ts` — `appendTicks(newTicks)` action with batch append and max 5000 tick history | ✅ |
+| `ProjectPage.tsx` — `onlyRenderVisibleElements` prop added, `nodeExtent`/`translateExtent` changed to `[[0,0],[5000,5000]]` | ✅ |
+| `frontend/src/workers/finOps.worker.ts` — Created with complete pricing rules, calculateNodeCost, per-request cost, tiered storage, edge egress, scaling projections, recommendations | ✅ |
+| `FinOpsPanel.tsx` — Replaced API call with Web Worker, imports `useRef` + creates worker on calculate, handles worker messages | ✅ |
+| `tsc --noEmit` — 0 errors | ✅ |
+| `vite build` — 3884 modules, 8.78KB worker chunk | ✅ |
+| `go build ./...` — 0 errors | ✅ |
