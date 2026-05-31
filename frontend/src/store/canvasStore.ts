@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { Node, Edge } from "reactflow";
 import type { NodeConfig, NodeMetrics, CanvasState } from "../types/canvas";
 
-export type RightTab = "config" | "simulate" | "deploy" | "security" | "finops";
+export type RightTab = "config" | "simulate" | "deploy" | "security" | "finops" | "incident";
 
 const MAX_UNDO = 50;
 const LS_KEY = "activeRightTab";
@@ -14,7 +14,7 @@ function clone(nodes: Node[], edges: Edge[]): CanvasState {
 function loadTab(): RightTab {
   try {
     const v = localStorage.getItem(LS_KEY);
-    if (v === "config" || v === "simulate" || v === "deploy" || v === "security" || v === "finops") return v;
+    if (v === "config" || v === "simulate" || v === "deploy" || v === "security" || v === "finops" || v === "incident") return v;
   } catch { /* ignore */ }
   return "config";
 }
@@ -34,6 +34,7 @@ interface CanvasStore {
   exportMode: boolean;
   activeRightTab: RightTab;
   lastAutoTab: RightTab | null;
+  highlightedNodeIds: string[];
 
   setNodes: (nodes: Node[]) => void;
   setEdges: (edges: Edge[]) => void;
@@ -62,6 +63,7 @@ interface CanvasStore {
   setActiveRightTabManual: (tab: RightTab) => void;
   clearAutoTab: () => void;
   clearSimulationMetrics: () => void;
+  setHighlightedNodeIds: (ids: string[]) => void;
 }
 
 export const useCanvasStore = create<CanvasStore>((set, get) => ({
@@ -79,6 +81,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   exportMode: false,
   activeRightTab: loadTab(),
   lastAutoTab: null,
+  highlightedNodeIds: [],
 
   setNodes: (nodes) => set({ nodes, isDirty: true }),
 
@@ -265,6 +268,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   },
 
   clearAutoTab: () => set({ lastAutoTab: null }),
+
+  setHighlightedNodeIds: (ids) => set({ highlightedNodeIds: ids }),
 
   clearSimulationMetrics: () => {
     const { nodes, edges } = get();

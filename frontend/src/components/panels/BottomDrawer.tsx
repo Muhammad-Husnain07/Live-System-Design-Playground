@@ -8,6 +8,8 @@ import { useSimulationStore } from "../../store/simulationStore";
 import { useChaosStore } from "../../store/chaosStore";
 import { useDeployStore } from "../../store/deploymentStore";
 import { useSecurityStore } from "../../store/securityStore";
+import { useIncidentStore } from "../../store/incidentStore";
+import IncidentTimeline from "./IncidentTimeline";
 import { Box, Typography, Tabs, Tab, IconButton, List, ListItem, ListItemText, Paper } from "@mui/material";
 
 const CHART_GRID = { strokeDasharray: "3 3", stroke: "#27272a" };
@@ -71,7 +73,11 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
     if (isRunning === prevRunning.current) return;
     prevRunning.current = isRunning;
     addEvent("simulation", isRunning ? "▶" : "■", isRunning ? "Simulation running" : "Simulation stopped", `elapsed ${Math.floor(elapsed / 60)}m ${elapsed % 60}s`);
-  }, [isRunning, elapsed, addEvent]);
+
+    if (!isRunning && useIncidentStore.getState().activeScenario) {
+      useIncidentStore.getState().generatePostMortem(ticks);
+    }
+  }, [isRunning, elapsed, addEvent, ticks]);
 
   useEffect(() => {
     if (chaosEvents.length === 0) return;
@@ -97,6 +103,23 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
     if (!last) return;
     addEvent("security", "🛡", `Violation: ${last.type.replace(/_/g, " ")}`, last.message);
   }, [violations, addEvent]);
+
+  const prevTickRef = useRef(0);
+  useEffect(() => {
+    const current = latestTick?.tickNumber ?? 0;
+    if (current <= prevTickRef.current) { prevTickRef.current = current; return; }
+    prevTickRef.current = current;
+
+    const store = useIncidentStore.getState();
+    const scenario = store.activeScenario;
+    if (!scenario) return;
+    for (let i = 0; i < scenario.steps.length; i++) {
+      const step = scenario.steps[i];
+      if (current >= step.triggerTick && !store.timelineMarkers.some((m) => m.stepIndex === i)) {
+        store.addTimelineMarker({ tick: step.triggerTick, stepIndex: i, label: step.label, action: step.action });
+      }
+    }
+  }, [latestTick]);
 
   const p99Latency = useMemo(() => {
     if (!latestTick || latestTick.nodeMetrics.length === 0) return 0;
@@ -215,6 +238,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
             >
               <Tab label="Metrics Charts" />
               <Tab label="Event Log" />
+              <Tab label="Incident Timeline" />
             </Tabs>
 
             <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -299,6 +323,12 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
                       ))}
                     </List>
                   )}
+                </Box>
+              )}
+
+              {activeTab === 2 && (
+                <Box sx={{ flex: 1, overflow: "hidden" }}>
+                  <IncidentTimeline />
                 </Box>
               )}
             </Box>

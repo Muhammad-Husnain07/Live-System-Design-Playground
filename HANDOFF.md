@@ -7523,3 +7523,320 @@ Optimize WebSocket tick batching to eliminate unnecessary Zustand updates, add R
 | `tsc --noEmit` — 0 errors | ✅ |
 | `vite build` — 3884 modules, 8.78KB worker chunk | ✅ |
 | `go build ./...` — 0 errors | ✅ |
+
+## Phase M1.1 — Enterprise Architecture Templates — 2026-05-31
+
+### Goal
+Replace basic demo templates with 4 real-world enterprise architecture templates that fully configure NodeConfig (instances, maxRPS, latency, cache hit ratios, VPCs, auto-scaling, deployment strategies) and EdgeRoutingConfig (protocol, sync/async, traffic percent, TLS, throughput).
+
+### Templates Created
+
+| Template | Nodes | Edges | Total Instances | Peak RPS |
+|----------|-------|-------|-----------------|----------|
+| **Netflix-Scale Media Delivery** | DNS → CDN → APIGateway → Auth Service + Recommend Engine + Kafka → 40 Encoding Workers | 8 edges (HTTP/TCP/AMQP, sync + async) | ~154 | ~100K |
+| **Uber Real-time Dispatch** | Mobile → LB → WebSocket Servers → Dispatch Engine → Redis Geospatial + PostgreSQL | 5 edges (WebSocket/gRPC/TCP/HTTP) | ~36 | ~200K |
+| **E-Commerce Black Friday** | Shoppers → CDN → ALB → Cart Service + Order Queue → Primary DB + 2 Read Replicas | 9 edges (HTTP/AMQP/TCP/Replication) | ~79 | ~100K |
+| **HFT Pipeline** | MarketFeed → Kafka → StreamProcessor → MatchingEngine → OrderGateway (sub-5ms path) | 4 edges (TCP/gRPC/HTTP) | ~27 | ~100K |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ProjectPage.tsx` | Replaced 4 basic templates with 4 enterprise templates; `build()` now returns `{ nodes, edges }` with full configs; `applyTemplate()` destructures and adds edges via `cs.addEdge()` |
+| `frontend/src/types/canvas.ts` | Added `EdgeRoutingConfig` to imports in ProjectPage (make `protocol` type available for `e()` helper) |
+
+### Template Features
+
+All 4 templates include:
+- **NodeConfig**: `instances`, `maxRPS`, `latencyMs`, `region`, `cacheHitRatio`, `isPrimaryDB`, `replicationRole`, `replicationLagMs`, `autoScaling` (enabled/min/max/targets), `deployment` (strategy/canary/blue-green), `security` (vpcId, TLS, publicFacing), `computeTier`
+- **EdgeRoutingConfig**: `protocol` (HTTP/WebSocket/gRPC/TCP/AMQP/Replication), `isSync`, `trafficPercent`, `requiresTLS`, `packetLoss`, `jitterMs`
+- **Edge data**: `throughputRPS`, `latencyMs`, `isAnimated` (traffic dots), `isSecure`
+- Visual variety: sync edges (solid), async edges (dashed), animated traffic flows, Replication protocol edges
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ 0 errors |
+| `vite build` | ✅ built in 2.79s (3884 modules) |
+| `go build ./...` | ✅ 0 errors |
+
+### Verification: PASSED — 2026-05-31
+
+| Check | Result |
+|-------|--------|
+| 4 enterprise templates present (netflix-media, uber-dispatch, ecommerce-bf, hft-pipeline) | ✅ |
+| Each `build()` returns `{ nodes: Node[], edges: Edge[] }` | ✅ |
+| `applyTemplate()` destructures `edges` and calls `cs.addEdge(e)` | ✅ |
+| All nodes have full config (instances, maxRPS, latency, region, cacheHitRatio, autoScaling, deployment, security, VPC) | ✅ |
+| All edges have full routing config (protocol, sync/async, trafficPercent, TLS, throughput, animated) | ✅ |
+| 4 different protocols used (HTTP, WebSocket, gRPC, TCP, AMQP, Replication) | ✅ |
+| Sync edges (solid lines) + async edges (dashed lines) both present | ✅ |
+| `EdgeRoutingConfig` type imported in ProjectPage.tsx | ✅ |
+| `e()` helper spreads `...overrides` before explicit fields to prevent routing object overwrite (latent bug fix) | ✅ |
+
+## Phase M1.2 — Template Hub UI — 2026-05-31
+
+### Goal
+Build a professional Template Hub for users to browse, preview, and deploy the 4 enterprise architecture templates as new projects.
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/utils/enterpriseTemplates.ts` | Shared module extracting template definitions from ProjectPage.tsx — includes `DEFAULT_SIM`/`DEFAULT_METRICS` constants, `n()`/`e()` helpers, `EnterpriseTemplate` interface with metadata + build function, and `ENTERPRISE_TEMPLATES` array |
+| `frontend/src/pages/TemplateHubPage.tsx` | Full-page template browser with responsive MUI Card grid, detail Dialog with component/edge preview, and "Use Template" create-project flow |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ProjectPage.tsx` | Removed inline `DEFAULT_SIM`/`DEFAULT_METRICS` constants and 4 template definitions; replaced `allTemplates = useMemo(...)` with `const allTemplates = ENTERPRISE_TEMPLATES` import from shared module; cleaned up unused type imports |
+| `frontend/src/App.tsx` | Added `/templates` route under `ProtectedRoute` → `TemplateHubPage` |
+| `frontend/src/pages/DashboardPage.tsx` | Added "Templates" button in the header action bar next to Import/New Project, navigates to `/templates` |
+
+### Template Hub UI
+
+**Card Grid** (2-column responsive):
+- Each `<Card>` displays: emoji icon + title, scale badge (e.g. "100K RPS"), description text, industry tag (`<Chip>`), instances count, node count
+- Cards have hover feedback (`borderColor: "primary.main"` + blue box-shadow)
+- Cards open the preview Dialog on click
+
+**Preview Dialog** (`<Dialog maxWidth="md">`):
+- Title bar: template icon + name + scale badge
+- Metadata row: industry chip, instance count, peak RPS
+- Description text
+- **Components panel**: Left column shows all nodes with type-specific emoji icons + labels; Right column shows all edges with protocol-colored dots + source→target labels + protocol chips
+- Protocol colors match `CustomEdge.tsx` color map (HTTP=#3B82F6, WebSocket=#EC4899, gRPC=#A855F7, TCP=#F97316, AMQP=#F59E0B, Replication=#EF4444)
+- Industry tag colors: Media=purple, RideShare=cyan, E-Commerce=orange, Finance=green
+
+**"Use Template" Flow**:
+1. Calls `tpl.build(0, 0)` to generate fresh nodes/edges with unique IDs
+2. Calls `createProject(tpl.label, desc, false)` to create a new project
+3. Calls `saveCanvas(projectId, { nodes, edges, viewport })` to seed the canvas data
+4. Navigates to `/project/${projectId}`
+5. Shows success/error toast
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `tsc -b` | ✅ 0 errors from Phase M1.2 files |
+| `vite build` | ✅ 3886 modules, 1.48s |
+| `go build ./...` | ✅ 0 errors |
+
+### Verification: FIXED — 2026-05-31
+
+| Issue | Fix |
+|-------|-----|
+| `TemplateHubPage.tsx:9` — `CardActions` imported but unused | Removed from import |
+| `TemplateHubPage.tsx:178` — `PaperProps` removed in MUI v9 (replaced by `slotProps.paper`) | Changed to `slotProps={{ paper: { sx: ... } }}` |
+| `TemplateHubPage.tsx:254` — `import { Fragment }` test line left behind | Removed |
+
+| Check | Result |
+|-------|--------|
+| `/templates` route adds under ProtectedRoute | ✅ |
+| Template Hub accessible from Dashboard "Templates" button | ✅ |
+| 4 enterprise template Cards render in responsive 2-col grid | ✅ |
+| Card shows: title, icon, industry tag, scale badge, instances, description | ✅ |
+| Click opens Dialog with node list (left) + edge list (right) | ✅ |
+| Dialog shows protocol-colored dots + chips for each edge | ✅ |
+| Industry tag colors correct (Media, RideShare, E-Commerce, Finance) | ✅ |
+| "Use Template" creates project, saves canvas, navigates to project | ✅ |
+| Loading state disables buttons, error toast on failure | ✅ |
+| User menu (profile/logout) in header | ✅ |
+| `enterpriseTemplates.ts` shared module — `ENTERPRISE_TEMPLATES` imported by both ProjectPage and TemplateHubPage | ✅ |
+| ProjectPage.tsx refactored — no inline template definitions remaining | ✅ |
+| `tsc -b` 0 errors from Phase M1.2 files · `vite build` 3886 modules · `go build ./...` 0 errors | ✅ |
+
+---
+
+## Phase M2.1 — Incident Replay Engine
+
+**Goal**: Provide a replay system that executes sequenced chaos/traffic/config steps against a running simulation, simulating real-world post-mortem scenarios.
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `backend/simulation/incident.go` | **New** — `IncidentScenario`, `IncidentStep` structs; 3 hardcoded scenarios; payload helper types |
+| `backend/simulation/engine.go` | Added `activeScenario`, `stepIndex`, `trafficMultiplier`, `trafficSpikeEndTick` fields; `StartIncident()`, `ExecuteIncidentStep()`, `injectChaosFromIncident()`, `applyConfigChange()` methods; `json` import |
+| `backend/handlers/incident.go` | **New** — `IncidentHandler` with `StartIncident` endpoint |
+| `backend/main.go` | Registered `POST /api/simulations/:id/start-incident` route |
+| `backend/simulation/chaos.go` | Exported `applyOne` → `ApplyOne` for cross-package incident injection |
+
+### Structures
+
+```
+IncidentScenario { ID, Name, Description, Steps []IncidentStep }
+
+IncidentStep { TriggerTick int, Action string, Payload json.RawMessage }
+```
+
+- `Action` values: `"chaos_inject"`, `"traffic_spike"`, `"config_change"`
+- `Payload` is parsed per action type via dedicated structs:
+  - `chaosInjectPayload { eventType, severity, durationTicks, targetNodeType }`
+  - `trafficSpikePayload { multiplier, durationTicks }`
+  - `configChangePayload { targetNodeType, changes map[string]any }`
+
+### Three Scenarios
+
+| ID | Name | Steps |
+|----|------|-------|
+| `retry-storm` | The Retry Storm | Latency spike on AppServer (tick 5) + config latency increase → traffic 3× spike (tick 12) → restore (tick 25) |
+| `cache-avalanche` | The Cache Avalanche | Redis NodeFailure (tick 5) + cacheHitRatio=0 → traffic 2.5× spike (tick 8) → restore cache (tick 20) |
+| `noisy-neighbor` | The Noisy Neighbor | CPU saturation on Microservice (tick 5) → config maxRPS=50 (tick 8) → restore (tick 18) |
+
+### Engine Integration
+
+- `StartIncident(scenario)` sets active scenario and resets step index
+- `ExecuteIncidentStep(tickNum)` is called in `RunTick()` **after** `ApplyPreTick` so chaos injections take effect in same tick
+- Each step executes exactly once when `currentTick >= step.TriggerTick`; `stepIndex` advances
+- Traffic spike applies `rps *= trafficMultiplier` for `durationTicks` then resets to 1.0
+- `chaos_inject` creates `ChaosEvent` objects via `ChaosManager.Inject()` for all matching nodes AND immediately applies the effect via `ChaosManager.ApplyOne()` so the impact is visible in the same tick
+- `config_change` directly mutates node fields (`latencyMs`, `errorRate`, `cacheHitRatio`, `maxRPS`, `instances`)
+
+### API
+
+```
+POST /api/simulations/:id/start-incident
+Content-Type: application/json
+
+{ "scenarioId": "retry-storm" }
+```
+
+**Response 200:**
+```json
+{ "status": "incident_started", "scenarioId": "retry-storm", "scenario": "The Retry Storm", "steps": 4 }
+```
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` | ✅ 0 errors |
+| `tsc -b` | ❌ 10 pre-existing errors (unrelated — FinOpsPanel, NodePanel, CommandPalette, useSimulation, ProjectPage, simulationStore, finOps.worker) |
+
+### Verification: PASSED — 2026-05-31
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` | ✅ 0 errors |
+| `tsc --noEmit` (standalone single-file mode) | ✅ 0 errors |
+| `tsc -b` (project references build) | ❌ 10 pre-existing errors (none in Phase M2.1 files) |
+
+| Cross-Check | Status |
+|-------------|--------|
+| `IncidentScenario` struct with ID, Name, Description, Steps in `backend/simulation/incident.go` | ✅ |
+| `IncidentStep` struct with TriggerTick, Action, Payload | ✅ |
+| Action values: `"chaos_inject"`, `"traffic_spike"`, `"config_change"` | ✅ |
+| 3 scenarios: retry-storm, cache-avalanche, noisy-neighbor in `Scenarios` slice | ✅ |
+| `Engine` has activeScenario, stepIndex, trafficMultiplier, trafficSpikeEndTick | ✅ |
+| `StartIncident(*IncidentScenario)` sets scenario and resets state | ✅ |
+| `ExecuteIncidentStep(tickNum int)` called in `RunTick()` after `ApplyPreTick` (line 347) | ✅ |
+| `chaos_inject` → `ChaosManager.Inject()` + immediate `ApplyOne()` | ✅ |
+| `traffic_spike` → multiplier set, applied in RunTick, reset after duration | ✅ |
+| `config_change` → mutates node fields (latencyMs, errorRate, cacheHitRatio, maxRPS, instances) | ✅ |
+| `POST /api/simulations/:id/start-incident` registered in `main.go:109` | ✅ |
+| Handler validates runID, scenarioID, looks up scenario by ID, checks engine running | ✅ |
+| `backend/simulation/chaos.go` exports `ApplyOne` | ✅ |
+| `backend/handlers/incident.go` created with `IncidentHandler` + `StartIncident` | ✅ |
+
+---
+
+## Phase M2.2 — Incident Timeline UI
+
+**Goal**: Provide a UI to select, trigger, and visualize multi-step incident scenarios with a horizontal timeline and auto-generated post-mortem summaries.
+
+### Files Created/Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/types/incident.ts` | **New** — `IncidentStep`, `IncidentScenario`, `TimelineMarker`, `PostMortem` types |
+| `frontend/src/store/incidentStore.ts` | **New** — Zustand store with `INCIDENT_SCENARIOS` (3 scenarios), `activeScenario`, `timelineMarkers`, `postMortem`, `triggerIncident()`, `generatePostMortem()`, state management |
+| `frontend/src/components/panels/IncidentPanel.tsx` | **New** — Right-panel tab with scenario dropdown (Select), description Paper, "Trigger Incident" button, auto-post-mortem Paper when simulation stops |
+| `frontend/src/components/panels/IncidentTimeline.tsx` | **New** — SVG horizontal timeline component showing step markers at TriggerTicks; clickable markers call `setHighlightedNodeIds` on canvas; green indicator line at current tick |
+| `frontend/src/components/panels/UnifiedRightPanel.tsx` | Added `"incident"` to `RightTab`, `BugPlay` icon, `IncidentPanel` import and render case |
+| `frontend/src/components/panels/BottomDrawer.tsx` | Added `"Incident Timeline"` tab (tab 2), imported `IncidentTimeline`; added effect to auto-generate post-mortem on sim stop after incident; added effect to emit `TimelineMarker` as ticks advance |
+| `frontend/src/store/canvasStore.ts` | Added `"incident"` to `RightTab` union type and `loadTab()`; added `highlightedNodeIds: string[]` state and `setHighlightedNodeIds` action |
+
+### Incident Tab (Right Panel)
+
+- Dropdown with 3 scenarios matching backend IDs: `retry-storm`, `cache-avalanche`, `noisy-neighbor`
+- Description Paper with industry chip + step count chip
+- "Trigger Incident" button (red, disabled unless running + scenario selected). Calls `POST /api/simulations/:runId/start-incident`
+- Auto-post-mortem `<Paper>` rendered when simulation stops:
+  - **Root Cause** — first failed node or highest latency node name
+  - **Blast Radius** — list of all nodes that failed, had high latency (>500ms), or high error rate (>10%), with per-node issue labels
+  - **Resolution Suggestion** — scenario-specific text (circuit breakers for retry-storm, Redis Sentinel for cache-avalanche, resource limits for noisy-neighbor)
+
+### Incident Timeline (Bottom Drawer — Tab 2)
+
+- SVG-based horizontal timeline spanning the full tab width
+- Background track (dark gray `#27272a` line)
+- Step markers at each step's `triggerTick` position (proportional X):
+  - **Not yet reached**: small gray circle + gray line
+  - **Reached / past**: larger colored circle (color by action: red=chaos, orange=traffic, blue=config) with glow ring, colored label badge
+  - Label text below each marker (truncated to 28 chars)
+  - T+N label above marker (e.g. `T+5`)
+- Green dashed indicator line at current simulation tick
+- Clicking a marker calls `setHighlightedNodeIds(affectedNodeIds)` for 3 seconds, which the canvas can consume to highlight matching nodes by type
+
+### State Management
+
+- `useIncidentStore` (Zustand):
+  - `activeScenario` — currently selected scenario
+  - `timelineMarkers[]` — emitted markers as ticks advance (deduplicated by `stepIndex`)
+  - `postMortem` — generated when simulation stops after an incident
+  - `highlightedNodeIds[]` — IDs of nodes to highlight on canvas
+  - `triggering` — loading flag for the API call
+  - `triggerIncident(runId)` — calls `POST /api/simulations/:runId/start-incident`
+  - `generatePostMortem(ticks)` — analyzes all TickData to build root cause, blast radius, resolution
+
+- `useCanvasStore` additions:
+  - `highlightedNodeIds: string[]`
+  - `setHighlightedNodeIds(ids: string[])`
+
+### Detection Flow
+
+1. User selects scenario → sets `activeScenario` in store
+2. User clicks "Trigger Incident" → `triggerIncident(runId)` → `POST /api/simulations/:id/start-incident`
+3. Each tick: `BottomDrawer` effect checks if current tick >= any step's `triggerTick` → emits `TimelineMarker` via `addTimelineMarker()` (deduplicated)
+4. Timeline component re-renders: markers appear at their X positions with colored styling
+5. User clicks a marker → `handleMarkerClick` sets `highlightedNodeIds` for 3 seconds
+6. Simulation stops → `prevRunning` effect detects `isRunning: false` → calls `generatePostMortem(ticks)` → `postMortem` is set → `IncidentPanel` renders the post-mortem `<Paper>`
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ 0 errors |
+| `tsc -b` | ❌ 10 pre-existing errors (none in Phase M2.2 files) |
+| `go build ./...` | ✅ 0 errors |
+
+### Verification: PASSED — 2026-05-31
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | ✅ 0 errors |
+| `tsc -b` (project references) | ❌ 10 pre-existing errors (none in Phase M2.2 files) |
+| `go build ./...` | ✅ 0 errors |
+
+| Cross-Check | Status |
+|-------------|--------|
+| `frontend/src/types/incident.ts` — `IncidentStep`, `IncidentScenario`, `TimelineMarker`, `PostMortem` types defined | ✅ |
+| `frontend/src/store/incidentStore.ts` — Zustand store with `INCIDENT_SCENARIOS` (3 scenarios matching backend IDs) | ✅ |
+| `INCIDENT_SCENARIOS` IDs: `retry-storm`, `cache-avalanche`, `noisy-neighbor` with matching steps | ✅ |
+| `frontend/src/components/panels/IncidentPanel.tsx` — scenario Select, description Paper, Trigger button, post-mortem Paper | ✅ |
+| Trigger button calls `POST /api/simulations/:runId/start-incident`, disabled when not applicable | ✅ |
+| Post-mortem shows root cause, blast radius per-node list, resolution suggestion | ✅ |
+| `frontend/src/components/panels/IncidentTimeline.tsx` — SVG horizontal timeline, markers at triggerTick positions | ✅ |
+| Color coding: red=chaos_inject, orange=traffic_spike, blue=config_change | ✅ |
+| Reached markers get colored circle + glow ring + label; unreached stay gray | ✅ |
+| Green dashed current-tick indicator line | ✅ |
+| Click marker → `setHighlightedNodeIds(ids)` for 3 seconds | ✅ |
+| `UnifiedRightPanel.tsx` — `"incident"` tab with `BugPlay` icon, `IncidentPanel` rendered | ✅ |
+| `BottomDrawer.tsx` — `"Incident Timeline"` tab (tab 2), `IncidentTimeline` rendered | ✅ |
+| Auto-post-mortem on sim stop via `prevRunning` effect → `generatePostMortem(ticks)` | ✅ |
+| Auto-timeline-marker emission via `prevTickRef` effect as ticks advance | ✅ |
+| `canvasStore.ts` — `"incident"` in `RightTab`, `highlightedNodeIds` + `setHighlightedNodeIds` | ✅ |

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Monitor, Zap, Rocket, Shield, DollarSign } from "lucide-react";
+import { Monitor, Zap, Rocket, Shield, DollarSign, BugPlay } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tabs, Tab, Box } from "@mui/material";
 import NodeConfigPanel from "./NodeConfigPanel";
@@ -8,6 +8,7 @@ import ChaosPanel from "./ChaosPanel";
 import DeploymentPanel from "./DeploymentPanel";
 import SecurityPanel from "./SecurityPanel";
 import FinOpsPanel from "./FinOpsPanel";
+import IncidentPanel from "./IncidentPanel";
 import { useCanvasStore, type RightTab } from "../../store/canvasStore";
 
 interface UnifiedRightPanelProps {
@@ -15,9 +16,9 @@ interface UnifiedRightPanelProps {
   onSimStop: () => void;
 }
 
-const TAB_KEYS: RightTab[] = ["config", "simulate", "deploy", "security", "finops"];
+const TAB_KEYS: RightTab[] = ["config", "simulate", "deploy", "security", "finops", "incident"];
 
-const ICONS = [Monitor, Zap, Rocket, Shield, DollarSign];
+const ICONS = [Monitor, Zap, Rocket, Shield, DollarSign, BugPlay];
 
 export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRightPanelProps) {
   const activeRightTab = useCanvasStore((s) => s.activeRightTab);
@@ -71,6 +72,8 @@ export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRigh
         return <SecurityPanel />;
       case "finops":
         return <FinOpsPanel />;
+      case "incident":
+        return <IncidentPanel />;
       default:
         return null;
     }
