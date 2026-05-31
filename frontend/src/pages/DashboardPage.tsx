@@ -6,7 +6,7 @@ import { useProjectStore } from "../store/projectStore";
 import ProjectCard from "../components/ui/ProjectCard";
 import NewProjectModal from "../components/ui/NewProjectModal";
 import ImportModal from "../components/panels/ImportModal";
-import { Plus } from "lucide-react";
+import { Plus, Layout } from "lucide-react";
 import { SkeletonCard } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 import { Box, Typography, Button, Grid, Avatar, Menu, MenuItem } from "@mui/material";
@@ -97,6 +97,9 @@ export default function DashboardPage() {
             Projects
           </Typography>
           <Box sx={{ display: "flex", gap: 1 }}>
+            <Button variant="outlined" startIcon={<Layout size={16} />} onClick={() => navigate("/templates")} sx={{ borderColor: "divider", color: "text.secondary" }}>
+              Templates
+            </Button>
             <Button variant="contained" color="primary" onClick={() => setShowImportModal(true)} sx={{ bgcolor: "#2563eb", "&:hover": { bgcolor: "#1d4ed8" } }}>
               Import
             </Button>

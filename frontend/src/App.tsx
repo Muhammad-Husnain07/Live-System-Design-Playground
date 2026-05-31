@@ -11,6 +11,7 @@ import ObservabilityPage from "./pages/ObservabilityPage";
 import ChallengesPage from "./pages/ChallengesPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import ProfilePage from "./pages/ProfilePage";
+import TemplateHubPage from "./pages/TemplateHubPage";
 import { Box, CircularProgress } from "@mui/material";
 import { useShallow } from "zustand/react/shallow";
 
@@ -39,6 +40,7 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/project/:id" element={<ProjectPage />} />
           <Route path="/project/:id/observe" element={<ObservabilityPage />} />
+          <Route path="/templates" element={<TemplateHubPage />} />
           <Route path="/challenges" element={<ChallengesPage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/settings" element={<ProfilePage />} />

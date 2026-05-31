@@ -46,7 +46,8 @@ import {
 import { CHAOS_TYPES } from "../store/chaosStore";
 import { useToastStore } from "../store/toastStore";
 import api from "../utils/api";
-import type { NodeType, NodeMetrics, SimulationNodeState } from "../types/canvas";
+import { ENTERPRISE_TEMPLATES, DEFAULT_SIM, DEFAULT_METRICS } from "../utils/enterpriseTemplates";
+import type { NodeType } from "../types/canvas";
 import { Box, Typography, Button } from "@mui/material";
 
 const VPC_COLORS = [
@@ -99,19 +100,6 @@ function VpcBoundaries({ nodes }: { nodes: Node[] }) {
     </>
   );
 }
-
-const DEFAULT_SIM: SimulationNodeState = {
-  status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0,
-};
-
-const DEFAULT_METRICS: NodeMetrics = {
-  currentRPS: 0, cpuPercent: 0, memoryPercent: 0, queueDepth: 0,
-  errorCount: 0, p99LatencyMs: 0, canaryRPS: 0, errorRate: 0,
-  retryCount: 0, droppedRequests: 0, cacheHitRatio: 0, connectionPoolMax: 100,
-  coldStartMs: 500, diskIOPSMax: 3000, isPrimaryDB: false, activeConnections: 0,
-  desiredInstances: 0, scalingEvent: "", staleReadCount: 0, isSplitBrain: false,
-  dataInconsistency: 0, spotInterrupted: false,
-};
 
 function enrichNode(node: Node): Node {
   const nt = (node as any).data?.nodeType as NodeType | undefined;
@@ -655,40 +643,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
     [simStart, simStop, scheduleAutoSave, debouncedSync, showDrillPanel],
   );
 
-  const allTemplates = useMemo(() => [
-    {
-      id: "simple-web-app", label: "Simple Web App", icon: "🌐",
-      desc: "WebBrowser → LB → AppServer → PostgreSQL",
-      build: (ox: number, oy: number) => {
-        const n = (t: NodeType, l: string, x: number, y: number) => ({ id: `${t}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: getReactFlowType(t), position: { x: ox + x, y: oy + y }, style: { width: 220, height: 120 }, data: { nodeType: t, label: l, config: NODE_REGISTRY[t].defaultConfig, simulationState: DEFAULT_SIM, metrics: DEFAULT_METRICS } } as Node);
-        return { nodes: [n("WebBrowser","Web Browser",0,0), n("LoadBalancer","Load Balancer",280,0), n("AppServer","App Server",560,0), n("PostgreSQLDB","PostgreSQL",560,200)] };
-      },
-    },
-    {
-      id: "microservices", label: "Microservices", icon: "🧩",
-      desc: "APIGateway → 3 Microservices → Redis + PostgreSQL",
-      build: (ox: number, oy: number) => {
-        const n = (t: NodeType, l: string, x: number, y: number) => ({ id: `${t}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: getReactFlowType(t), position: { x: ox + x, y: oy + y }, style: { width: 220, height: 120 }, data: { nodeType: t, label: l, config: NODE_REGISTRY[t].defaultConfig, simulationState: DEFAULT_SIM, metrics: DEFAULT_METRICS } } as Node);
-        return { nodes: [n("APIGateway","API Gateway",0,60), n("Microservice","Users Service",280,0), n("Microservice","Orders Service",280,120), n("Microservice","Inventory Service",280,240), n("Redis","Redis Cache",560,60), n("PostgreSQLDB","PostgreSQL",560,200)] };
-      },
-    },
-    {
-      id: "event-driven", label: "Event-Driven", icon: "📨",
-      desc: "WebServer → MessageQueue → WorkerService → MongoDB",
-      build: (ox: number, oy: number) => {
-        const n = (t: NodeType, l: string, x: number, y: number) => ({ id: `${t}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: getReactFlowType(t), position: { x: ox + x, y: oy + y }, style: { width: 220, height: 120 }, data: { nodeType: t, label: l, config: NODE_REGISTRY[t].defaultConfig, simulationState: DEFAULT_SIM, metrics: DEFAULT_METRICS } } as Node);
-        return { nodes: [n("WebServer","Web Server",0,0), n("MessageQueue","Event Queue",280,0), n("WorkerService","Worker Service",560,0), n("MongoDB","MongoDB",560,200)] };
-      },
-    },
-    {
-      id: "blue-green", label: "Blue/Green Deploy", icon: "🔄",
-      desc: "LB → AppServer v1 (80%) + AppServer v2 (20%) → PostgreSQL",
-      build: (ox: number, oy: number) => {
-        const n = (t: NodeType, l: string, x: number, y: number, overrides?: Record<string, any>) => ({ id: `${t}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: getReactFlowType(t), position: { x: ox + x, y: oy + y }, style: { width: 220, height: 120 }, data: { nodeType: t, label: l, config: { ...NODE_REGISTRY[t].defaultConfig, ...overrides }, simulationState: DEFAULT_SIM, metrics: DEFAULT_METRICS } } as Node);
-        return { nodes: [n("LoadBalancer","Load Balancer",0,120), n("AppServer","App Server v1",280,0,{deployment:{strategy:"blue_green",activeGroup:"blue",canaryVersion:"v1"}}), n("AppServer","App Server v2",280,240,{deployment:{strategy:"blue_green",activeGroup:"green",canaryVersion:"v2"}}), n("PostgreSQLDB","PostgreSQL",560,120)] };
-      },
-    },
-  ], []);
+  const allTemplates = ENTERPRISE_TEMPLATES;
 
   const applyTemplate = useCallback((templateId: string) => {
     const tpl = allTemplates.find(t => t.id === templateId);
@@ -701,10 +656,11 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
       ox = center.x - 380;
       oy = center.y - 100;
     }
-    const { nodes: tNodes } = tpl.build(ox, oy);
+    const { nodes: tNodes, edges: tEdges = [] } = tpl.build(ox, oy);
     const cs = useCanvasStore.getState();
     cs.pushUndoState();
     tNodes.forEach(n => cs.addNode(n));
+    tEdges.forEach(e => cs.addEdge(e));
     scheduleAutoSave();
     debouncedSync();
     useToastStore.getState().addToast({ type: "success", title: `Template applied`, message: tpl.label, duration: 2500 });
