@@ -104,6 +104,10 @@ func main() {
 	chaosGroup.Post("/inject", chaos.Inject)
 	chaosGroup.Get("/active/:simulationRunId", chaos.Active)
 
+	incident := handlers.NewIncidentHandler(sim)
+	incidentGroup := api.Group("/simulations", middleware.JWTAuth(cfg.JWTSecret))
+	incidentGroup.Post("/:id/start-incident", incident.StartIncident)
+
 	deploy := handlers.NewDeploymentHandler(sim)
 	deployGroup := api.Group("/simulations", middleware.JWTAuth(cfg.JWTSecret))
 	deployGroup.Post("/:id/deployment/shift", deploy.Shift)

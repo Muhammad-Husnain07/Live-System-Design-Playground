@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"encoding/json"
 	"math/rand"
 	"sync"
 	"time"
@@ -20,6 +21,11 @@ type Engine struct {
 	RunID          string
 	originalNodes  []Node
 	TraceCollector *TraceCollector
+
+	activeScenario  *IncidentScenario
+	stepIndex       int
+	trafficMultiplier      float64
+	trafficSpikeEndTick    int
 }
 
 func NewEngine(cfg *Config) *Engine {
@@ -59,6 +65,15 @@ func (e *Engine) SetChaosManager(cm *ChaosManager) {
 	e.chaos = cm
 }
 
+func (e *Engine) StartIncident(scenario *IncidentScenario) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.activeScenario = scenario
+	e.stepIndex = 0
+	e.trafficMultiplier = 1.0
+	e.trafficSpikeEndTick = 0
+}
+
 func (e *Engine) restoreNodes() {
 	for i := range e.originalNodes {
 		orig := &e.originalNodes[i]
@@ -95,6 +110,122 @@ func (e *Engine) OnTick(fn func(tick Tick, tickNum int)) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.onTick = fn
+}
+
+func (e *Engine) ExecuteIncidentStep(tickNum int) {
+	e.mu.Lock()
+	scenario := e.activeScenario
+	idx := e.stepIndex
+	e.mu.Unlock()
+
+	if scenario == nil || idx >= len(scenario.Steps) {
+		return
+	}
+
+	step := scenario.Steps[idx]
+	if tickNum < step.TriggerTick {
+		return
+	}
+
+	if idx > 0 {
+		prev := scenario.Steps[idx-1]
+		if tickNum < prev.TriggerTick {
+			return
+		}
+	}
+
+	switch step.Action {
+	case "chaos_inject":
+		var p chaosInjectPayload
+		if err := json.Unmarshal(step.Payload, &p); err != nil {
+			break
+		}
+		e.injectChaosFromIncident(p)
+	case "traffic_spike":
+		var p trafficSpikePayload
+		if err := json.Unmarshal(step.Payload, &p); err != nil {
+			break
+		}
+		e.mu.Lock()
+		e.trafficMultiplier = p.Multiplier
+		e.trafficSpikeEndTick = tickNum + p.DurationTicks
+		e.mu.Unlock()
+	case "config_change":
+		var p configChangePayload
+		if err := json.Unmarshal(step.Payload, &p); err != nil {
+			break
+		}
+		e.applyConfigChange(p)
+	}
+
+	e.mu.Lock()
+	e.stepIndex = idx + 1
+	e.mu.Unlock()
+}
+
+func (e *Engine) injectChaosFromIncident(p chaosInjectPayload) {
+	e.mu.RLock()
+	cm := e.chaos
+	runID := e.RunID
+	nodes := e.ctx.Nodes
+	tickNum := e.tickNum
+	e.mu.RUnlock()
+
+	if cm == nil {
+		return
+	}
+
+	for _, n := range nodes {
+		if n.NodeType == p.TargetNodeType {
+			event := &ChaosEvent{
+				ID:              runID + "-" + n.ID + "-incident",
+				SimulationRunID: runID,
+				NodeID:          n.ID,
+				EventType:       p.EventType,
+				Severity:        p.Severity,
+				DurationTicks:   p.DurationTicks,
+				StartedAt:       tickNum,
+				Active:          true,
+			}
+			cm.Inject(event)
+			cm.ApplyOne(n, event)
+		}
+	}
+}
+
+func (e *Engine) applyConfigChange(p configChangePayload) {
+	e.mu.RLock()
+	nodes := e.ctx.Nodes
+	e.mu.RUnlock()
+
+	for _, n := range nodes {
+		if n.NodeType == p.TargetNodeType {
+			for key, val := range p.Changes {
+				switch key {
+				case "latencyMs":
+					if v, ok := val.(float64); ok {
+						n.LatencyMs = v
+					}
+				case "errorRate":
+					if v, ok := val.(float64); ok {
+						n.ErrorRate = v
+					}
+				case "cacheHitRatio":
+					if v, ok := val.(float64); ok {
+						n.CacheHitRatio = v
+					}
+				case "maxRPS":
+					if v, ok := val.(float64); ok {
+						n.MaxRPS = v
+					}
+				case "instances":
+					if v, ok := val.(float64); ok {
+						n.Instances = int(v)
+					}
+				}
+			}
+		}
+	}
 }
 
 func (e *Engine) Start() {
@@ -212,6 +343,17 @@ func (e *Engine) RunTick() {
 	} else {
 		e.restoreNodes()
 	}
+
+	e.ExecuteIncidentStep(tickNum)
+
+	e.mu.Lock()
+	if e.trafficMultiplier > 1.0 && tickNum < e.trafficSpikeEndTick {
+		rps = rps * e.trafficMultiplier
+	} else if e.trafficMultiplier > 1.0 {
+		e.trafficMultiplier = 1.0
+		e.trafficSpikeEndTick = 0
+	}
+	e.mu.Unlock()
 
 	applySpotInterruptions(ctx.Nodes)
 

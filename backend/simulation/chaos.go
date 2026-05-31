@@ -122,7 +122,7 @@ func (cm *ChaosManager) ApplyPreTick(runID string, nodeMap map[string]*Node, tic
 		if !found {
 			continue
 		}
-		cm.applyOne(n, ev)
+		cm.ApplyOne(n, ev)
 	}
 	cm.mu.RUnlock()
 
@@ -162,7 +162,7 @@ func (cm *ChaosManager) ApplyPostTick(runID string, nodeMap map[string]*Node) {
 	cm.mu.RUnlock()
 }
 
-func (cm *ChaosManager) applyOne(n *Node, ev *ChaosEvent) {
+func (cm *ChaosManager) ApplyOne(n *Node, ev *ChaosEvent) {
 	switch ev.EventType {
 	case ChaosNodeFailure:
 		n.IsFailed = true
