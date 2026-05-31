@@ -7373,8 +7373,31 @@ Optimize the visual and interactive UX of the ReactFlow canvas to feel like a pr
 
 | Check | Result |
 |-------|--------|
-| `tsc --noEmit` | ✅ 0 errors |
 | `go build ./...` | ✅ 0 errors |
+
+### Verification: PASSED — 2026-05-31
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` | ✅ 0 errors |
+| `tsc --noEmit` | ✅ 0 errors |
+
+| Cross-Check | Status |
+|-------------|--------|
+| `Node` struct has `SLOTargetMs` (json: `sloTargetMs`) and `SLOAvailabilityTarget` (json: `sloAvailabilityTarget`) | ✅ |
+| `Node` struct has `IsLatencyBreached`, `IsAvailabilityBreached` (runtime, `json:"-"`) | ✅ |
+| `NodeMetricsSnapshot` has `SLOTargetMs`, `SLOAvailabilityTarget`, `IsLatencyBreached`, `IsAvailabilityBreached` | ✅ |
+| `SnapshotTick` computes `latencyOK = SLO_Target_Ms <= 0 \|\| P99 <= SLO_Target_Ms` | ✅ |
+| `SnapshotTick` computes `availOK = SLO_Avail_Target <= 0 \|\| Error_Rate <= (1 - Avail_Target)` | ✅ |
+| `backend/services/sre/calculator.go` exists with `NodeSLOStatus`, `SLOReport` structs | ✅ |
+| `ErrorBudgetRemaining()` returns `max(0, (allowed - actual) / allowed) × 100` | ✅ |
+| `BurnRate()` returns `actualErrorRate / allowedErrorRate` | ✅ |
+| `ClassifyBurnRate()` returns healthy/slow_burn/fast_burn with thresholds 1.0 / 14.4 | ✅ |
+| `GenerateSLOReport(engine)` aggregates all ticks and produces per-node SLO status | ✅ |
+| Canvas parsing reads `sloTargetMs` and `sloAvailabilityTarget` from node config | ✅ |
+| `GET /api/simulations/:id/slo-report` registered in `main.go:101` | ✅ |
+| Handler validates runID, finds engine, checks running, returns `SLOReport` JSON | ✅ |
+| `sre` import added to `backend/handlers/simulation.go` | ✅ |
 | `vite build` | ✅ built in 2.69s (3884 modules) |
 
 ### Verification: PASSED — 2026-05-30
@@ -7840,3 +7863,79 @@ Content-Type: application/json
 | Auto-post-mortem on sim stop via `prevRunning` effect → `generatePostMortem(ticks)` | ✅ |
 | Auto-timeline-marker emission via `prevTickRef` effect as ticks advance | ✅ |
 | `canvasStore.ts` — `"incident"` in `RightTab`, `highlightedNodeIds` + `setHighlightedNodeIds` | ✅ |
+
+---
+
+## Phase M3.1 — SLO & Error Budget Engine
+
+**Goal**: Add SLI/SLO tracking per-node and compute error budget burn rates to classify SRE health.
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `backend/simulation/models.go` | Added `SLOTargetMs`, `SLOAvailabilityTarget` (config), `IsLatencyBreached`, `IsAvailabilityBreached` (runtime SLI) to `Node`; added SLO/SLI fields to `NodeMetricsSnapshot` |
+| `backend/simulation/metrics.go` | `SnapshotTick` now computes `IsLatencyBreached = P99LatencyMs > SLOTargetMs` and `IsAvailabilityBreached = ErrorRate > (1 - SLOAvailabilityTarget)` per node |
+| `backend/handlers/simulation.go` | Added `GetSLOReport` handler; parses `sloTargetMs`/`sloAvailabilityTarget` from canvas config |
+| `backend/services/sre/calculator.go` | **New** — `GenerateSLOReport()`, `ErrorBudgetRemaining()`, `BurnRate()`, `ClassifyBurnRate()` |
+| `backend/main.go` | Registered `GET /api/simulations/:id/slo-report` |
+
+### SLI Calculation (metrics.go — per tick per node)
+
+```
+latencyOK   = SLO_Target_Ms <= 0 || P99_Latency_Ms <= SLO_Target_Ms
+availOK     = SLO_Availability_Target <= 0 || Error_Rate <= (1 - SLO_Availability_Target)
+
+IsLatencyBreached      = !latencyOK
+IsAvailabilityBreached = !availOK
+```
+
+If `SLOTargetMs` is 0 (unset) the latency SLO is not enforced; same for `SLOAvailabilityTarget`.
+
+### Error Budget (services/sre/calculator.go)
+
+| Formula | Description |
+|---------|-------------|
+| `AllowedErrors = 1 - SLOAvailabilityTarget` | Max tolerable error rate over the window |
+| `BudgetRemaining% = max(0, (Allowed - Actual) / Allowed) × 100` | Percent of error budget left |
+| `BurnRate = ActualErrorRate / AllowedErrorRate` | How fast budget is consumed relative to allowed |
+| `Status = fast_burn` if BurnRate ≥ 14.4 | Budget exhausted in ~2 days |
+| `Status = slow_burn` if BurnRate ≥ 1.0 | Budget exhausted in 30 days |
+| `Status = healthy` otherwise | Budget safe |
+
+**Constants:**
+- `WindowSeconds`: 30 × 24 × 3600 = 2,592,000 (30 days)
+- `FastBurnThreshold`: 14.4 (30 ÷ 14.4 ≈ 2 days)
+- `SlowBurnThreshold`: 1.0 (30 ÷ 1 = 30 days)
+
+### API
+
+```
+GET /api/simulations/:id/slo-report
+```
+
+**Response 200:**
+```json
+{
+  "windowSeconds": 2592000,
+  "nodes": [
+    {
+      "nodeId": "node-1",
+      "sloTargetMs": 200,
+      "sloAvailabilityTarget": 0.999,
+      "actualLatencyMs": 145.32,
+      "actualErrorRate": 0.0023,
+      "latencyBudgetRemainingPercent": 27.3,
+      "availabilityBudgetRemainingPercent": 77.0,
+      "burnRate": 2.55,
+      "status": "slow_burn"
+    }
+  ]
+}
+```
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` | ✅ 0 errors |

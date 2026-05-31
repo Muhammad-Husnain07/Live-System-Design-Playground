@@ -15,6 +15,7 @@ import (
 	"systemdesign/config"
 	"systemdesign/models"
 	"systemdesign/services"
+	"systemdesign/services/sre"
 	"systemdesign/simulation"
 	"systemdesign/ws"
 )
@@ -182,6 +183,17 @@ func parseCanvasToSimNodes(proj *models.ProjectDetailResponse) ([]simulation.Nod
 		if cfg, ok := cn.Data.Config["isPrimaryDB"]; ok {
 			if v, ok := cfg.(bool); ok {
 				n.IsPrimaryDB = v
+			}
+		}
+
+		if cfg, ok := cn.Data.Config["sloTargetMs"]; ok {
+			if v, ok := cfg.(float64); ok {
+				n.SLOTargetMs = v
+			}
+		}
+		if cfg, ok := cn.Data.Config["sloAvailabilityTarget"]; ok {
+			if v, ok := cfg.(float64); ok {
+				n.SLOAvailabilityTarget = v
 			}
 		}
 
@@ -480,6 +492,21 @@ func (h *SimulationHandler) storeRun(runID, projectID, userID string, cfg *simul
 		 VALUES ($1, $2, $3, $4, 'running', $5)`,
 		runID, projectID, userID, string(cfgJSON), time.Now(),
 	)
+}
+
+func (h *SimulationHandler) GetSLOReport(c *fiber.Ctx) error {
+	runID := c.Params("id")
+	if runID == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "simulation run ID required"})
+	}
+
+	engine := h.FindEngine(runID)
+	if engine == nil || !engine.IsRunning() {
+		return c.Status(404).JSON(fiber.Map{"error": "simulation run not found or not running"})
+	}
+
+	report := sre.GenerateSLOReport(engine)
+	return c.JSON(report)
 }
 
 func (h *SimulationHandler) storeTick(runID string, tickNum int, tick *simulation.Tick) {

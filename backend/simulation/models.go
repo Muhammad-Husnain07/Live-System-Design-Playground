@@ -98,6 +98,10 @@ type Node struct {
 	ReplicationLagMs  float64     `json:"replicationLagMs"`
 	ComputeTier       string      `json:"computeTier"`
 
+	// SRE / SLO fields (from canvas config)
+	SLOTargetMs            float64 `json:"sloTargetMs"`
+	SLOAvailabilityTarget  float64 `json:"sloAvailabilityTarget"`
+
 	// Runtime fields (reset per tick)
 	CurrentRPS        float64 `json:"-"`
 	QueueDepth        float64 `json:"-"`
@@ -124,6 +128,9 @@ type Node struct {
 	SpotInterrupted     bool    `json:"-"`
 	BootTicksRemaining  int     `json:"-"`
 	LastScaleDir        string  `json:"-"`
+	// SLI tracking (set per tick by SnapshotTick)
+	IsLatencyBreached      bool `json:"-"`
+	IsAvailabilityBreached bool `json:"-"`
 }
 
 type Edge struct {
@@ -201,7 +208,12 @@ type NodeMetricsSnapshot struct {
 	StaleReadCount      float64  `json:"staleReadCount,omitempty"`
 	IsSplitBrain        bool     `json:"isSplitBrain,omitempty"`
 	DataInconsistency   float64  `json:"dataInconsistency,omitempty"`
-	SpotInterrupted     bool     `json:"spotInterrupted,omitempty"`
+	SpotInterrupted      bool    `json:"spotInterrupted,omitempty"`
+	// SLO / SLI fields
+	SLOTargetMs          float64 `json:"sloTargetMs,omitempty"`
+	SLOAvailabilityTarget float64 `json:"sloAvailabilityTarget,omitempty"`
+	IsLatencyBreached    bool    `json:"isLatencyBreached"`
+	IsAvailabilityBreached bool   `json:"isAvailabilityBreached"`
 }
 
 type Tick struct {

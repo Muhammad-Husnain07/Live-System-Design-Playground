@@ -23,6 +23,10 @@ func SnapshotTick(tickNum int, nodes []Node, edges []Edge, depMgr *DeploymentMan
 			blueGreenGroup = ds.BlueGreenGroup
 		}
 
+		// Compute SLI breaches
+		latencyOK := n.SLOTargetMs <= 0 || n.P99LatencyMs <= n.SLOTargetMs
+		availOK := n.SLOAvailabilityTarget <= 0 || n.ErrorRate <= (1-n.SLOAvailabilityTarget)
+
 		snapshot := NodeMetricsSnapshot{
 			NodeID:            n.ID,
 			NodeType:          n.NodeType,
@@ -62,6 +66,10 @@ func SnapshotTick(tickNum int, nodes []Node, edges []Edge, depMgr *DeploymentMan
 			IsSplitBrain:      n.IsSplitBrain,
 			DataInconsistency: n.DataInconsistency,
 			SpotInterrupted:   n.SpotInterrupted,
+			SLOTargetMs:       n.SLOTargetMs,
+			SLOAvailabilityTarget: n.SLOAvailabilityTarget,
+			IsLatencyBreached:     !latencyOK,
+			IsAvailabilityBreached: !availOK,
 		}
 		metrics = append(metrics, snapshot)
 
