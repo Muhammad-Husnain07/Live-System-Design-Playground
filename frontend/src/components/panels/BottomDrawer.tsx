@@ -9,7 +9,11 @@ import { useChaosStore } from "../../store/chaosStore";
 import { useDeployStore } from "../../store/deploymentStore";
 import { useSecurityStore } from "../../store/securityStore";
 import { useIncidentStore } from "../../store/incidentStore";
+import { useSLOStore } from "../../store/sloStore";
+import { useCanvasStore } from "../../store/canvasStore";
+import { useToastStore } from "../../store/toastStore";
 import IncidentTimeline from "./IncidentTimeline";
+import SLOPanel from "./SLOPanel";
 import { Box, Typography, Tabs, Tab, IconButton, List, ListItem, ListItemText, Paper } from "@mui/material";
 
 const CHART_GRID = { strokeDasharray: "3 3", stroke: "#27272a" };
@@ -60,6 +64,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
   const chaosEvents = useChaosStore((s) => s.activeEvents);
   const deployStates = useDeployStore((s) => s.nodeStates);
   const violations = useSecurityStore((s) => s.violations);
+  const sloReport = useSLOStore((s) => s.sloReport);
 
   const addEvent = useCallback((type: EventEntry["type"], icon: string, message: string, detail: string) => {
     eventCounter += 1;
@@ -74,8 +79,12 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
     prevRunning.current = isRunning;
     addEvent("simulation", isRunning ? "▶" : "■", isRunning ? "Simulation running" : "Simulation stopped", `elapsed ${Math.floor(elapsed / 60)}m ${elapsed % 60}s`);
 
-    if (!isRunning && useIncidentStore.getState().activeScenario) {
-      useIncidentStore.getState().generatePostMortem(ticks);
+    if (!isRunning) {
+      useSLOStore.getState().clearSLOData();
+      useCanvasStore.getState().setFastBurnNodeIds([]);
+      if (useIncidentStore.getState().activeScenario) {
+        useIncidentStore.getState().generatePostMortem(ticks);
+      }
     }
   }, [isRunning, elapsed, addEvent, ticks]);
 
@@ -120,6 +129,57 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
       }
     }
   }, [latestTick]);
+
+  const sloIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (isRunning) {
+      const doFetch = () => {
+        useSLOStore.getState().fetchSLOReport(projectId);
+      };
+      doFetch();
+      sloIntervalRef.current = setInterval(doFetch, 3000);
+    } else {
+      if (sloIntervalRef.current) {
+        clearInterval(sloIntervalRef.current);
+        sloIntervalRef.current = null;
+      }
+    }
+    return () => {
+      if (sloIntervalRef.current) {
+        clearInterval(sloIntervalRef.current);
+        sloIntervalRef.current = null;
+      }
+    };
+  }, [isRunning, projectId]);
+
+  useEffect(() => {
+    if (!sloReport) return;
+    const fastBurnIds = sloReport.nodes.filter((n) => n.status === "fast_burn").map((n) => n.nodeId);
+    useCanvasStore.getState().setFastBurnNodeIds(fastBurnIds);
+  }, [sloReport]);
+
+  useEffect(() => {
+    if (!sloReport) return;
+    const addToast = useToastStore.getState().addToast;
+    const alerted = useSLOStore.getState().alertedBudgetExhausted;
+    for (const node of sloReport.nodes) {
+      if (node.availabilityBudgetRemainingPercent <= 0 && !alerted.includes(node.nodeId)) {
+        addToast({
+          type: "error",
+          title: "SLO Violation",
+          message: `${node.label} has exhausted its error budget!`,
+          duration: 6000,
+        });
+        useSLOStore.setState({ alertedBudgetExhausted: [...useSLOStore.getState().alertedBudgetExhausted, node.nodeId] });
+      }
+    }
+  }, [sloReport]);
+
+  useEffect(() => {
+    if (!isRunning) {
+      useCanvasStore.getState().setFastBurnNodeIds([]);
+    }
+  }, [isRunning]);
 
   const p99Latency = useMemo(() => {
     if (!latestTick || latestTick.nodeMetrics.length === 0) return 0;
@@ -239,6 +299,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
               <Tab label="Metrics Charts" />
               <Tab label="Event Log" />
               <Tab label="Incident Timeline" />
+              <Tab label="SLOs" />
             </Tabs>
 
             <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -331,6 +392,8 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
                   <IncidentTimeline />
                 </Box>
               )}
+
+              {activeTab === 3 && <SLOPanel />}
             </Box>
           </motion.div>
         )}
