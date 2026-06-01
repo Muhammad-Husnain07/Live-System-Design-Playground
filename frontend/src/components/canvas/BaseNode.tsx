@@ -124,6 +124,7 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
   const bgBorderColor = deployStrategy === "blue_green" && bgActiveGroup === "green" ? "#22C55E" : deployStrategy === "blue_green" && bgActiveGroup === "blue" ? "#3B82F6" : null;
   const hasChaos = useChaosStore((s) => s.activeNodeIds.includes(nodeId));
   const isSecurityHighlighted = useSecurityStore((s) => s.highlightedNodeIds.includes(nodeId));
+  const isFastBurn = useCanvasStore((s) => s.fastBurnNodeIds.includes(nodeId));
   const exportMode = useCanvasStore((s) => s.exportMode);
   const compatStatus = NODE_COMPAT[nodeType] ?? "skipped";
   const nodeCost = useFinOpsStore((s) => s.nodeCosts.find((c) => c.nodeId === id));
@@ -158,6 +159,15 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
       <Handle type="target" position={Position.Top} id="top" isConnectable={isConnectable} style={{ ...handleStyle, opacity: hovered ? 1 : 0 }} />
       <Handle type="source" position={Position.Bottom} id="bottom" isConnectable={isConnectable} style={{ ...handleStyle, opacity: hovered ? 1 : 0 }} />
 
+      {isFastBurn && !isFailed && (
+        <Box
+          sx={{
+            position: "absolute", inset: 0, zIndex: 12, pointerEvents: "none", borderRadius: 1,
+            background: "radial-gradient(circle at 50% 50%, transparent 40%, rgba(239,68,68,0.35) 100%)",
+            animation: "pulse-red 1.5s ease-in-out infinite",
+          }}
+        />
+      )}
       {isFailed && (
         <Box sx={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
           <Chip size="small" color="error" label="FAILED" icon={<X size={12} />} />

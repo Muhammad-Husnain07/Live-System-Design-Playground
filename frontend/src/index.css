@@ -167,3 +167,8 @@ body {
   20% { color: #22c55e; }
   100% { color: #f4f4f5; }
 }
+
+@keyframes pulse-red {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
