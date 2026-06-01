@@ -7375,304 +7375,92 @@ Optimize the visual and interactive UX of the ReactFlow canvas to feel like a pr
 |-------|--------|
 | `go build ./...` | ✅ 0 errors |
 
-### Verification: PASSED — 2026-05-31
-
-| Check | Result |
-|-------|--------|
-| `go build ./...` | ✅ 0 errors |
-| `tsc --noEmit` | ✅ 0 errors |
-
-| Cross-Check | Status |
-|-------------|--------|
-| `Node` struct has `SLOTargetMs` (json: `sloTargetMs`) and `SLOAvailabilityTarget` (json: `sloAvailabilityTarget`) | ✅ |
-| `Node` struct has `IsLatencyBreached`, `IsAvailabilityBreached` (runtime, `json:"-"`) | ✅ |
-| `NodeMetricsSnapshot` has `SLOTargetMs`, `SLOAvailabilityTarget`, `IsLatencyBreached`, `IsAvailabilityBreached` | ✅ |
-| `SnapshotTick` computes `latencyOK = SLO_Target_Ms <= 0 \|\| P99 <= SLO_Target_Ms` | ✅ |
-| `SnapshotTick` computes `availOK = SLO_Avail_Target <= 0 \|\| Error_Rate <= (1 - Avail_Target)` | ✅ |
-| `backend/services/sre/calculator.go` exists with `NodeSLOStatus`, `SLOReport` structs | ✅ |
-| `ErrorBudgetRemaining()` returns `max(0, (allowed - actual) / allowed) × 100` | ✅ |
-| `BurnRate()` returns `actualErrorRate / allowedErrorRate` | ✅ |
-| `ClassifyBurnRate()` returns healthy/slow_burn/fast_burn with thresholds 1.0 / 14.4 | ✅ |
-| `GenerateSLOReport(engine)` aggregates all ticks and produces per-node SLO status | ✅ |
-| Canvas parsing reads `sloTargetMs` and `sloAvailabilityTarget` from node config | ✅ |
-| `GET /api/simulations/:id/slo-report` registered in `main.go:101` | ✅ |
-| Handler validates runID, finds engine, checks running, returns `SLOReport` JSON | ✅ |
-| `sre` import added to `backend/handlers/simulation.go` | ✅ |
-| `vite build` | ✅ built in 2.69s (3884 modules) |
-
-### Verification: PASSED — 2026-05-30
-
-| Check | Result |
-|-------|--------|
-| Background `variant="dots" gap={20} size={1}` | ✅ |
-| Green selection box CSS | ✅ |
-| `panOnScroll` enabled | ✅ |
-| `deleteKeyCode` removed | ✅ |
-| Delete key handler with input guard + undo | ✅ |
-| Edge type `"smoothstep"` | ✅ |
-| `getSmoothStepPath` + `borderRadius: 12` | ✅ |
-| `smoothstep: CustomEdge` registered | ✅ |
-| `tsc --noEmit` ✅ · `go build ./...` ✅ · `vite build` ✅ | ✅ |
-
-## Phase UI-5 — Component Rendering Performance — 2026-05-30
-
-### Goal
-Aggressively optimize frontend rendering performance so complex simulations don't drop frames or cause UI stuttering.
-
-### Changes
-
-| File | Change |
-|------|--------|
-| `frontend/src/App.tsx` | Refactored `useAuthStore()` to `useShallow` selector |
-| `frontend/src/pages/LoginPage.tsx` | Refactored `useAuthStore()` to `useShallow` selector |
-| `frontend/src/pages/RegisterPage.tsx` | Refactored `useAuthStore()` to `useShallow` selector |
-| `frontend/src/pages/DashboardPage.tsx` | Refactored `useAuthStore()` + `useProjectStore()` to `useShallow` selectors |
-| `frontend/src/pages/ProfilePage.tsx` | Refactored `useAuthStore()` to `useShallow` selector |
-| `frontend/src/pages/ProjectPage.tsx` | Refactored `useProjectStore()` + `useCanvasStore()` to `useShallow` selectors |
-| `frontend/src/pages/ObservabilityPage.tsx` | Refactored `useProjectStore()` to individual selector |
-| `frontend/src/pages/LeaderboardPage.tsx` | Refactored `useChallengeStore()` to `useShallow` selector |
-| `frontend/src/pages/ChallengesPage.tsx` | Refactored `useChallengeStore()` to `useShallow` selector |
-| `frontend/src/components/toolbar/TopToolbar.tsx` | Refactored `useProjectStore()` + `useAuthStore()` to `useShallow` selectors |
-| `frontend/src/components/ui/ProtectedRoute.tsx` | Refactored `useAuthStore()` to individual selectors |
-| `frontend/src/components/panels/ChaosPanel.tsx` | Refactored `useChaosStore()` to `useShallow` selector |
-| `frontend/src/components/panels/ExportModal.tsx` | Refactored `useExportStore()` to `useShallow` selector |
-| `frontend/src/components/panels/NodeConfigPanel.tsx` | Added 300ms debounce on all TextField onChange handlers; ref-based callback to avoid stale closures |
-
-### Zustand Selector Optimization
-
-**Problem:** `const { nodes, edges } = useCanvasStore()` subscribes to every state field. A simulation tick updating metrics on one node triggers re-render in every component using the whole store.
-
-**Fix:** Refactored all 14 bad subscriptions across 13 files to use:
-- `useShallow` from `zustand/react/shallow` - shallow-compares returned objects so components only re-render when their specific slices change
-- Individual selectors where only 1-2 fields are needed
-
-### ReactFlow Node Memoization
-
-All 6 canvas node/edge components already wrapped in React.memo - no changes needed.
-
-### Recharts Memoization
-
-All chart components and data arrays already memoized with React.memo + useMemo - no changes needed.
-
-### Debounce Config Inputs
-
-**Problem:** Every keystroke in NodeConfigPanel TextField inputs called `updateNodeConfig()`, updating Zustand state, marking isDirty, and cascading re-renders.
-
-**Fix:** Added 300ms debounce wrapper inside NodeConfigContent using ref-based callback to avoid stale closures when switching selected nodes while a debounce is pending. Only TextField handlers debounced; selects/sliders/switches bypass debounce.
-
-### Build Results
-
-| Check | Result |
-|-------|--------|
-| `tsc --noEmit` | ✅ 0 errors |
-| `vite build` | ✅ 2.12s (3884 modules) |
-| `go build ./...` | ✅ 0 errors |
-
-### Verification: PASSED — 2026-05-30
-
-| Check | Result |
-|-------|--------|
-| 14 bad Zustand subscriptions refactored across 13 files | ✅ |
-| NodeConfigPanel - 12 TextField onChange handlers debounced at 300ms | ✅ |
-| Ref-based callback prevents stale closure on node switch | ✅ |
-| `tsc --noEmit` - 0 errors | ✅ |
-| `vite build` - 3884 modules, 2.12s | ✅ |
-| `go build ./...` - 0 errors | ✅ |
-
-### Re-Verification: PASSED — 2026-05-30
-
-All Phase UI-6 items verified. No additional fixes needed.
-
-| Check | Result |
-|-------|--------|
-| `useSimulation.ts` — `onTick` removed from WS `onmessage`, ticks buffered via `tickQueueRef`, `appendTicks(batch)` called per rAF frame | ✅ |
-| `simulationStore.ts` — `appendTicks(newTicks)` action with batch append, 5000 max | ✅ |
-| `ProjectPage.tsx` — `onlyRenderVisibleElements=true`, `canvasExtent=[[0,0],[5000,5000]]` | ✅ |
-| `finOps.worker.ts` — Created with complete pricing rules, node cost calc, per-request/storage/egress costs, scaling projections, recommendations | ✅ |
-| `FinOpsPanel.tsx` — API call replaced with Web Worker, `useRef` for worker lifecycle, `edges` from store | ✅ |
-| `tsc --noEmit` — 0 errors | ✅ |
-| `vite build` — 3884 modules, 8.78KB worker chunk | ✅ |
-| `go build ./...` — 0 errors | ✅ |
-
-## Phase UI-6 — High-Frequency Data & Canvas Performance — 2026-05-30
-
-### Goal
-Optimize WebSocket tick batching to eliminate unnecessary Zustand updates, add ReactFlow virtualization for large canvases, and offload FinOps cost calculations to a Web Worker.
-
-### Changes
-
-| File | Change |
-|------|--------|
-| `frontend/src/hooks/useSimulation.ts` | Moved `onTick()` call inside rAF callback — ticks are buffered in `tickQueueRef`, then `appendTicks(batch)` called once per frame + `applyTickToCanvas(latest)` only for latest tick |
-| `frontend/src/store/simulationStore.ts` | Added `appendTicks(newTicks)` action — batch-appends multiple ticks to history in a single `set()` call |
-| `frontend/src/pages/ProjectPage.tsx` | Added `onlyRenderVisibleElements` prop to `<ReactFlow>`; tightened `canvasExtent` from `[[-10000,-10000],[10000,10000]]` to `[[0,0],[5000,5000]]` |
-| `frontend/src/workers/finOps.worker.ts` | **New** — Web Worker with complete cost estimation logic (pricing rules, tier multipliers, per-request/storage/egress costs, scaling projections) matching backend calculator |
-| `frontend/src/components/panels/FinOpsPanel.tsx` | Replaced API call with Web Worker: posts canvas data to worker via `postMessage`, receives `CostReport` as response; removed `api` import |
-
-### WS Tick Batching
-
-**Problem:** `onTick(tick)` was called on every WebSocket message (up to 100msg/s at 10× speed), immediately updating Zustand state and triggering N re-renders per frame.
-
-**Fix:** Ticks are pushed to `tickQueueRef` on each WS message; `requestAnimationFrame` fires at ~60fps, consumes the entire batch with a single `appendTicks(batch)` store call, and `applyTickToCanvas(latest)` updates canvas nodes/edges only for the last (latest) tick. This reduces subscription notifications from N-per-frame to 1-per-frame.
-
-### ReactFlow Virtualization
-
-- `onlyRenderVisibleElements={true}` — ReactFlow skips rendering off-screen nodes, improving scroll/pan performance on large canvases
-- `nodeExtent` / `translateExtent` tightened to `[[0,0],[5000,5000]]` — prevents infinite panning and enables correct viewport culling
-
-### FinOps Web Worker
-
-- `finOps.worker.ts` implements the full AWS-style cost calculation: compute tiers (on_demand/reserved/spot), per-request DB pricing, tiered S3 storage, CDN/DNS usage, edge egress (inter-region/internet)
-- Worker receives `WorkerNodeData[]` + `WorkerEdge[]` + `monthlyUsers`, posts back a full `CostReport` with 4 scaling projections and recommendations
-- FinOpsPanel creates the worker on each `handleCalculate` call, terminates previous worker (avoids stale results), and updates the store from the worker response
-
-### Build Results
-
-| Check | Result |
-|-------|--------|
-| `tsc --noEmit` | ✅ 0 errors |
-| `vite build` | ✅ 1.84s (3884 modules, worker chunk: 8.78KB) |
-| `go build ./...` | ✅ 0 errors |
-
-### Verification: PASSED — 2026-05-30
-
-| Check | Result |
-|-------|--------|
-| `useSimulation.ts` — `onTick` removed from WS `onmessage`, ticks buffered via `tickQueueRef`, `appendTicks(batch)` called once per rAF frame | ✅ |
-| `simulationStore.ts` — `appendTicks(newTicks)` action with batch append and max 5000 tick history | ✅ |
-| `ProjectPage.tsx` — `onlyRenderVisibleElements` prop added, `nodeExtent`/`translateExtent` changed to `[[0,0],[5000,5000]]` | ✅ |
-| `frontend/src/workers/finOps.worker.ts` — Created with complete pricing rules, calculateNodeCost, per-request cost, tiered storage, edge egress, scaling projections, recommendations | ✅ |
-| `FinOpsPanel.tsx` — Replaced API call with Web Worker, imports `useRef` + creates worker on calculate, handles worker messages | ✅ |
-| `tsc --noEmit` — 0 errors | ✅ |
-| `vite build` — 3884 modules, 8.78KB worker chunk | ✅ |
-| `go build ./...` — 0 errors | ✅ |
-
-## Phase M1.1 — Enterprise Architecture Templates — 2026-05-31
-
-### Goal
-Replace basic demo templates with 4 real-world enterprise architecture templates that fully configure NodeConfig (instances, maxRPS, latency, cache hit ratios, VPCs, auto-scaling, deployment strategies) and EdgeRoutingConfig (protocol, sync/async, traffic percent, TLS, throughput).
-
-### Templates Created
-
-| Template | Nodes | Edges | Total Instances | Peak RPS |
-|----------|-------|-------|-----------------|----------|
-| **Netflix-Scale Media Delivery** | DNS → CDN → APIGateway → Auth Service + Recommend Engine + Kafka → 40 Encoding Workers | 8 edges (HTTP/TCP/AMQP, sync + async) | ~154 | ~100K |
-| **Uber Real-time Dispatch** | Mobile → LB → WebSocket Servers → Dispatch Engine → Redis Geospatial + PostgreSQL | 5 edges (WebSocket/gRPC/TCP/HTTP) | ~36 | ~200K |
-| **E-Commerce Black Friday** | Shoppers → CDN → ALB → Cart Service + Order Queue → Primary DB + 2 Read Replicas | 9 edges (HTTP/AMQP/TCP/Replication) | ~79 | ~100K |
-| **HFT Pipeline** | MarketFeed → Kafka → StreamProcessor → MatchingEngine → OrderGateway (sub-5ms path) | 4 edges (TCP/gRPC/HTTP) | ~27 | ~100K |
-
-### Files Modified
-
-| File | Change |
-|------|--------|
-| `frontend/src/pages/ProjectPage.tsx` | Replaced 4 basic templates with 4 enterprise templates; `build()` now returns `{ nodes, edges }` with full configs; `applyTemplate()` destructures and adds edges via `cs.addEdge()` |
-| `frontend/src/types/canvas.ts` | Added `EdgeRoutingConfig` to imports in ProjectPage (make `protocol` type available for `e()` helper) |
-
-### Template Features
-
-All 4 templates include:
-- **NodeConfig**: `instances`, `maxRPS`, `latencyMs`, `region`, `cacheHitRatio`, `isPrimaryDB`, `replicationRole`, `replicationLagMs`, `autoScaling` (enabled/min/max/targets), `deployment` (strategy/canary/blue-green), `security` (vpcId, TLS, publicFacing), `computeTier`
-- **EdgeRoutingConfig**: `protocol` (HTTP/WebSocket/gRPC/TCP/AMQP/Replication), `isSync`, `trafficPercent`, `requiresTLS`, `packetLoss`, `jitterMs`
-- **Edge data**: `throughputRPS`, `latencyMs`, `isAnimated` (traffic dots), `isSecure`
-- Visual variety: sync edges (solid), async edges (dashed), animated traffic flows, Replication protocol edges
-
-### Build Results
-
-| Check | Result |
-|-------|--------|
-| `tsc --noEmit` | ✅ 0 errors |
-| `vite build` | ✅ built in 2.79s (3884 modules) |
-| `go build ./...` | ✅ 0 errors |
-
-### Verification: PASSED — 2026-05-31
-
-| Check | Result |
-|-------|--------|
-| 4 enterprise templates present (netflix-media, uber-dispatch, ecommerce-bf, hft-pipeline) | ✅ |
-| Each `build()` returns `{ nodes: Node[], edges: Edge[] }` | ✅ |
-| `applyTemplate()` destructures `edges` and calls `cs.addEdge(e)` | ✅ |
-| All nodes have full config (instances, maxRPS, latency, region, cacheHitRatio, autoScaling, deployment, security, VPC) | ✅ |
-| All edges have full routing config (protocol, sync/async, trafficPercent, TLS, throughput, animated) | ✅ |
-| 4 different protocols used (HTTP, WebSocket, gRPC, TCP, AMQP, Replication) | ✅ |
-| Sync edges (solid lines) + async edges (dashed lines) both present | ✅ |
-| `EdgeRoutingConfig` type imported in ProjectPage.tsx | ✅ |
-| `e()` helper spreads `...overrides` before explicit fields to prevent routing object overwrite (latent bug fix) | ✅ |
-
-## Phase M1.2 — Template Hub UI — 2026-05-31
-
-### Goal
-Build a professional Template Hub for users to browse, preview, and deploy the 4 enterprise architecture templates as new projects.
+## Phase M3.2 — SLO Dashboard UI
 
 ### Files Created
 
 | File | Purpose |
 |------|---------|
-| `frontend/src/utils/enterpriseTemplates.ts` | Shared module extracting template definitions from ProjectPage.tsx — includes `DEFAULT_SIM`/`DEFAULT_METRICS` constants, `n()`/`e()` helpers, `EnterpriseTemplate` interface with metadata + build function, and `ENTERPRISE_TEMPLATES` array |
-| `frontend/src/pages/TemplateHubPage.tsx` | Full-page template browser with responsive MUI Card grid, detail Dialog with component/edge preview, and "Use Template" create-project flow |
+| `frontend/src/store/sloStore.ts` | Zustand store: `sloReport` (SLOReport \| null), `loading`, `alertedBudgetExhausted` (nodeIds that have triggered alerts); actions: `fetchSLOReport(simId)` calls `GET /api/simulations/:id/slo-report`, `clearSLOData()` |
+| `frontend/src/components/panels/SLOPanel.tsx` | MUI `<Table>` with columns Service, SLO Target, Actual, Error Budget Remaining (progress bar), Burn Rate. Color-coded rows: green (healthy), yellow (slow_burn), red (fast_burn). LinearProgress bar for budget remaining. |
 
 ### Files Modified
 
 | File | Change |
 |------|--------|
-| `frontend/src/pages/ProjectPage.tsx` | Removed inline `DEFAULT_SIM`/`DEFAULT_METRICS` constants and 4 template definitions; replaced `allTemplates = useMemo(...)` with `const allTemplates = ENTERPRISE_TEMPLATES` import from shared module; cleaned up unused type imports |
-| `frontend/src/App.tsx` | Added `/templates` route under `ProtectedRoute` → `TemplateHubPage` |
-| `frontend/src/pages/DashboardPage.tsx` | Added "Templates" button in the header action bar next to Import/New Project, navigates to `/templates` |
+| `frontend/src/store/canvasStore.ts` | Added `fastBurnNodeIds: string[]` state + `setFastBurnNodeIds(ids)` action — drives red vignette overlay on canvas nodes in fast-burn status |
+| `frontend/src/components/canvas/BaseNode.tsx` | Subscribes to `useCanvasStore(s => s.fastBurnNodeIds.includes(nodeId))`; renders a red radial-gradient vignette overlay (inset-0, pointerEvents=none) with `pulse-red` animation when `isFastBurn && !isFailed` |
+| `frontend/src/components/panels/BottomDrawer.tsx` | Added SLOs tab (tab 3) — imports `SLOPanel`, renders `<SLOPanel />` at `activeTab === 3`; imports `useSLOStore`, `useCanvasStore`, `useToastStore`; adds polling interval (every 3s) for SLO report when simulation runs; syncs `fastBurnNodeIds` from sloReport nodes with `status === "fast_burn"`; fires toast alert when a node's `availabilityBudgetRemainingPercent <= 0`; clears fastBurnNodeIds and SLO data on simulation stop |
+| `frontend/src/index.css` | Added `@keyframes pulse-red` (0%/100% opacity 0.6, 50% opacity 1) for the fast-burn canvas vignette animation |
 
-### Template Hub UI
+### SLO Table Columns
 
-**Card Grid** (2-column responsive):
-- Each `<Card>` displays: emoji icon + title, scale badge (e.g. "100K RPS"), description text, industry tag (`<Chip>`), instances count, node count
-- Cards have hover feedback (`borderColor: "primary.main"` + blue box-shadow)
-- Cards open the preview Dialog on click
+| Column | Content |
+|--------|---------|
+| **Service** | Node label (from sloReport) |
+| **SLO Target** | Availability target (e.g. `99.90%`) + latency target if configured (e.g. `/ 200ms`) |
+| **Actual** | Actual availability (e.g. `99.77%`) + actual p99 latency if configured |
+| **Error Budget Remaining** | `<LinearProgress>` bar (0-100%) + percentage label; color-coded by status |
+| **Burn Rate** | e.g. `2.6x (Slow)` or `15.1x (Fast)` — color-coded by status |
 
-**Preview Dialog** (`<Dialog maxWidth="md">`):
-- Title bar: template icon + name + scale badge
-- Metadata row: industry chip, instance count, peak RPS
-- Description text
-- **Components panel**: Left column shows all nodes with type-specific emoji icons + labels; Right column shows all edges with protocol-colored dots + source→target labels + protocol chips
-- Protocol colors match `CustomEdge.tsx` color map (HTTP=#3B82F6, WebSocket=#EC4899, gRPC=#A855F7, TCP=#F97316, AMQP=#F59E0B, Replication=#EF4444)
-- Industry tag colors: Media=purple, RideShare=cyan, E-Commerce=orange, Finance=green
+### Row Color Coding
 
-**"Use Template" Flow**:
-1. Calls `tpl.build(0, 0)` to generate fresh nodes/edges with unique IDs
-2. Calls `createProject(tpl.label, desc, false)` to create a new project
-3. Calls `saveCanvas(projectId, { nodes, edges, viewport })` to seed the canvas data
-4. Navigates to `/project/${projectId}`
-5. Shows success/error toast
+| Status | Background | Text / Bar Color |
+|--------|-----------|------------------|
+| `healthy` | Transparent | `#22c55e` (green) |
+| `slow_burn` | `rgba(250,204,21,0.08)` | `#facc15` (yellow) |
+| `fast_burn` | `rgba(239,68,68,0.08)` | `#ef4444` (red) |
+
+### Canvas Node Overlay
+
+When a node's SLO status is `"fast_burn"`, `BaseNode.tsx` renders an absolutely-positioned overlay:
+- `radial-gradient(circle at 50% 50%, transparent 40%, rgba(239,68,68,0.35) 100%)`
+- `animation: pulse-red 1.5s ease-in-out infinite` (pulses opacity between 0.6 and 1)
+- `pointerEvents: "none"` (non-interactive)
+- Only shown when `!isFailed` (failed state takes priority)
+
+### Alert Toasts
+
+When any node's `availabilityBudgetRemainingPercent <= 0`:
+- Fires a toast via `useToastStore.addToast()` with type `"error"`
+- Title: `"SLO Violation"`
+- Message: `"${node.label} has exhausted its error budget!"`
+- Duration: 6 seconds
+- Tracks alerted nodes in `sloStore.alertedBudgetExhausted` to avoid duplicate alerts per session
+
+### Data Flow
+
+```
+Simulation running
+  → BottomDrawer polls GET /api/simulations/:id/slo-report every 3s
+  → sloStore.fetchSLOReport() updates sloReport
+  → SLOPanel re-renders with new data
+  → BottomDrawer effects (via sloReport dependency):
+     1. Sync fastBurnNodeIds to canvasStore → BaseNode shows red vignette
+     2. Check budget exhaustion → fire toast alert
+  → Simulation stops → clear fastBurnNodeIds, clear SLO data
+```
 
 ### Build Results
 
 | Check | Result |
 |-------|--------|
-| `tsc -b` | ✅ 0 errors from Phase M1.2 files |
-| `vite build` | ✅ 3886 modules, 1.48s |
+| `tsc --noEmit` | ✅ 0 errors |
 | `go build ./...` | ✅ 0 errors |
 
-### Verification: FIXED — 2026-05-31
-
-| Issue | Fix |
-|-------|-----|
-| `TemplateHubPage.tsx:9` — `CardActions` imported but unused | Removed from import |
-| `TemplateHubPage.tsx:178` — `PaperProps` removed in MUI v9 (replaced by `slotProps.paper`) | Changed to `slotProps={{ paper: { sx: ... } }}` |
-| `TemplateHubPage.tsx:254` — `import { Fragment }` test line left behind | Removed |
+### Verification: PASSED — 2026-06-01
 
 | Check | Result |
 |-------|--------|
-| `/templates` route adds under ProtectedRoute | ✅ |
-| Template Hub accessible from Dashboard "Templates" button | ✅ |
-| 4 enterprise template Cards render in responsive 2-col grid | ✅ |
-| Card shows: title, icon, industry tag, scale badge, instances, description | ✅ |
-| Click opens Dialog with node list (left) + edge list (right) | ✅ |
-| Dialog shows protocol-colored dots + chips for each edge | ✅ |
-| Industry tag colors correct (Media, RideShare, E-Commerce, Finance) | ✅ |
-| "Use Template" creates project, saves canvas, navigates to project | ✅ |
-| Loading state disables buttons, error toast on failure | ✅ |
-| User menu (profile/logout) in header | ✅ |
-| `enterpriseTemplates.ts` shared module — `ENTERPRISE_TEMPLATES` imported by both ProjectPage and TemplateHubPage | ✅ |
-| ProjectPage.tsx refactored — no inline template definitions remaining | ✅ |
-| `tsc -b` 0 errors from Phase M1.2 files · `vite build` 3886 modules · `go build ./...` 0 errors | ✅ |
-
----
+| HANDOFF.md — Phase M3.2 section documents files, columns, color coding, canvas overlay, alert toasts, data flow | ✅ |
+| `sloStore.ts` — NodeSLOStatus/SLOReport interfaces, Zustand store with fetchSLOReport/clearSLOData, alertedBudgetExhausted tracking | ✅ |
+| `SLOPanel.tsx` — MUI Table with 5 columns (Service/SLO Target/Actual/Error Budget/Burn Rate), color-coded rows, LinearProgress bar, empty/loading states | ✅ |
+| `canvasStore.ts` — `fastBurnNodeIds` state + `setFastBurnNodeIds` action declared and implemented | ✅ |
+| `BaseNode.tsx` — `isFastBurn` subscription to `useCanvasStore(s => s.fastBurnNodeIds.includes(nodeId))`, red radial-gradient vignette overlay with `pulse-red` animation, condition `!isFailed` | ✅ |
+| `BottomDrawer.tsx` — SLOs tab (tab 3) with `<SLOPanel />`, sloStore/canvasStore/toastStore imports, 3s polling interval on simulation run, fastBurnNodeIds sync, budget exhaustion toast alert, clear on stop | ✅ |
+| `index.css` — `@keyframes pulse-red` (0%/100% opacity 0.6, 50% opacity 1) | ✅ |
+| `tsc --noEmit` — 0 errors | ✅ |
+| `go build ./...` — 0 errors | ✅ |
 
 ## Phase M2.1 — Incident Replay Engine
 
