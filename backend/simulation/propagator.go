@@ -243,6 +243,9 @@ type PropagationContext struct {
 	retryBuffer map[string]float64
 	// TCP connection tracking per node: activeConnections per tick
 	tcpConnections map[string]float64
+	// FailoverTracker tracks when each node first entered the failed state.
+	// Used by DNS failover to redirect traffic after DNSFailoverDelayTicks.
+	FailoverTracker map[string]int
 }
 
 func NewPropagationContext(cfg *Config) *PropagationContext {
@@ -256,6 +259,7 @@ func NewPropagationContext(cfg *Config) *PropagationContext {
 		rng:             rand.New(rand.NewSource(time.Now().UnixNano())),
 		retryBuffer:     make(map[string]float64),
 		tcpConnections:  make(map[string]float64),
+		FailoverTracker: make(map[string]int),
 	}
 	for i := range cfg.Nodes {
 		ctx.Nodes[cfg.Nodes[i].ID] = &cfg.Nodes[i]
@@ -273,7 +277,7 @@ func NewPropagationContext(cfg *Config) *PropagationContext {
 	return ctx
 }
 
-func (ctx *PropagationContext) PropagateTick(baseRPS float64) {
+func (ctx *PropagationContext) PropagateTick(baseRPS float64, tickNum int) {
 	nodeMap := ctx.Nodes
 	cycleBreakSet := make(map[string]bool)
 	prevInCycle := make(map[string]bool)
@@ -362,9 +366,27 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64) {
 		}
 
 		if n.IsFailed {
+			failedTick, tracked := ctx.FailoverTracker[n.ID]
+			if !tracked {
+				ctx.FailoverTracker[n.ID] = tickNum
+				failedTick = tickNum
+			}
+			ticksSinceFailure := tickNum - failedTick
+
+			// After DNS propagation delay, redirect traffic to replica in another region
+			if ticksSinceFailure >= DNSFailoverDelayTicks {
+				replicaID, _ := FindReplicaInOtherRegion(nodeMap, n.ID)
+				if replicaID != "" {
+					if replica, ok := nodeMap[replicaID]; ok {
+						replica.IncomingRPS += n.IncomingRPS
+					}
+				}
+			}
+
 			n.CurrentRPS = 0
+			dropped := n.IncomingRPS
 			n.IncomingRPS = 0
-			n.DroppedRequests = n.IncomingRPS
+			n.DroppedRequests = dropped
 			continue
 		}
 
@@ -593,6 +615,18 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64) {
 				// ── Network Physics on Edge ─────────────────────────
 				// Apply jitter: actual latency = baseLatency + uniform(-JitterMs, +JitterMs)
 				baseLatency := n.LatencyMs
+
+				// Inter-region latency: add network transit time when source and target
+				// nodes are deployed in different geographic regions.
+				if tgtNode, ok := nodeMap[e.Target]; ok && n.Region != "" && tgtNode.Region != "" && n.Region != tgtNode.Region {
+					interLat := GetInterRegionLatency(n.Region, tgtNode.Region)
+					baseLatency += interLat
+					// Sync (blocking) calls across regions suffer double the impact
+					if e.IsSync {
+						baseLatency += interLat
+					}
+				}
+
 				actualLatency := baseLatency
 				if e.JitterMs > 0 {
 					jitter := (ctx.rng.Float64()*2 - 1.0) * e.JitterMs

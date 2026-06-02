@@ -272,6 +272,13 @@ func (e *Engine) Config() *Config {
 	return e.config
 }
 
+// GetNodeMap returns the active node map from the propagation context.
+func (e *Engine) GetNodeMap() map[string]*Node {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.ctx.Nodes
+}
+
 func (e *Engine) runLoop() {
 	totalTicks := e.config.DurationSeconds
 	if e.config.TickRateMs > 0 {
@@ -357,7 +364,7 @@ func (e *Engine) RunTick() {
 
 	applySpotInterruptions(ctx.Nodes)
 
-	ctx.PropagateTick(rps)
+	ctx.PropagateTick(rps, tickNum)
 
 	// Auto-scaling evaluates utilization metrics computed inside PropagateTick
 	ApplyAutoScaling(ctx.Nodes, tickNum)
