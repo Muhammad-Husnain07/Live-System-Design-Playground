@@ -118,6 +118,11 @@ func parseCanvasToSimNodes(proj *models.ProjectDetailResponse) ([]simulation.Nod
 				n.ErrorRate = v
 			}
 		}
+		if cfg, ok := cn.Data.Config["region"]; ok {
+			if v, ok := cfg.(string); ok {
+				n.Region = v
+			}
+		}
 		if cfg, ok := cn.Data.Config["isFailed"]; ok {
 			if v, ok := cfg.(bool); ok {
 				n.IsFailed = v
@@ -507,6 +512,92 @@ func (h *SimulationHandler) GetSLOReport(c *fiber.Ctx) error {
 
 	report := sre.GenerateSLOReport(engine)
 	return c.JSON(report)
+}
+
+type FailoverTestRequest struct {
+	ProjectID     string `json:"projectId"`
+	FailingRegion string `json:"failingRegion"`
+}
+
+type FailoverTestResponse struct {
+	SimulationRunID string   `json:"simulationRunId"`
+	FailingRegion   string   `json:"failingRegion"`
+	AffectedNodes   []string `json:"affectedNodes"`
+	ReplicaCount    int      `json:"replicaCount"`
+	InjectedEvents  int      `json:"injectedEvents"`
+	DNSDelayTicks   int      `json:"dnsDelayTicks"`
+	Status          string   `json:"status"`
+}
+
+func (h *SimulationHandler) FailoverTest(c *fiber.Ctx) error {
+	var req FailoverTestRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid request body"})
+	}
+	if req.ProjectID == "" || req.FailingRegion == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "projectId and failingRegion are required"})
+	}
+
+	// Find the latest running simulation for this project
+	var runID string
+	err := h.DB.QueryRow(
+		`SELECT id FROM simulation_runs WHERE project_id = $1 AND status = 'running' ORDER BY started_at DESC LIMIT 1`,
+		req.ProjectID,
+	).Scan(&runID)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "no running simulation found for project"})
+	}
+
+	engine := h.FindEngine(runID)
+	if engine == nil || !engine.IsRunning() {
+		return c.Status(404).JSON(fiber.Map{"error": "simulation run not found or not running"})
+	}
+
+	cfg := engine.Config()
+	nodeMap := engine.GetNodeMap()
+	var affectedNodeIDs []string
+	var injectedCount int
+
+	for i := range cfg.Nodes {
+		if cfg.Nodes[i].Region == req.FailingRegion {
+			affectedNodeIDs = append(affectedNodeIDs, cfg.Nodes[i].ID)
+
+			ev := &simulation.ChaosEvent{
+				ID:              uuid.New().String(),
+				SimulationRunID: runID,
+				NodeID:          cfg.Nodes[i].ID,
+				EventType:       simulation.ChaosRegionDown,
+				Severity:        1.0,
+				DurationTicks:   100000,
+				StartedAt:       engine.CurrentTick(),
+				Active:          true,
+			}
+			h.Chaos.Inject(ev)
+			injectedCount++
+		}
+	}
+
+	// Count replicas (nodes of same type in other regions)
+	replicaSet := make(map[string]bool)
+	for _, id := range affectedNodeIDs {
+		replicaID, _ := simulation.FindReplicaInOtherRegion(nodeMap, id)
+		if replicaID != "" {
+			replicaSet[replicaID] = true
+		}
+	}
+	replicaCount := len(replicaSet)
+
+	resp := FailoverTestResponse{
+		SimulationRunID: runID,
+		FailingRegion:   req.FailingRegion,
+		AffectedNodes:   affectedNodeIDs,
+		ReplicaCount:    replicaCount,
+		InjectedEvents:  injectedCount,
+		DNSDelayTicks:   simulation.DNSFailoverDelayTicks,
+		Status:          "failover_initiated",
+	}
+
+	return c.Status(200).JSON(resp)
 }
 
 func (h *SimulationHandler) storeTick(runID string, tickNum int, tick *simulation.Tick) {
