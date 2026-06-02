@@ -98,6 +98,9 @@ type Node struct {
 	ReplicationLagMs  float64     `json:"replicationLagMs"`
 	ComputeTier       string      `json:"computeTier"`
 
+	// Region for multi-region simulation
+	Region string `json:"region"`
+
 	// SRE / SLO fields (from canvas config)
 	SLOTargetMs            float64 `json:"sloTargetMs"`
 	SLOAvailabilityTarget  float64 `json:"sloAvailabilityTarget"`
