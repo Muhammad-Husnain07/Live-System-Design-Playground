@@ -1440,6 +1440,224 @@ Behavior:
 | `go build ./...` — 0 errors | ✅ |
 | `tsc --noEmit` — 0 errors | ✅ |
 
+## Phase M4.2 — Global Map UI
+
+**Goal**: Build a visual Global Map view to observe multi-region architectures, traffic flow, and failover events.
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/components/map/GlobalMap.tsx` | D3 SVG world map Dialog with continent outlines, region dots, cross-region arcs, live failover animations, and region click → Popover metrics |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/handlers/simulation.go` | Added `GetGeoMetrics` handler: returns per-region aggregated metrics (RPS, latency, error rate, failure status) and cross-region edge traffic from engine state. Added `math` import and `mathRound` helper. |
+| `backend/simulation/models.go` | Added `Region` field to `NodeMetricsSnapshot` so frontend can read region from tick data |
+| `backend/simulation/metrics.go` | `SnapshotTick` populates `Region` in each snapshot from the node's region |
+| `backend/simulation/engine.go` | Added `OutEdges(nodeID)` method to expose outgoing edges for geo-metrics computation |
+| `backend/main.go` | Registered `GET /api/simulations/:id/geo-metrics` route |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | Added Globe `IconButton` that opens GlobalMapDialog; imported `Globe` icon, `GlobalMapDialog`, `useSimulationStore`; added `showGlobalMap`/`setShowGlobalMap` state; rendered `<GlobalMapDialog>` at end of toolbar |
+
+### Global Map UI Details
+
+The `GlobalMap` dialog (`<Dialog fullScreen>`) contains:
+
+1. **SVG World Map** using D3 `geoEquirectangular` projection:
+   - Graticule grid lines at 30° step
+   - Continent outlines as simplified polygon paths (North America, South America, Europe, Africa, Asia, Australia, Greenland)
+   - Dark theme (`#1e293b` fill, `#334155` stroke)
+
+2. **Region Dots** plotted at AWS region geographic coordinates:
+   - Dot radius proportional to `sqrt(RPS)` (6px min, 16px max)
+   - Color per region (e.g. `us-east-1` = blue, `eu-west-1` = green)
+   - Outer glow ring matching region color
+   - RPS label above dot (monospace)
+   - Region name label below dot
+   - Failed regions: red dot with animated expanding ring (`<animate>` tag, 1.5s loop) and pulsing glow filter
+
+3. **Cross-Region Arcs** using SVG quadratic bezier curves (`Q`):
+   - Arc thickness = `sqrt(RPS) * 0.3` (0.5px min, 8px max)
+   - Arc color: `<50ms` green (`#22c55e`), `50-150ms` yellow (`#eab308`), `>150ms` red (`#ef4444`)
+   - Failed region arcs: dashed (`stroke-dasharray: 4,4`), reduced opacity, animated dash offset (dash marching animation)
+   - Tooltip on hover: source → target, RPS, latency
+
+4. **Legend** bar at bottom: latency color bands, region-down indicator, live badge
+
+5. **Region Click → Popover**: clicking a region dot opens a `<Popover>` with:
+   - Region name + color dot + DOWN chip if failed
+   - Grid: Nodes count, Total RPS, Avg Latency (color-coded), Error Rate (color-coded)
+   - Failed node IDs list (if any)
+
+6. **Live Data**: polls `GET /api/simulations/:id/geo-metrics` every 3s; complements with real-time data from `simulationStore.latestTick` and `canvasStore.nodes[].config.region`
+
+### Geo-Metrics Endpoint
+
+```
+GET /api/simulations/:id/geo-metrics
+Authorization: Bearer <token>
+```
+
+**Response 200:**
+```json
+{
+  "regions": {
+    "us-east-1": {
+      "nodeCount": 4,
+      "totalRPS": 2450.5,
+      "avgLatencyMs": 45.2,
+      "avgErrorRate": 0.0023,
+      "nodeIds": ["node-1", "node-2", "node-3", "node-4"],
+      "isFailed": false,
+      "failedNodeIds": []
+    }
+  },
+  "interRegionEdges": [
+    {
+      "sourceRegion": "us-east-1",
+      "targetRegion": "eu-west-1",
+      "totalRPS": 800.0,
+      "avgLatencyMs": 90.0,
+      "edgeCount": 2
+    }
+  ]
+}
+```
+
+### Live Interaction Details
+
+- **Region Down (pulse red):** When any node in a region has `isFailed=true`, the region dot turns red (`#ef4444`) and gets an animated expanding ring (SVG `<animate>` on `r` attribute) and a pulsing CSS filter glow. The region label turns red bold.
+- **Failover arc animation:** Arcs connected to a failed region become dashed with an animated `stroke-dashoffset` (marching ants effect) to indicate traffic shifting. The arc opacity drops from 0.6 to 0.3.
+- **Polling:** `GET /api/simulations/:id/geo-metrics` is called every 3 seconds while the map dialog is open. The response enriches the canvas-derived data with engine-accurate metrics.
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` | ✅ 0 errors |
+| `tsc --noEmit` | ✅ 0 errors |
+
+### Verification: PASSED — 2026-06-02
+
+| Check | Result |
+|-------|--------|
+| `frontend/src/components/map/GlobalMap.tsx` — D3 `geoEquirectangular` world map with continent paths, region dots at AWS coords, cross-region bezier arcs with RPS thickness & latency color, failed region pulsing, failover dash animation, region click Popover with metrics | ✅ |
+| `frontend/src/components/toolbar/TopToolbar.tsx` — Globe `IconButton` in Zone 3, opens `GlobalMapDialog`, wired to `simulationStore.runId` | ✅ |
+| `backend/handlers/simulation.go` — `GetGeoMetrics` handler aggregates node metrics by region, computes cross-region edge traffic from engine state | ✅ |
+| `backend/simulation/models.go` — `Region` field added to `NodeMetricsSnapshot` | ✅ |
+| `backend/simulation/metrics.go` — `SnapshotTick` populates `Region` | ✅ |
+| `backend/simulation/engine.go` — `OutEdges(nodeID)` method | ✅ |
+| `backend/main.go` — `GET /api/simulations/:id/geo-metrics` route | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `tsc --noEmit` — 0 errors | ✅ |
+| No new tsc errors (only 11 pre-existing) | ✅ |
+
+## Phase M5.1 — Deep Tracing & Logging Engine
+
+**Goal**: Enhance the simulation to generate structured, correlated logs and traces that mimic production observability tools.
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/simulation/tracing.go` | Added `ParentSpanID` to `Span` struct; added `SimLog` struct (timestamp, traceId, spanId, service, level: INFO/WARN/ERROR/CRITICAL, message, durationMs); added `LogLevel` constants; added `LogCollector` with ring-buffer storage, `Add`, `AddAll`, `All`, `Filter` methods; `NewTraceFromNodes` now accepts `*[]SimLog`, propagates `ParentSpanID` (previous span in DFS path) and generates structured `SimLog` entries per span — async nodes get "Async wait Xms", failed nodes get CRITICAL "Health check failed", retried nodes get WARN "Retry attempt N", errored nodes get ERROR "Error rate X%", healthy nodes get INFO "Request processed"; `generateTraces` rewritten to traverse DFS paths from entry nodes (~1% sample, max 5 traces), collect trace logs, then generate logs for all remaining untraced active nodes with synthetic spanIds |
+| `backend/simulation/engine.go` | Added `LogCollector *LogCollector` field; initialized in `NewEngine` with capacity 5000 |
+| `backend/handlers/tracing.go` | Added `GetLogs` handler with `GET /api/simulations/:id/logs` — supports query params `service`, `level`, `traceId`, `page`, `perPage`; returns paginated `{logs, total, page, perPage}` |
+| `backend/main.go` | Registered `GET /api/simulations/:id/logs` route |
+
+### Trace Propagation
+
+Each traced request (sampled ~1% of requests, max 5 per tick) follows a DFS path through the graph:
+
+1. **`Span.ParentSpanID`** — Each span records the `spanID` of the previous node in the DFS path. The root span has an empty `parentSpanId`.
+2. **Async boundaries** — When a request hits a node with an async node type (MessageQueue, EventBus, PubSub), a new child span is created with `SpanType: "ASYNC_WAIT"` and a log message `"Async wait Xms"` reflecting the queue depth.
+3. **Cache hits** — If the node is cacheable and the random roll succeeds, the span gets `SpanType: "CACHE_HIT"`.
+
+### Structured Log Generation
+
+Logs are generated per tick per node with the following schema:
+
+```json
+{
+  "timestamp": "2026-06-02T12:00:00.000Z",
+  "traceId": "uuid",
+  "spanId": "uuid",
+  "service": "CartService",
+  "level": "ERROR",
+  "message": "Error rate 12.5%",
+  "durationMs": 1500,
+  "nodeId": "node-3"
+}
+```
+
+**Log levels by condition:**
+
+| Condition | Level | Message |
+|-----------|-------|---------|
+| `n.IsFailed == true` | `CRITICAL` | "Health check failed" |
+| `n.RetryCount > 0` | `WARN` | "Retry attempt N" (or "Retry attempt N (escalated)" for >1 retries) |
+| `n.ErrorRate > 0.05 && n.IsFailed == false` | `ERROR` | "Error rate X%" |
+| Async node (MessageQueue etc.) | `INFO` | "Async wait Xms" |
+| Default (healthy) | `INFO` | "Request processed" |
+
+**Coverage:** Logs are generated for:
+- All nodes in traced request paths (with traceId + spanId from the trace)
+- All remaining active nodes per tick (with a synthetic spanId, no traceId)
+
+### Logs Endpoint
+
+```
+GET /api/simulations/:id/logs?service=CartService&level=ERROR&traceId=xyz&page=1&perPage=100
+```
+
+**Response 200:**
+```json
+{
+  "logs": [
+    {
+      "timestamp": "2026-06-02T12:00:00.000Z",
+      "traceId": "uuid",
+      "spanId": "uuid",
+      "service": "CartService",
+      "level": "ERROR",
+      "message": "Error rate 12.5%",
+      "durationMs": 1500,
+      "nodeId": "node-3"
+    }
+  ],
+  "total": 42,
+  "page": 1,
+  "perPage": 100
+}
+```
+
+Query params:
+- `service` — filter by node label (exact match)
+- `level` — filter by log level (INFO, WARN, ERROR, CRITICAL)
+- `traceId` — filter by trace ID
+- `page` — page number (default 1)
+- `perPage` — items per page (default 100, max 1000)
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` | ✅ 0 errors |
+| `tsc --noEmit` | ✅ 0 errors |
+
+### Verification: PASSED — 2026-06-02
+
+| Check | Result |
+|-------|--------|
+| `backend/simulation/tracing.go` — `ParentSpanID` on `Span`; `SimLog` struct with all 8 fields; `LogLevel` constants (INFO, WARN, ERROR, CRITICAL); `LogCollector` with ring-buffer, `Add`/`AddAll`/`All`/`Filter`; `NewTraceFromNodes` propagates ParentSpanID and generates logs; per-node log generation for untraced nodes; CRITICAL log on failed health check; WARN log on retry; ERROR log on high error rate; INFO async wait log | ✅ |
+| `backend/simulation/engine.go` — `LogCollector` field added and initialized in `NewEngine` with cap 5000 | ✅ |
+| `backend/handlers/tracing.go` — `GetLogs` handler with service/level/traceId/page/perPage query params, paginated response | ✅ |
+| `backend/main.go` — `GET /api/simulations/:id/logs` route registered | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `tsc --noEmit` — 0 errors | ✅ |
+
 ## Phase UX6 — First-Run & Empty States — 2026-05-29
 
 ### Objective
