@@ -21,6 +21,7 @@ type Engine struct {
 	RunID          string
 	originalNodes  []Node
 	TraceCollector *TraceCollector
+	LogCollector   *LogCollector
 
 	activeScenario  *IncidentScenario
 	stepIndex       int
@@ -43,6 +44,7 @@ func NewEngine(cfg *Config) *Engine {
 		originalNodes:  orig,
 		deployment:     dep,
 		TraceCollector: NewTraceCollector(50),
+		LogCollector:   NewLogCollector(5000),
 	}
 }
 

@@ -98,6 +98,7 @@ func main() {
 	simGroup.Post("/:id/stop", sim.Stop)
 	simGroup.Get("/history/:projectId", sim.History)
 	simGroup.Get("/:id/traces", sim.GetTraces)
+	simGroup.Get("/:id/logs", sim.GetLogs)
 	simGroup.Get("/:id/slo-report", sim.GetSLOReport)
 	simGroup.Post("/failover-test", sim.FailoverTest)
 	simGroup.Get("/:id/geo-metrics", sim.GetGeoMetrics)

@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -24,16 +25,17 @@ const (
 )
 
 type Span struct {
-	SpanID     string    `json:"spanId"`
-	TraceID    string    `json:"traceId"`
-	NodeID     string    `json:"nodeId"`
-	NodeLabel  string    `json:"nodeLabel"`
-	NodeType   string    `json:"nodeType"`
-	EntryTime  time.Time `json:"entryTime"`
-	ExitTime   time.Time `json:"exitTime"`
-	DurationMs float64   `json:"durationMs"`
-	Status     SpanStatus `json:"status"`
-	SpanType   SpanType  `json:"spanType,omitempty"`
+	SpanID       string     `json:"spanId"`
+	TraceID      string     `json:"traceId"`
+	ParentSpanID string     `json:"parentSpanId,omitempty"`
+	NodeID       string     `json:"nodeId"`
+	NodeLabel    string     `json:"nodeLabel"`
+	NodeType     string     `json:"nodeType"`
+	EntryTime    time.Time  `json:"entryTime"`
+	ExitTime     time.Time  `json:"exitTime"`
+	DurationMs   float64    `json:"durationMs"`
+	Status       SpanStatus `json:"status"`
+	SpanType     SpanType   `json:"spanType,omitempty"`
 }
 
 type Trace struct {
@@ -48,12 +50,33 @@ type Trace struct {
 	HasError        bool      `json:"hasError"`
 }
 
-func NewTraceFromNodes(traceID string, nodeIDs []string, nodeMap map[string]*Node, tickTime time.Time, edges []Edge, edgeOutMap map[string][]*Edge) Trace {
+type LogLevel string
+
+const (
+	LogLevelInfo     LogLevel = "INFO"
+	LogLevelWarn     LogLevel = "WARN"
+	LogLevelError    LogLevel = "ERROR"
+	LogLevelCritical LogLevel = "CRITICAL"
+)
+
+type SimLog struct {
+	Timestamp  time.Time `json:"timestamp"`
+	TraceID    string    `json:"traceId"`
+	SpanID     string    `json:"spanId"`
+	Service    string    `json:"service"`
+	Level      LogLevel  `json:"level"`
+	Message    string    `json:"message"`
+	DurationMs float64   `json:"durationMs"`
+	NodeID     string    `json:"nodeId"`
+}
+
+func NewTraceFromNodes(traceID string, nodeIDs []string, nodeMap map[string]*Node, tickTime time.Time, edges []Edge, edgeOutMap map[string][]*Edge, logs *[]SimLog) Trace {
 	now := tickTime
 	spans := make([]Span, 0, len(nodeIDs))
 	totalDuration := 0.0
 	hasError := false
 	rootLabel := ""
+	var parentSpanID string
 
 	for i, id := range nodeIDs {
 		n, ok := nodeMap[id]
@@ -86,22 +109,66 @@ func NewTraceFromNodes(traceID string, nodeIDs []string, nodeMap map[string]*Nod
 		if isCacheableNode(n.NodeType) && n.CacheHitRatio > 0 && rand.Float64() < n.CacheHitRatio {
 			spanType = SpanTypeCache
 		}
-		if IsAsyncNodeType(n.NodeType) {
+		isAsync := IsAsyncNodeType(n.NodeType)
+		if isAsync {
 			spanType = SpanTypeAsync
 		}
 
+		spanID := uuid.New().String()
+
 		spans = append(spans, Span{
-			SpanID:     uuid.New().String(),
-			TraceID:    traceID,
-			NodeID:     n.ID,
-			NodeLabel:  n.Label,
-			NodeType:   string(n.NodeType),
-			EntryTime:  entry,
-			ExitTime:   exit,
-			DurationMs: latency,
-			Status:     status,
-			SpanType:   spanType,
+			SpanID:       spanID,
+			TraceID:      traceID,
+			ParentSpanID: parentSpanID,
+			NodeID:       n.ID,
+			NodeLabel:    n.Label,
+			NodeType:     string(n.NodeType),
+			EntryTime:    entry,
+			ExitTime:     exit,
+			DurationMs:   latency,
+			Status:       status,
+			SpanType:     spanType,
 		})
+		parentSpanID = spanID
+
+		// ── Generate structured log for this span ──
+		level := LogLevelInfo
+		msg := "Request processed"
+		if isAsync {
+			asyncWaitMs := n.QueueDepth * 100  // approximate from tick duration
+			if asyncWaitMs > 10000 {
+				asyncWaitMs = 10000
+			}
+			msg = fmt.Sprintf("Async wait %.0fms", asyncWaitMs)
+		}
+		if status == SpanStatusERROR && !n.IsFailed {
+			level = LogLevelError
+			msg = fmt.Sprintf("Error rate %.1f%%", n.ErrorRate*100)
+		}
+		if n.IsFailed {
+			level = LogLevelCritical
+			msg = "Health check failed"
+		}
+		if n.RetryCount > 0 {
+			level = LogLevelWarn
+			msg = fmt.Sprintf("Retry attempt %d", n.RetryCount)
+			if n.RetryCount > 1 {
+				msg = fmt.Sprintf("Retry attempt %d (escalated)", n.RetryCount)
+			}
+		}
+
+		if logs != nil {
+			*logs = append(*logs, SimLog{
+				Timestamp:  entry,
+				TraceID:    traceID,
+				SpanID:     spanID,
+				Service:    n.Label,
+				Level:      level,
+				Message:    msg,
+				DurationMs: latency,
+				NodeID:     n.ID,
+			})
+		}
 	}
 
 	traceStatus := SpanStatusOK
@@ -158,6 +225,69 @@ func (tc *TraceCollector) Len() int {
 	return len(tc.traces)
 }
 
+type LogCollector struct {
+	mu   sync.RWMutex
+	logs []SimLog
+	max  int
+}
+
+func NewLogCollector(max int) *LogCollector {
+	return &LogCollector{
+		logs: make([]SimLog, 0, max),
+		max:  max,
+	}
+}
+
+func (lc *LogCollector) Add(entry SimLog) {
+	lc.mu.Lock()
+	defer lc.mu.Unlock()
+	lc.logs = append(lc.logs, entry)
+	if len(lc.logs) > lc.max {
+		lc.logs = lc.logs[len(lc.logs)-lc.max:]
+	}
+}
+
+func (lc *LogCollector) AddAll(entries []SimLog) {
+	if len(entries) == 0 {
+		return
+	}
+	lc.mu.Lock()
+	defer lc.mu.Unlock()
+	lc.logs = append(lc.logs, entries...)
+	if len(lc.logs) > lc.max {
+		lc.logs = lc.logs[len(lc.logs)-lc.max:]
+	}
+}
+
+func (lc *LogCollector) All() []SimLog {
+	lc.mu.RLock()
+	defer lc.mu.RUnlock()
+	result := make([]SimLog, len(lc.logs))
+	copy(result, lc.logs)
+	return result
+}
+
+func (lc *LogCollector) Filter(service, level, traceID string) []SimLog {
+	all := lc.All()
+	if service == "" && level == "" && traceID == "" {
+		return all
+	}
+	filtered := make([]SimLog, 0, len(all))
+	for _, entry := range all {
+		if service != "" && entry.Service != service {
+			continue
+		}
+		if level != "" && string(entry.Level) != level {
+			continue
+		}
+		if traceID != "" && entry.TraceID != traceID {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
+}
+
 func (e *Engine) generateTraces(tickTime time.Time) {
 	e.mu.RLock()
 	ctx := e.ctx
@@ -194,6 +324,8 @@ func (e *Engine) generateTraces(tickTime time.Time) {
 		traceCount = 5
 	}
 
+	var allLogs []SimLog
+
 	for ti := 0; ti < traceCount; ti++ {
 		if len(entryNodes) == 0 {
 			return
@@ -223,7 +355,8 @@ func (e *Engine) generateTraces(tickTime time.Time) {
 		}
 
 		traceID := uuid.New().String()
-		trace := NewTraceFromNodes(traceID, path, nodeMap, tickTime, ctx.Edges, ctx.EdgeOutMap)
+		var traceLogs []SimLog
+		trace := NewTraceFromNodes(traceID, path, nodeMap, tickTime, ctx.Edges, ctx.EdgeOutMap, &traceLogs)
 
 		e.mu.RLock()
 		collector := e.TraceCollector
@@ -231,5 +364,70 @@ func (e *Engine) generateTraces(tickTime time.Time) {
 		if collector != nil {
 			collector.Add(trace)
 		}
+		allLogs = append(allLogs, traceLogs...)
+	}
+
+	// Also generate logs for ALL nodes (not just traced ones)
+	for id, n := range nodeMap {
+		if n.CurrentRPS <= 0 {
+			continue
+		}
+		// Skip nodes already covered by trace logs
+		alreadyLogged := false
+		for _, l := range allLogs {
+			if l.NodeID == id {
+				alreadyLogged = true
+				break
+			}
+		}
+		if alreadyLogged {
+			continue
+		}
+
+		syntheticTraceID := ""
+		syntheticSpanID := uuid.New().String()
+		level := LogLevelInfo
+		msg := "Request processed"
+		latency := n.P99LatencyMs
+		if latency <= 0 {
+			latency = n.LatencyMs
+		}
+
+		if n.IsFailed {
+			level = LogLevelCritical
+			msg = "Health check failed"
+		} else if n.ErrorRate > 0.05 {
+			level = LogLevelError
+			msg = fmt.Sprintf("Error rate %.1f%%", n.ErrorRate*100)
+		}
+		if n.RetryCount > 0 {
+			level = LogLevelWarn
+			msg = fmt.Sprintf("Retry attempt %d", n.RetryCount)
+		}
+		if IsAsyncNodeType(n.NodeType) {
+			asyncWaitMs := n.QueueDepth * 100
+			if asyncWaitMs > 10000 {
+				asyncWaitMs = 10000
+			}
+			msg = fmt.Sprintf("Async wait %.0fms", asyncWaitMs)
+		}
+
+		allLogs = append(allLogs, SimLog{
+			Timestamp:  tickTime,
+			TraceID:    syntheticTraceID,
+			SpanID:     syntheticSpanID,
+			Service:    n.Label,
+			Level:      level,
+			Message:    msg,
+			DurationMs: latency,
+			NodeID:     n.ID,
+		})
+	}
+
+	e.mu.RLock()
+	logCollector := e.LogCollector
+	e.mu.RUnlock()
+	if logCollector != nil {
+		logCollector.AddAll(allLogs)
 	}
 }
