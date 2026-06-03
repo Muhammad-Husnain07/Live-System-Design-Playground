@@ -279,6 +279,12 @@ func (e *Engine) GetNodeMap() map[string]*Node {
 	return e.ctx.Nodes
 }
 
+func (e *Engine) OutEdges(nodeID string) []*Edge {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.ctx.EdgeOutMap[nodeID]
+}
+
 func (e *Engine) runLoop() {
 	totalTicks := e.config.DurationSeconds
 	if e.config.TickRateMs > 0 {

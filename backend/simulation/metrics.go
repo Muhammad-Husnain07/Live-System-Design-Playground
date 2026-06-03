@@ -66,6 +66,7 @@ func SnapshotTick(tickNum int, nodes []Node, edges []Edge, depMgr *DeploymentMan
 			IsSplitBrain:      n.IsSplitBrain,
 			DataInconsistency: n.DataInconsistency,
 			SpotInterrupted:   n.SpotInterrupted,
+			Region:            n.Region,
 			SLOTargetMs:       n.SLOTargetMs,
 			SLOAvailabilityTarget: n.SLOAvailabilityTarget,
 			IsLatencyBreached:     !latencyOK,

@@ -100,6 +100,7 @@ func main() {
 	simGroup.Get("/:id/traces", sim.GetTraces)
 	simGroup.Get("/:id/slo-report", sim.GetSLOReport)
 	simGroup.Post("/failover-test", sim.FailoverTest)
+	simGroup.Get("/:id/geo-metrics", sim.GetGeoMetrics)
 
 	chaos := handlers.NewChaosHandler(sim)
 	chaosGroup := api.Group("/chaos", middleware.JWTAuth(cfg.JWTSecret))

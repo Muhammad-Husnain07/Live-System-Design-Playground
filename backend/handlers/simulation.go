@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
+	"math"
 	"sync"
 	"time"
 
@@ -598,6 +599,167 @@ func (h *SimulationHandler) FailoverTest(c *fiber.Ctx) error {
 	}
 
 	return c.Status(200).JSON(resp)
+}
+
+type GeoMetricsResponse struct {
+	Regions        map[string]RegionMetrics `json:"regions"`
+	InterRegionEdges []InterRegionEdge       `json:"interRegionEdges"`
+}
+
+type RegionMetrics struct {
+	NodeCount        int      `json:"nodeCount"`
+	TotalRPS         float64  `json:"totalRPS"`
+	AvgLatencyMs     float64  `json:"avgLatencyMs"`
+	AvgErrorRate     float64  `json:"avgErrorRate"`
+	NodeIDs          []string `json:"nodeIds"`
+	IsFailed         bool     `json:"isFailed"`
+	FailedNodeIDs    []string `json:"failedNodeIds"`
+}
+
+type InterRegionEdge struct {
+	SourceRegion string  `json:"sourceRegion"`
+	TargetRegion string  `json:"targetRegion"`
+	TotalRPS     float64 `json:"totalRPS"`
+	AvgLatencyMs float64 `json:"avgLatencyMs"`
+	EdgeCount    int     `json:"edgeCount"`
+}
+
+func (h *SimulationHandler) GetGeoMetrics(c *fiber.Ctx) error {
+	runID := c.Params("id")
+	if runID == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "simulation run ID required"})
+	}
+
+	engine := h.FindEngine(runID)
+	if engine == nil || !engine.IsRunning() {
+		return c.Status(404).JSON(fiber.Map{"error": "simulation run not found or not running"})
+	}
+
+	cfg := engine.Config()
+	nodeMap := engine.GetNodeMap()
+	ticks := engine.Ticks()
+	var latestTick *simulation.Tick
+	if len(ticks) > 0 {
+		latestTick = &ticks[len(ticks)-1]
+	}
+
+	// Build node-ID → region lookup from Config (available even before first tick)
+	nodeRegion := make(map[string]string)
+	nodesInRegion := make(map[string][]string)
+	for i := range cfg.Nodes {
+		r := cfg.Nodes[i].Region
+		if r == "" {
+			r = "us-east-1"
+		}
+		nodeRegion[cfg.Nodes[i].ID] = r
+		nodesInRegion[r] = append(nodesInRegion[r], cfg.Nodes[i].ID)
+	}
+
+	// Aggregate metrics per region from latest tick
+	regionRPS := make(map[string]float64)
+	regionLatency := make(map[string]float64)
+	regionErrorRate := make(map[string]float64)
+	regionFailed := make(map[string][]string)
+	regionCount := make(map[string]int)
+
+	if latestTick != nil {
+		for _, m := range latestTick.NodeMetrics {
+			r, ok := nodeRegion[m.NodeID]
+			if !ok {
+				continue
+			}
+			regionRPS[r] += m.CurrentRPS
+			regionLatency[r] += m.P99LatencyMs
+			regionErrorRate[r] += m.ErrorRate
+			regionCount[r]++
+			if m.IsFailed {
+				regionFailed[r] = append(regionFailed[r], m.NodeID)
+			}
+		}
+	}
+
+	regions := make(map[string]RegionMetrics)
+	for region, ids := range nodesInRegion {
+		count := regionCount[region]
+		rps := regionRPS[region]
+		lat := regionLatency[region]
+		errRate := regionErrorRate[region]
+		avgLat := 0.0
+		if count > 0 {
+			avgLat = lat / float64(count)
+			errRate = errRate / float64(count)
+		}
+		failed := regionFailed[region]
+		regions[region] = RegionMetrics{
+			NodeCount:     len(ids),
+			TotalRPS:      mathRound(rps, 2),
+			AvgLatencyMs:  mathRound(avgLat, 2),
+			AvgErrorRate:  mathRound(errRate, 4),
+			NodeIDs:       ids,
+			IsFailed:      len(failed) > 0,
+			FailedNodeIDs: failed,
+		}
+	}
+
+	// Compute cross-region edge traffic from node map
+	type edgeKey struct{ src, tgt string }
+	edgeRPS := make(map[edgeKey]float64)
+	edgeLatency := make(map[edgeKey]float64)
+	edgeCount := make(map[edgeKey]int)
+
+	for _, n := range nodeMap {
+		srcRegion := n.Region
+		if srcRegion == "" {
+			srcRegion = "us-east-1"
+		}
+		outs := engine.OutEdges(n.ID)
+		for _, e := range outs {
+			tgtNode, ok := nodeMap[e.Target]
+			if !ok {
+				continue
+			}
+			tgtRegion := tgtNode.Region
+			if tgtRegion == "" {
+				tgtRegion = "us-east-1"
+			}
+			if srcRegion == tgtRegion {
+				continue
+			}
+			k := edgeKey{srcRegion, tgtRegion}
+			edgeRPS[k] += e.ThroughputRPS
+			edgeLatency[k] += e.LatencyMs
+			edgeCount[k]++
+		}
+	}
+
+	interRegionEdges := make([]InterRegionEdge, 0, len(edgeRPS))
+	for k, rps := range edgeRPS {
+		avgLat := 0.0
+		if edgeCount[k] > 0 {
+			avgLat = edgeLatency[k] / float64(edgeCount[k])
+		}
+		interRegionEdges = append(interRegionEdges, InterRegionEdge{
+			SourceRegion: k.src,
+			TargetRegion: k.tgt,
+			TotalRPS:     mathRound(rps, 2),
+			AvgLatencyMs: mathRound(avgLat, 2),
+			EdgeCount:    edgeCount[k],
+		})
+	}
+
+	if interRegionEdges == nil {
+		interRegionEdges = []InterRegionEdge{}
+	}
+
+	return c.JSON(GeoMetricsResponse{
+		Regions:          regions,
+		InterRegionEdges: interRegionEdges,
+	})
+}
+
+func mathRound(v float64, decimals int) float64 {
+	pow := math.Pow(10, float64(decimals))
+	return math.Round(v*pow) / pow
 }
 
 func (h *SimulationHandler) storeTick(runID string, tickNum int, tick *simulation.Tick) {

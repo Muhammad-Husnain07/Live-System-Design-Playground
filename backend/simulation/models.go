@@ -212,6 +212,8 @@ type NodeMetricsSnapshot struct {
 	IsSplitBrain        bool     `json:"isSplitBrain,omitempty"`
 	DataInconsistency   float64  `json:"dataInconsistency,omitempty"`
 	SpotInterrupted      bool    `json:"spotInterrupted,omitempty"`
+	// Region for multi-region map
+	Region               string  `json:"region,omitempty"`
 	// SLO / SLI fields
 	SLOTargetMs          float64 `json:"sloTargetMs,omitempty"`
 	SLOAvailabilityTarget float64 `json:"sloAvailabilityTarget,omitempty"`

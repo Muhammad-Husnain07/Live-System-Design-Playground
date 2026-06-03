@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowLeft, Play, Square, Share2, Shield, DollarSign, Download, Camera, FileText, Building2, BarChart3 } from "lucide-react";
+import { ArrowLeft, Play, Square, Share2, Shield, DollarSign, Download, Camera, FileText, Building2, BarChart3, Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useProjectStore } from "../../store/projectStore";
 import { useAuthStore } from "../../store/authStore";
 import { useExportStore } from "../../store/exportStore";
+import { useSimulationStore } from "../../store/simulationStore";
 import ImportModal from "../panels/ImportModal";
+import GlobalMapDialog from "../map/GlobalMap";
 import {
   AppBar, Toolbar, IconButton, Tooltip, Menu, MenuItem, Typography, Box, Divider,
   ToggleButtonGroup, ToggleButton, Avatar, AvatarGroup, InputBase, Paper,
@@ -109,6 +111,8 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, collabC
   };
 
   const [showImport, setShowImport] = useState(false);
+  const [showGlobalMap, setShowGlobalMap] = useState(false);
+  const runId = useSimulationStore((s) => s.runId);
 
   /* ---- export dropdown (MUI Menu) ---- */
   const [exportAnchorEl, setExportAnchorEl] = useState<HTMLElement | null>(null);
@@ -246,6 +250,12 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, collabC
             <MenuItem onClick={() => { setExportAnchorEl(null); openExport(); }} dense sx={{ color: "success.main" }}><Building2 size={14} style={{ marginRight: 8 }} /> IaC Export</MenuItem>
           </Menu>
 
+          <Tooltip title="Global Map" arrow>
+            <IconButton size="small" onClick={() => setShowGlobalMap(true)} sx={{ color: "#22c55e" }}>
+              <Globe size={16} />
+            </IconButton>
+          </Tooltip>
+
           <Tooltip title="Import IaC" arrow>
             <IconButton size="small" onClick={() => setShowImport(true)} sx={{ color: "#a1a1aa" }}>
               <FileText size={16} />
@@ -287,6 +297,7 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, collabC
         </Box>
 
         <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} />
+        <GlobalMapDialog open={showGlobalMap} onClose={() => setShowGlobalMap(false)} runId={runId} />
       </Toolbar>
     </AppBar>
   );
