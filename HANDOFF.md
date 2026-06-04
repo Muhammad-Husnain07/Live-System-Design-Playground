@@ -1658,6 +1658,92 @@ Query params:
 | `go build ./...` — 0 errors | ✅ |
 | `tsc --noEmit` — 0 errors | ✅ |
 
+## Phase M5.2 — Deep Trace & Log Explorer UI
+
+**Goal**: Add professional observability tabs (Traces and Logs) to the bottom drawer with Jaeger-style waterfall charts, Datadog-style log explorer, and click-through span→log correlation.
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/store/observabilityStore.ts` | Zustand store for cross-correlation state: `traces[]`, `selectedTrace`, `correlationTraceId`, `logs[]`, `logTotal`, `activeBottomTab` |
+| `frontend/src/components/panels/TracesPanel.tsx` | Trace list in bottom drawer — polls `GET /api/simulations/:id/traces` every 3s, shows truncated Trace ID / Root Service / Duration / Status (OK/ERROR) / span count table; click selects trace and opens right-panel waterfall |
+| `frontend/src/components/panels/LogsPanel.tsx` | Log explorer — polls `GET /api/simulations/:id/logs` every 4s with filter params; filter bar with service TextField, level Select, traceId TextField; paginated table with color-coded levels (INFO grey, WARN yellow, ERROR/CRITICAL red); page controls |
+| `frontend/src/components/panels/WaterfallPanel.tsx` | Right-panel waterfall chart — reads `selectedTrace` from observabilityStore; horizontal bars with duration proportional to max span; color: blue=normal, green=cache hit, orange=async (hatched pattern `repeating-linear-gradient`), red=error; click a span → sets `correlationTraceId` and switches to Logs tab |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/store/canvasStore.ts` | Added `"waterfall"` to `RightTab` union type and `loadTab()` persistence list |
+| `frontend/src/components/panels/UnifiedRightPanel.tsx` | Added import for `WaterfallPanel`; added `case "waterfall"` to `renderContent` switch |
+| `frontend/src/components/panels/BottomDrawer.tsx` | Added imports for `TracesPanel`, `LogsPanel`, `useObservabilityStore`; added Traces and Logs tabs (indices 4 and 5) with live count badges; added `useEffect` sync from `activeBottomTab` store for correlation-driven tab switches; wiring in `onChange` to sync `setActiveBottomTab` |
+
+### UI Details
+
+#### Traces Tab (Bottom Drawer, index 4)
+
+- Polls `GET /api/simulations/:id/traces` every 3 seconds while simulation runs
+- Table columns: status dot (green/red), Trace ID (first 8 hex chars), Root Service name, Total Duration, Status (OK/ERROR), Span count
+- Click a row: sets `selectedTrace` in observabilityStore and auto-opens the "waterfall" right panel tab
+- Emptystate: "No traces yet — 1 in 100 requests sampled" when running; "Start a simulation to see traces" when idle
+- Blue badge on tab label showing current trace count
+
+#### Waterfall Panel (Right Panel)
+
+- Shows when `activeRightTab === "waterfall"` (set programmatically, no user-facing tab button)
+- Header: trace ID truncated, span count, total duration, error indicator
+- Column headers: Service / Dur / time axis (0 → max duration)
+- Each row shows: indicator icon (green ● cache, orange ◉ async, red ⛔ error), service label, node type
+- Bar fills proportionally to `durationMs / maxDur * 100%`
+- **Bar colors**: blue `#3b82f6` = normal, green `#10b981` = cache hit, orange `#f59e0b` = async (with hatched diagonal stripe pattern), red `#ef4444` = error
+- Click any row: sets `correlationTraceId` to that span's trace ID and auto-switches bottom drawer to **Logs tab**
+- Close button (X) clears selection and returns to Simulate tab
+
+#### Logs Tab (Bottom Drawer, index 5)
+
+- Polls `GET /api/simulations/:id/logs?service=&level=&traceId=&page=&perPage=50` every 4 seconds
+- **Filter bar** at top: service TextField (exact match), level Select dropdown (INFO/WARN/ERROR/CRITICAL with matching colors), traceId TextField (partial match), Refresh button, result count label
+- **Columns**: Level (monospace, color-coded), Time (HH:MM:SS), Service (cyan `#22d3ee`), Message (monospace), Duration
+- **Level colors**: INFO = `#a1a1aa` (grey), WARN = `#f97316` (orange), ERROR = `#ef4444` (red, weight 600), CRITICAL = `#ef4444` (red bold, weight 700)
+- Pagination controls at bottom: ‹ Page N of M ›
+- Grey badge on tab label showing total result count (max "99+")
+- **Correlation**: when `correlationTraceId` is set (from waterfall span click), the traceId filter is auto-populated and the component refetches
+
+### Click-Through Correlation Flow
+
+1. User is on Traces tab in bottom drawer
+2. User clicks a trace row → `selectedTrace` set, right panel switches to waterfall
+3. User sees the waterfall chart with all spans
+4. User clicks an ERROR span (highlighted red bar)
+5. `setCorrelationTraceId(span.traceId)` fires
+6. LogsPanel detects `correlationTraceId` change → sets traceId filter → triggers refetch
+7. `activeBottomTab` set to `"logs"` → BottomDrawer auto-switches to Logs tab
+8. Logs now show only entries matching that trace's traceId
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` | ✅ 0 errors |
+| `tsc --noEmit` | ✅ 0 errors |
+
+### Verification: PASSED — 2026-06-04
+
+| Check | Result |
+|-------|--------|
+| `frontend/src/store/observabilityStore.ts` — `TraceData`, `SpanData`, `SimLogEntry` interfaces; `traces[]`, `selectedTrace`, `correlationTraceId`, `logs[]`, `logTotal`, `activeBottomTab`; `setTraces`, `setSelectedTrace`, `setCorrelationTraceId`, `setLogs`, `setActiveBottomTab` | ✅ |
+| `frontend/src/components/panels/TracesPanel.tsx` — polls traces every 3s; show trace ID / service / duration / status / span count table; click opens right-panel waterfall; emptystate messages | ✅ |
+| `frontend/src/components/panels/LogsPanel.tsx` — polls logs every 4s with service/level/traceId filter params; color-coded level column; pagination controls; correlation traceId auto-fill; emptystate messages | ✅ |
+| `frontend/src/components/panels/WaterfallPanel.tsx` — reads `selectedTrace` from store; horizontal bars proportional to duration; blue=normal, green=cache, orange/hatched=async, red=error; span click sets `correlationTraceId` and switches to logs tab; close button | ✅ |
+| `frontend/src/store/canvasStore.ts` — `"waterfall"` added to `RightTab` | ✅ |
+| `frontend/src/components/panels/UnifiedRightPanel.tsx` — imports `WaterfallPanel`, `Search`, `Typography`; renders in `case "waterfall"`; hides tab bar and shows "Trace Waterfall" header when `activeRightTab === "waterfall"` to avoid MUI Tabs out-of-range value | ✅ |
+| `frontend/src/components/panels/BottomDrawer.tsx` — imports `TracesPanel`, `LogsPanel`, `useObservabilityStore`; Traces tab (index 4) with count badge; Logs tab (index 5) with count badge; `useEffect` sync `activeBottomTab`; `onChange` calls `setActiveBottomTab` | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `tsc --noEmit` — 0 errors | ✅ |
+
+### Re-verified: PASSED — 2026-06-04 (all 20 items confirmed, minor import cleanups only)
+
 ## Phase UX6 — First-Run & Empty States — 2026-05-29
 
 ### Objective
