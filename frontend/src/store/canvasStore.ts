@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { Node, Edge } from "reactflow";
 import type { NodeConfig, NodeMetrics, CanvasState } from "../types/canvas";
 
-export type RightTab = "config" | "simulate" | "deploy" | "security" | "finops" | "incident";
+export type RightTab = "config" | "simulate" | "deploy" | "security" | "finops" | "incident" | "waterfall";
 
 const MAX_UNDO = 50;
 const LS_KEY = "activeRightTab";
@@ -14,7 +14,7 @@ function clone(nodes: Node[], edges: Edge[]): CanvasState {
 function loadTab(): RightTab {
   try {
     const v = localStorage.getItem(LS_KEY);
-    if (v === "config" || v === "simulate" || v === "deploy" || v === "security" || v === "finops" || v === "incident") return v;
+    if (v === "config" || v === "simulate" || v === "deploy" || v === "security" || v === "finops" || v === "incident" || v === "waterfall") return v;
   } catch { /* ignore */ }
   return "config";
 }

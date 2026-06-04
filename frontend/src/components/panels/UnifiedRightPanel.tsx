@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
-import { Monitor, Zap, Rocket, Shield, DollarSign, BugPlay } from "lucide-react";
+import { Monitor, Zap, Rocket, Shield, DollarSign, BugPlay, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Tabs, Tab, Box } from "@mui/material";
+import { Tabs, Tab, Box, Typography } from "@mui/material";
 import NodeConfigPanel from "./NodeConfigPanel";
 import SimulationPanel from "./SimulationPanel";
 import ChaosPanel from "./ChaosPanel";
@@ -9,6 +9,7 @@ import DeploymentPanel from "./DeploymentPanel";
 import SecurityPanel from "./SecurityPanel";
 import FinOpsPanel from "./FinOpsPanel";
 import IncidentPanel from "./IncidentPanel";
+import WaterfallPanel from "./WaterfallPanel";
 import { useCanvasStore, type RightTab } from "../../store/canvasStore";
 
 interface UnifiedRightPanelProps {
@@ -74,6 +75,8 @@ export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRigh
         return <FinOpsPanel />;
       case "incident":
         return <IncidentPanel />;
+      case "waterfall":
+        return <WaterfallPanel />;
       default:
         return null;
     }
@@ -93,47 +96,55 @@ export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRigh
         overflow: "hidden",
       }}
     >
-        <Tabs
-          value={tabIndex}
-          onChange={handleTabChange}
-          variant="fullWidth"
-          sx={{
-            minHeight: 48,
-            borderBottom: 1, borderColor: "divider",
-            "& .MuiTab-root": { minHeight: 48, fontSize: "0.6rem", color: "#71717a", textTransform: "none", py: 0 },
-            "& .Mui-selected": { color: "#f4f4f5" },
-            "& .MuiTabs-indicator": { bgcolor: "#f4f4f5" },
-          }}
-        >
-          {TAB_KEYS.map((key, i) => {
-            const Icon = ICONS[i];
-            return (
-              <Tab
-                key={key}
-                icon={
-                  <motion.div
-                    animate={pulsingTab === i ? { scale: [1, 1.25, 1] } : { scale: 1 }}
-                    transition={{ duration: 0.5, ease: "easeInOut", repeat: pulsingTab === i ? 2 : 0 }}
-                  >
-                    <Box
-                      component="span"
-                      sx={{
-                        display: "flex",
-                        borderRadius: "50%",
-                        boxShadow: pulsingTab === i ? "0 0 10px 3px rgba(255,255,255,0.25)" : "none",
-                        transition: "box-shadow 0.3s",
-                      }}
+        {activeRightTab === "waterfall" ? (
+          <Box sx={{ minHeight: 48, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "center", px: 2 }}>
+            <Typography variant="caption" sx={{ fontSize: "0.6rem", fontWeight: 500, color: "#a1a1aa", display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Search size={12} /> Trace Waterfall
+            </Typography>
+          </Box>
+        ) : (
+          <Tabs
+            value={tabIndex}
+            onChange={handleTabChange}
+            variant="fullWidth"
+            sx={{
+              minHeight: 48,
+              borderBottom: 1, borderColor: "divider",
+              "& .MuiTab-root": { minHeight: 48, fontSize: "0.6rem", color: "#71717a", textTransform: "none", py: 0 },
+              "& .Mui-selected": { color: "#f4f4f5" },
+              "& .MuiTabs-indicator": { bgcolor: "#f4f4f5" },
+            }}
+          >
+            {TAB_KEYS.map((key, i) => {
+              const Icon = ICONS[i];
+              return (
+                <Tab
+                  key={key}
+                  icon={
+                    <motion.div
+                      animate={pulsingTab === i ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+                      transition={{ duration: 0.5, ease: "easeInOut", repeat: pulsingTab === i ? 2 : 0 }}
                     >
-                      <Icon size={14} />
-                    </Box>
-                  </motion.div>
-                }
-                label={key.charAt(0).toUpperCase() + key.slice(1)}
-                iconPosition="start"
-              />
-            );
-          })}
-        </Tabs>
+                      <Box
+                        component="span"
+                        sx={{
+                          display: "flex",
+                          borderRadius: "50%",
+                          boxShadow: pulsingTab === i ? "0 0 10px 3px rgba(255,255,255,0.25)" : "none",
+                          transition: "box-shadow 0.3s",
+                        }}
+                      >
+                        <Icon size={14} />
+                      </Box>
+                    </motion.div>
+                  }
+                  label={key.charAt(0).toUpperCase() + key.slice(1)}
+                  iconPosition="start"
+                />
+              );
+            })}
+          </Tabs>
+        )}
         <Box sx={{ flex: 1, overflow: "hidden" }}>
           <AnimatePresence mode="wait">
             <motion.div

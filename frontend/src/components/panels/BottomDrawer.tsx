@@ -14,6 +14,9 @@ import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
 import IncidentTimeline from "./IncidentTimeline";
 import SLOPanel from "./SLOPanel";
+import TracesPanel from "./TracesPanel";
+import LogsPanel from "./LogsPanel";
+import { useObservabilityStore } from "../../store/observabilityStore";
 import { Box, Typography, Tabs, Tab, IconButton, List, ListItem, ListItemText, Paper } from "@mui/material";
 
 const CHART_GRID = { strokeDasharray: "3 3", stroke: "#27272a" };
@@ -56,6 +59,20 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
   const [drawerHeight, setDrawerHeight] = useState(40);
   const [events, setEvents] = useState<EventEntry[]>([]);
   const dragRef = useRef(false);
+
+  const activeBottomTab = useObservabilityStore((s) => s.activeBottomTab);
+  const setActiveBottomTab = useObservabilityStore((s) => s.setActiveBottomTab);
+  const traces = useObservabilityStore((s) => s.traces);
+  const logTotal = useObservabilityStore((s) => s.logTotal);
+
+  // Correlation: when store says switch to logs tab, do it
+  useEffect(() => {
+    if (activeBottomTab === "logs" && activeTab !== 5) {
+      setActiveTab(5);
+    } else if (activeBottomTab === "traces" && activeTab !== 4) {
+      setActiveTab(4);
+    }
+  }, [activeBottomTab, activeTab]);
 
   const ticks = useSimulationStore((s) => s.ticks);
   const latestTick = useSimulationStore((s) => s.latestTick);
@@ -288,7 +305,11 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
             />
             <Tabs
               value={activeTab}
-              onChange={(_, v) => setActiveTab(v)}
+              onChange={(_, v) => {
+                setActiveTab(v);
+                if (v === 4) setActiveBottomTab("traces");
+                else if (v === 5) setActiveBottomTab("logs");
+              }}
               sx={{
                 minHeight: 36, px: 2, borderBottom: 1, borderColor: "divider", flexShrink: 0,
                 "& .MuiTab-root": { minHeight: 36, fontSize: "0.65rem", color: "#71717a", textTransform: "none", py: 0 },
@@ -300,6 +321,26 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
               <Tab label="Event Log" />
               <Tab label="Incident Timeline" />
               <Tab label="SLOs" />
+              <Tab label={
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  Traces
+                  {traces.length > 0 && (
+                    <Box sx={{ bgcolor: "#3b82f6", borderRadius: "999px", px: 0.5, minWidth: 16, height: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", color: "#fff", fontWeight: 600 }}>
+                      {traces.length}
+                    </Box>
+                  )}
+                </Box>
+              } />
+              <Tab label={
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  Logs
+                  {logTotal > 0 && (
+                    <Box sx={{ bgcolor: "#71717a", borderRadius: "999px", px: 0.5, minWidth: 16, height: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", color: "#fff", fontWeight: 600 }}>
+                      {logTotal > 99 ? "99+" : logTotal}
+                    </Box>
+                  )}
+                </Box>
+              } />
             </Tabs>
 
             <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -394,6 +435,8 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
               )}
 
               {activeTab === 3 && <SLOPanel />}
+              {activeTab === 4 && <TracesPanel />}
+              {activeTab === 5 && <LogsPanel />}
             </Box>
           </motion.div>
         )}
