@@ -103,6 +103,10 @@ func main() {
 	simGroup.Post("/failover-test", sim.FailoverTest)
 	simGroup.Get("/:id/geo-metrics", sim.GetGeoMetrics)
 
+	sreHandler := handlers.SREHandler{DB: config.DB, Redis: config.RedisClient, SimHandler: sim}
+	sreGroup := api.Group("/sre", middleware.JWTAuth(cfg.JWTSecret))
+	sreGroup.Post("/maturity-audit", sreHandler.MaturityAudit)
+
 	chaos := handlers.NewChaosHandler(sim)
 	chaosGroup := api.Group("/chaos", middleware.JWTAuth(cfg.JWTSecret))
 	chaosGroup.Post("/inject", chaos.Inject)
