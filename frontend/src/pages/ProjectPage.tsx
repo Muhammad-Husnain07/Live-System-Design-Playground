@@ -957,6 +957,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         onClose={() => setShowMaturityPanel(false)}
         projectName={currentProject?.name}
         reactFlowRef={reactFlowWrapper}
+        simulationRunId={useSimulationStore.getState().runId ?? undefined}
       />
     </Box>
   );
