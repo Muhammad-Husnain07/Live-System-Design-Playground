@@ -1,19 +1,11 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { Search, LayoutTemplate, ChevronDown, GripVertical } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { nodeRegistry } from "../../utils/nodeRegistry";
-import type { NodeType } from "../../types/canvas";
 import {
-  TextField, InputAdornment, Typography, Box, Card, CardContent,
+  TextField, InputAdornment, Typography, Box,
   Accordion, AccordionSummary, AccordionDetails,
 } from "@mui/material";
-
-const TEMPLATES = [
-  { id: "simple-web-app", label: "Simple Web App", icon: "🌐", preview: "🌐 → 🖥 → 📦 → 🗄", desc: "4 nodes · 3 edges" },
-  { id: "microservices", label: "Microservices", icon: "🧩", preview: "🚪 → 3× ⚙  → 🗄 + ⚡", desc: "6 nodes · 6 edges" },
-  { id: "event-driven", label: "Event-Driven", icon: "📨", preview: "🌐 → 📨 → ⚙ → 🍃", desc: "4 nodes · 3 edges" },
-  { id: "blue-green", label: "Blue/Green Deploy", icon: "🔄", preview: "⚖ → 🟦 + 🟩 → 🗄", desc: "4 nodes · 4 edges" },
-] as const;
 
 const SIDEBAR_WIDTH_KEY = "sidebarWidth";
 const ACCORDION_KEY = "sidebar-accordion";
@@ -98,11 +90,7 @@ function DraggableNode({ type, label, icon: IconComponent }: { type: string; lab
   );
 }
 
-interface NodePanelProps {
-  onApplyTemplate?: (templateId: string) => void;
-}
-
-export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
+export default function NodePanel() {
   const [query, setQuery] = useState("");
   const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
   const sidebarWidthRef = useRef(sidebarWidth);
@@ -249,34 +237,6 @@ export default function NodePanel({ onApplyTemplate }: NodePanelProps) {
               </Accordion>
             );
           })}
-        </Box>
-
-        <Box sx={{ borderTop: 1, borderColor: "divider", p: 2, flexShrink: 0 }}>
-          <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", display: "block", mb: 1, fontSize: "0.65rem" }}>
-            <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
-              <LayoutTemplate size={12} /> Templates
-            </Box>
-          </Typography>
-          {TEMPLATES.map((tpl) => (
-            <Card
-              key={tpl.id}
-              onClick={() => onApplyTemplate?.(tpl.id)}
-              sx={{
-                cursor: "pointer", mb: 1, bgcolor: "background.paper", border: 1, borderColor: "divider",
-                transition: "border-color 0.15s, box-shadow 0.15s",
-                "&:hover": { borderColor: "#22c55e", boxShadow: "0 0 0 1px rgba(34,197,94,0.15)" },
-              }}
-            >
-              <CardContent sx={{ p: 1, "&:last-child": { pb: 1 }, display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography component="span" sx={{ fontSize: "18px", lineHeight: 1, flexShrink: 0 }}>{tpl.icon}</Typography>
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 500, color: "#f4f4f5", fontSize: "0.65rem", display: "block" }}>{tpl.label}</Typography>
-                  <Typography variant="caption" sx={{ fontFamily: "monospace", fontSize: "0.55rem", color: "#52525b", display: "block", mt: 0.25 }}>{tpl.preview}</Typography>
-                  <Typography variant="caption" sx={{ fontSize: "0.5rem", color: "#3f3f46", display: "block", mt: 0.25 }}>{tpl.desc}</Typography>
-                </Box>
-              </CardContent>
-            </Card>
-          ))}
         </Box>
       <Box
         onMouseDown={onHandleMouseDown}
