@@ -36,6 +36,8 @@ import { useChallengeStore } from "../store/challengeStore";
 import { useSimulationStore } from "../store/simulationStore";
 import { useAuthStore } from "../store/authStore";
 import { useExportStore } from "../store/exportStore";
+import { useMaturityStore } from "../store/maturityStore";
+import MaturityModal from "../components/panels/MaturityModal";
 import ExportModal from "../components/panels/ExportModal";
 import BottomDrawer from "../components/panels/BottomDrawer";
 import CommandPalette from "../components/ui/CommandPalette";
@@ -258,6 +260,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const showFinOpsPanel = useFinOpsStore((s) => s.showPanel);
   const setShowFinOpsPanel = useFinOpsStore((s) => s.setShowPanel);
   const [showDrillPanel, setShowDrillPanel] = useState(false);
+  const [showMaturityPanel, setShowMaturityPanel] = useState(false);
+  const onToggleMaturityPanel = useCallback(() => setShowMaturityPanel((v) => !v), []);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const reactFlowRef = useRef<any>(null);
@@ -770,6 +774,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         onToggleFinOpsPanel={() => { setActiveRightTab("finops"); setShowFinOpsPanel(!showFinOpsPanel); }}
         showDrillPanel={showDrillPanel}
         onToggleDrillPanel={() => setShowDrillPanel(!showDrillPanel)}
+        showMaturityPanel={showMaturityPanel}
+        onToggleMaturityPanel={onToggleMaturityPanel}
         collabConnected={collabConnected}
         remoteUsers={remoteUsers}
       />
@@ -945,6 +951,13 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
       />
       <ToastContainer />
       <ExportModal />
+      <MaturityModal
+        projectId={projectId}
+        open={showMaturityPanel}
+        onClose={() => setShowMaturityPanel(false)}
+        projectName={currentProject?.name}
+        reactFlowRef={reactFlowWrapper}
+      />
     </Box>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowLeft, Play, Square, Share2, Shield, DollarSign, Download, Camera, FileText, Building2, BarChart3, Globe } from "lucide-react";
+import { ArrowLeft, Play, Square, Share2, ShieldCheck, DollarSign, Download, Camera, FileText, Building2, BarChart3, Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { useCanvasStore } from "../../store/canvasStore";
@@ -31,6 +31,8 @@ interface TopToolbarProps {
   onToggleFinOpsPanel: () => void;
   showDrillPanel: boolean;
   onToggleDrillPanel: () => void;
+  showMaturityPanel: boolean;
+  onToggleMaturityPanel: () => void;
   collabConnected: boolean;
   remoteUsers: { clientId: number; name: string; color: string }[];
 }
@@ -55,7 +57,7 @@ function SaveDot({ saving, isDirty }: { saving: boolean; isDirty: boolean }) {
   );
 }
 
-export default function TopToolbar({ projectId, saving, onStart, onStop, collabConnected, remoteUsers }: TopToolbarProps) {
+export default function TopToolbar({ projectId, saving, onStart, onStop, showMaturityPanel, onToggleMaturityPanel, collabConnected, remoteUsers }: TopToolbarProps) {
   const navigate = useNavigate();
   const { currentProject, updateProject } = useProjectStore(useShallow((s) => ({ currentProject: s.currentProject, updateProject: s.updateProject })));
   const { user, logout } = useAuthStore(useShallow((s) => ({ user: s.user, logout: s.logout })));
@@ -226,9 +228,9 @@ export default function TopToolbar({ projectId, saving, onStart, onStop, collabC
             </IconButton>
           </Tooltip>
 
-          <Tooltip title="Security Audit" arrow>
-            <IconButton size="small" sx={{ color: "#60a5fa" }}>
-              <Shield size={16} />
+          <Tooltip title="Maturity Assessment" arrow>
+            <IconButton size="small" onClick={onToggleMaturityPanel} sx={{ color: showMaturityPanel ? "#22c55e" : "#a1a1aa" }}>
+              <ShieldCheck size={16} />
             </IconButton>
           </Tooltip>
 
