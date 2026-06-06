@@ -1,10 +1,10 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button, Box, Typography,
-  LinearProgress, Chip, IconButton, Tooltip, Divider,
+  Chip, IconButton,
 } from "@mui/material";
 import { ShieldCheck, Download, X, AlertTriangle, CheckCircle, Info } from "lucide-react";
-import { useMaturityStore, type MaturityReport } from "../../store/maturityStore";
+import { useMaturityStore } from "../../store/maturityStore";
 import { useShallow } from "zustand/react/shallow";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -99,7 +99,36 @@ export default function MaturityModal({ projectId, open, onClose, simulationRunI
       pdf.text(`Certification Level: ${report.level}`, 10, y);
       y += 6;
       pdf.text(`Overall Score: ${report.score}/100`, 10, y);
-      y += 12;
+      y += 10;
+
+      addPageIfNeeded(14);
+      pdf.setFontSize(12);
+      pdf.setTextColor(244, 244, 245);
+      pdf.text("Simulation Results", 10, y);
+      y += 7;
+      pdf.setFontSize(9);
+      pdf.setTextColor(200, 200, 200);
+      if (simulationRunId) {
+        pdf.text("Simulation run was provided to the maturity engine. Resilience and Observability scores", 10, y);
+        y += 4;
+        const simSummary = [
+          `Redundancy: ${report.breakdown.redundancy.toFixed(1)}/25`,
+          `Observability: ${report.breakdown.observability.toFixed(1)}/25`,
+          `Security: ${report.breakdown.security.toFixed(1)}/25`,
+          `Resilience: ${report.breakdown.resilience.toFixed(1)}/25`,
+        ];
+        pdf.text(`incorporate runtime behavior. Pillar breakdown: ${simSummary.join(" · ")}`, 10, y);
+        y += 4;
+        const totalCapacity = report.breakdown.redundancy + report.breakdown.resilience;
+        pdf.text(`Architecture redundancy + resilience capacity: ${totalCapacity.toFixed(1)}/50 — gaps in these areas suggest`, 10, y);
+        y += 4;
+        pdf.text(`single points of failure or insufficient deployment hardening.`, 10, y);
+      } else {
+        pdf.text("No simulation run attached. Resilience and Observability scores are based on", 10, y);
+        y += 4;
+        pdf.text("structural assessment only. Run a simulation to unlock runtime-aware scoring.", 10, y);
+      }
+      y += 8;
 
       pdf.setFontSize(14);
       pdf.setTextColor(244, 244, 245);
