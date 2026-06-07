@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Maximize2, Minimize2, ExternalLink } from "lucide-react";
+import { Maximize2, Minimize2, ExternalLink, Play, Square, Skull, Rocket, Shield } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -46,7 +46,7 @@ interface EventEntry {
   id: string;
   time: string;
   type: "simulation" | "chaos" | "deployment" | "security";
-  icon: string;
+  icon: ReactNode;
   message: string;
   detail: string;
 }
@@ -83,7 +83,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
   const violations = useSecurityStore((s) => s.violations);
   const sloReport = useSLOStore((s) => s.sloReport);
 
-  const addEvent = useCallback((type: EventEntry["type"], icon: string, message: string, detail: string) => {
+  const addEvent = useCallback((type: EventEntry["type"], icon: ReactNode, message: string, detail: string) => {
     eventCounter += 1;
     const now = new Date();
     const time = now.toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -94,7 +94,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
   useEffect(() => {
     if (isRunning === prevRunning.current) return;
     prevRunning.current = isRunning;
-    addEvent("simulation", isRunning ? "▶" : "■", isRunning ? "Simulation running" : "Simulation stopped", `elapsed ${Math.floor(elapsed / 60)}m ${elapsed % 60}s`);
+    addEvent("simulation", isRunning ? <Play size={14} /> : <Square size={14} />, isRunning ? "Simulation running" : "Simulation stopped", `elapsed ${Math.floor(elapsed / 60)}m ${elapsed % 60}s`);
 
     if (!isRunning) {
       useSLOStore.getState().clearSLOData();
@@ -108,7 +108,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
   useEffect(() => {
     if (chaosEvents.length === 0) return;
     const latest = chaosEvents[chaosEvents.length - 1];
-    addEvent("chaos", "☠", `Chaos: ${latest.eventType}`, `severity ${Math.round(latest.severity * 100)}%`);
+    addEvent("chaos", <Skull size={14} />, `Chaos: ${latest.eventType}`, `severity ${Math.round(latest.severity * 100)}%`);
   }, [chaosEvents, addEvent]);
 
   const prevDeployCount = useRef(0);
@@ -118,7 +118,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
     const latestKey = Object.keys(deployStates)[Object.keys(deployStates).length - 1];
     if (!latestKey) return;
     const state = deployStates[latestKey];
-    addEvent("deployment", "🚀", `Deployment shift`, `active group: ${state.activeGroup}`);
+    addEvent("deployment", <Rocket size={14} />, `Deployment shift`, `active group: ${state.activeGroup}`);
   }, [deployStates, addEvent]);
 
   const prevViolationCount = useRef(0);
@@ -127,7 +127,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
     prevViolationCount.current = violations.length;
     const last = violations[violations.length - 1];
     if (!last) return;
-    addEvent("security", "🛡", `Violation: ${last.type.replace(/_/g, " ")}`, last.message);
+    addEvent("security", <Shield size={14} />, `Violation: ${last.type.replace(/_/g, " ")}`, last.message);
   }, [violations, addEvent]);
 
   const prevTickRef = useRef(0);
@@ -411,7 +411,7 @@ export default function BottomDrawer({ projectId }: BottomDrawerProps) {
                     <List dense disablePadding>
                       {events.map((ev) => (
                         <ListItem key={ev.id} disablePadding sx={{ px: 0.5, py: 0.25, borderRadius: 0.5, "&:hover": { bgcolor: "rgba(39,39,42,0.5)" } }}>
-                          <Typography variant="caption" sx={{ mr: 0.5, fontSize: "0.7rem", flexShrink: 0 }}>{ev.icon}</Typography>
+                          <Box sx={{ mr: 0.5, fontSize: "0.7rem", flexShrink: 0, display: "flex", alignItems: "center" }}>{ev.icon}</Box>
                           <ListItemText
                             primary={ev.message}
                             secondary={ev.detail}

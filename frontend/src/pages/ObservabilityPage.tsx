@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSimulationStore, type TickData } from "../store/simulationStore";
 import { useChaosStore } from "../store/chaosStore";
@@ -6,7 +6,7 @@ import { useDeployStore } from "../store/deploymentStore";
 import { useSecurityStore } from "../store/securityStore";
 import { useProjectStore } from "../store/projectStore";
 import html2canvas from "html2canvas";
-import { Camera, ArrowLeft, Search, Terminal } from "lucide-react";
+import { Camera, ArrowLeft, Search, Terminal, CheckCircle, Clock, XCircle, ArrowUp, ArrowDown, Skull, Shield, Rocket, Play, Square } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -105,7 +105,7 @@ function WaterfallChart({ trace }: { trace: TraceData }) {
       <Typography variant="caption" sx={{ fontSize: "0.6rem", fontWeight: 500, color: "#a1a1aa", display: "block", mb: 1 }}>
         Trace <Typography variant="caption" component="span" sx={{ fontFamily: "monospace", color: "#f4f4f5", fontSize: "0.6rem" }}>{trace.traceId.slice(0, 12)}…</Typography>
         {" · "}{trace.spans.length} spans · {ms(trace.totalDurationMs)} total
-        {trace.hasError && <Typography variant="caption" component="span" sx={{ ml: 0.5, color: "#ef4444", fontSize: "0.6rem" }}>⛔ Has Errors</Typography>}
+        {trace.hasError && <Box component="span" sx={{ ml: 0.5, color: "#ef4444", display: "inline-flex", alignItems: "center", gap: 0.25, verticalAlign: "middle", fontSize: "0.6rem" }}><XCircle size={12} /> Has Errors</Box>}
       </Typography>
       <Box sx={{ border: 1, borderColor: "#27272a", borderRadius: 1, overflow: "hidden" }}>
         <Box sx={{ display: "flex", bgcolor: "#27272a", px: 1.5, py: 0.75, fontSize: "0.55rem", fontWeight: 500, color: "#71717a" }}>
@@ -128,9 +128,9 @@ function WaterfallChart({ trace }: { trace: TraceData }) {
           return (
             <Box key={span.spanId} sx={{ display: "flex", alignItems: "center", px: 1.5, py: 0.75, bgcolor: i % 2 === 0 ? "#18181b" : "#09090b", fontSize: "0.65rem" }}>
               <Box sx={{ width: 160, flexShrink: 0, display: "flex", alignItems: "center", gap: 0.25, color: "#f4f4f5" }}>
-                {isCache && <Typography variant="caption" component="span" sx={{ fontSize: "0.55rem", color: "#22c55e" }}>●</Typography>}
-                {isAsync && <Typography variant="caption" component="span" sx={{ fontSize: "0.55rem", color: "#f97316" }}>◉</Typography>}
-                {isError && <Typography variant="caption" component="span" sx={{ fontSize: "0.55rem", color: "#ef4444" }}>⛔</Typography>}
+                {isCache && <CheckCircle size={12} style={{ color: "#22c55e", flexShrink: 0 }} />}
+                {isAsync && <Clock size={12} style={{ color: "#f97316", flexShrink: 0 }} />}
+                {isError && <XCircle size={12} style={{ color: "#ef4444", flexShrink: 0 }} />}
                 {span.nodeLabel}
                 <Typography variant="caption" component="span" sx={{ fontSize: "0.55rem", ml: 0.25, color: "#71717a" }}>{span.nodeType}</Typography>
               </Box>
@@ -195,7 +195,7 @@ function generateLogEntry(_tick: TickData, traces: TraceData[]): LogEntry {
   return { timestamp: new Date().toISOString(), service: `${svcType}-${Math.floor(Math.random() * 3) + 1}`, level, message: msg, traceId };
 }
 
-interface EventEntry { id: string; time: string; type: "simulation" | "chaos" | "deployment" | "security"; icon: string; message: string; detail: string; }
+interface EventEntry { id: string; time: string; type: "simulation" | "chaos" | "deployment" | "security"; icon: ReactNode; message: string; detail: string; }
 
 let eventCounter = 0;
 
@@ -223,7 +223,7 @@ export default function ObservabilityPage() {
   const wsRef = useRef<WebSocket | null>(null);
   const logTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const addEvent = useCallback((type: EventEntry["type"], icon: string, message: string, detail: string) => {
+  const addEvent = useCallback((type: EventEntry["type"], icon: ReactNode, message: string, detail: string) => {
     eventCounter += 1;
     const now = new Date();
     const time = now.toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -273,7 +273,7 @@ export default function ObservabilityPage() {
         const ticket = data.ticket;
         const wsUrl = `${WS_BASE}/ws/simulation?ticket=${ticket}&projectId=${projectId}`;
         ws = new WebSocket(wsUrl);
-        ws.onopen = () => addEvent("simulation", "play", "Dashboard connected", `Listening to run ${runId.slice(0, 8)}…`);
+        ws.onopen = () => addEvent("simulation", <Play size={12} />, "Dashboard connected", `Listening to run ${runId.slice(0, 8)}…`);
         ws.onmessage = (event) => { try { const msg = JSON.parse(event.data); if (msg.type === "tick") useSimulationStore.getState().onTick(msg.tick); } catch { /* skip */ } };
         ws.onclose = () => { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } };
         ws.onerror = () => {};
@@ -296,13 +296,13 @@ export default function ObservabilityPage() {
   useEffect(() => {
     if (isRunning === prevRunning.current) return;
     prevRunning.current = isRunning;
-    addEvent(isRunning ? "simulation" : "simulation", isRunning ? "play" : "stop", isRunning ? "Simulation running" : "Simulation stopped", "");
+    addEvent("simulation", isRunning ? <Play size={12} /> : <Square size={12} />, isRunning ? "Simulation running" : "Simulation stopped", "");
   }, [isRunning, addEvent]);
 
   useEffect(() => {
     if (chaosEvents.length === 0) return;
     const latest = chaosEvents[chaosEvents.length - 1];
-    addEvent("chaos", "skull", `Chaos: ${latest.eventType}`, `node ${latest.nodeId.slice(0, 8)}, severity ${Math.round(latest.severity * 100)}%`);
+    addEvent("chaos", <Skull size={12} />, `Chaos: ${latest.eventType}`, `node ${latest.nodeId.slice(0, 8)}, severity ${Math.round(latest.severity * 100)}%`);
   }, [chaosEvents, addEvent]);
 
   useEffect(() => {
@@ -311,7 +311,7 @@ export default function ObservabilityPage() {
     const key = `${last.sourceNodeId}:${last.type}`;
     if (loggedViolations.current.has(key)) return;
     loggedViolations.current.add(key);
-    addEvent("security", "shield", `Violation: ${last.type.replace(/_/g, " ")}`, last.message);
+    addEvent("security", <Shield size={12} />, `Violation: ${last.type.replace(/_/g, " ")}`, last.message);
   }, [violations, addEvent]);
 
   useEffect(() => {
@@ -321,7 +321,7 @@ export default function ObservabilityPage() {
     if (loggedDeployments.current.has(latestDep)) return;
     loggedDeployments.current.add(latestDep);
     const state = deployStates[latestDep];
-    addEvent("deployment", "rocket", `Deployment: ${state.activeGroup}`, `node ${latestDep.slice(0, 8)} → ${state.activeGroup}`);
+    addEvent("deployment", <Rocket size={12} />, `Deployment: ${state.activeGroup}`, `node ${latestDep.slice(0, 8)} → ${state.activeGroup}`);
   }, [deployStates, addEvent]);
 
   useEffect(() => {
@@ -332,8 +332,8 @@ export default function ObservabilityPage() {
       const prev = prevScaleEvents.current[m.nodeId] ?? "";
       if (ev === prev) continue;
       prevScaleEvents.current[m.nodeId] = ev;
-      const dir = ev === "scaling up" ? "⬆️" : "⬇️";
-      addEvent("simulation", dir, `${dir} ${m.label} ${ev}`, `instances → ${m.instances}`);
+      const dir = ev === "scaling up" ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
+      addEvent("simulation", dir, `${m.label} ${ev}`, `instances → ${m.instances}`);
     }
   }, [latestTick, addEvent]);
 
@@ -533,7 +533,7 @@ export default function ObservabilityPage() {
                   <List dense disablePadding>
                     {events.map((ev) => (
                       <ListItem key={ev.id} disablePadding sx={{ px: 1, py: 0.5, borderRadius: 0.5, "&:hover": { bgcolor: "#27272a" } }}>
-                        <Typography variant="caption" sx={{ mr: 0.5, fontSize: "0.75rem", mt: 0.25, flexShrink: 0 }}>{ev.icon}</Typography>
+                        <Box sx={{ mr: 0.5, fontSize: "0.75rem", mt: 0.25, flexShrink: 0, display: "flex", alignItems: "center" }}>{ev.icon}</Box>
                         <ListItemText
                           primary={ev.message}
                           secondary={ev.detail}
