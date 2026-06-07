@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { Search, ChevronDown } from "lucide-react";
+import { Search, ChevronDown, Globe, Monitor, Database, Inbox, Cloud } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { nodeRegistry } from "../../utils/nodeRegistry";
 import {
@@ -29,16 +29,16 @@ function loadAccordionState(): Record<string, boolean> {
 interface AccordionGroup {
   key: string;
   label: string;
-  icon: string;
+  icon: LucideIcon;
   registryCats: string[];
 }
 
 const GROUPS: AccordionGroup[] = [
-  { key: "network", label: "Network", icon: "🌐", registryCats: ["infrastructure", "network"] },
-  { key: "compute", label: "Compute", icon: "🖥️", registryCats: ["compute"] },
-  { key: "databases", label: "Databases", icon: "🗄️", registryCats: ["data"] },
-  { key: "messaging", label: "Messaging", icon: "📨", registryCats: ["messaging"] },
-  { key: "external", label: "External", icon: "☁️", registryCats: ["external"] },
+  { key: "network", label: "Network", icon: Globe, registryCats: ["infrastructure", "network"] },
+  { key: "compute", label: "Compute", icon: Monitor, registryCats: ["compute"] },
+  { key: "databases", label: "Databases", icon: Database, registryCats: ["data"] },
+  { key: "messaging", label: "Messaging", icon: Inbox, registryCats: ["messaging"] },
+  { key: "external", label: "External", icon: Cloud, registryCats: ["external"] },
 ];
 
 function createDragGhost(label: string, iconEl: string) {
@@ -199,6 +199,7 @@ export default function NodePanel() {
             const items = grouped[grp.key];
             if (items.length === 0 && query) return null;
             const isExpanded = accordionExpanded[grp.key] ?? true;
+            const IconComponent = grp.icon;
             return (
               <Accordion
                 key={grp.key}
@@ -223,7 +224,7 @@ export default function NodePanel() {
                   }}
                 >
                   <Typography sx={{ fontSize: "0.7rem", fontWeight: 500, display: "flex", alignItems: "center", gap: 0.75, color: "#a1a1aa" }}>
-                    <span>{grp.icon}</span> {grp.label}
+                    <IconComponent size={14} /> {grp.label}
                     <Typography component="span" sx={{ ml: 0.5, fontSize: "0.55rem", color: "#52525b", fontFamily: "monospace" }}>
                       {items.length}
                     </Typography>

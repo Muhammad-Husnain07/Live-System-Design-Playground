@@ -15,7 +15,7 @@ import ReactFlow, {
   ReactFlowProvider,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Sword, Trophy, Frown } from "lucide-react";
+import { Sword, Trophy, Frown, Check, Play, Zap } from "lucide-react";
 import { useProjectStore } from "../store/projectStore";
 import { useCanvasStore } from "../store/canvasStore";
 import { useShallow } from "zustand/react/shallow";
@@ -530,18 +530,18 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         cs().addNode(newNode);
         scheduleAutoSave();
         debouncedSync();
-        toast({ type: "success", title: `✅ Node added`, message: meta.label, duration: 2500 });
+        toast({ type: "success", title: `Node added`, message: meta.label, duration: 2500 });
         return;
       }
 
       if (actionId === "start-simulation") {
         simStart();
-        toast({ type: "info", title: "▶️ Simulation starting…", duration: 2000 });
+        toast({ type: "info", title: "Simulation starting…", duration: 2000 });
         return;
       }
       if (actionId === "stop-simulation") {
         simStop();
-        toast({ type: "info", title: "■ Simulation stopped", duration: 2000 });
+        toast({ type: "info", title: "Simulation stopped", duration: 2000 });
         return;
       }
 
@@ -565,7 +565,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
           severity: 0.5,
           durationSeconds: 30,
         }).then(() => {
-          toast({ type: "success", title: `⚡ ${label} injected`, duration: 2500 });
+          toast({ type: "success", title: `${label} injected`, duration: 2500 });
         }).catch(() => {
           toast({ type: "error", title: `Failed to inject ${label}`, duration: 3000 });
         });
@@ -626,21 +626,21 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         const es = useExportStore.getState();
         es.setFormat("terraform");
         es.openExport();
-        toast({ type: "info", title: "📄 Export Terraform", duration: 2000 });
+        toast({ type: "info", title: "Export Terraform", duration: 2000 });
         return;
       }
       if (actionId === "export-kubernetes") {
         const es = useExportStore.getState();
         es.setFormat("kubernetes");
         es.openExport();
-        toast({ type: "info", title: "📄 Export Kubernetes", duration: 2000 });
+        toast({ type: "info", title: "Export Kubernetes", duration: 2000 });
         return;
       }
       if (actionId === "export-cloudformation") {
         const es = useExportStore.getState();
         es.setFormat("cloudformation");
         es.openExport();
-        toast({ type: "info", title: "📄 Export CloudFormation", duration: 2000 });
+        toast({ type: "info", title: "Export CloudFormation", duration: 2000 });
         return;
       }
     },
