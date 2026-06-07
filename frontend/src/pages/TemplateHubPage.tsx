@@ -1,10 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { useAuthStore } from "../store/authStore";
 import { useProjectStore } from "../store/projectStore";
 import { useToastStore } from "../store/toastStore";
 import { ENTERPRISE_TEMPLATES, type EnterpriseTemplate } from "../utils/enterpriseTemplates";
+import { Globe, Radio, DoorOpen, Server, Puzzle, Database, Inbox, Wrench, Smartphone, Scale, Link, Container, Plug, type LucideIcon } from "lucide-react";
 import {
   Box, Typography, Grid, Card, CardContent,
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -18,12 +19,12 @@ const INDUSTRY_COLORS: Record<string, string> = {
   Finance: "#22C55E",
 };
 
-const TYPE_ICONS: Record<string, string> = {
-  DNS: "🌐", CDN: "📡", APIGateway: "🚪", AppServer: "⚙️",
-  Microservice: "🧩", PostgreSQLDB: "🗄️", MongoDB: "🍃", EventBus: "📨",
-  WorkerService: "🔧", MobileClient: "📱", LoadBalancer: "⚖️", Redis: "💎",
-  WebBrowser: "🌍", ThirdPartyAPI: "🔗", MessageQueue: "📥",
-  ContainerCluster: "📦", ExternalClient: "🔌",
+const TYPE_ICONS: Record<string, LucideIcon> = {
+  DNS: Globe, CDN: Radio, APIGateway: DoorOpen, AppServer: Server,
+  Microservice: Puzzle, PostgreSQLDB: Database, MongoDB: Database, EventBus: Inbox,
+  WorkerService: Wrench, MobileClient: Smartphone, LoadBalancer: Scale, Redis: Database,
+  WebBrowser: Globe, ThirdPartyAPI: Link, MessageQueue: Inbox,
+  ContainerCluster: Container, ExternalClient: Plug,
 };
 
 const PROTOCOL_COLORS: Record<string, string> = {
@@ -150,8 +151,8 @@ export default function TemplateHubPage() {
               >
                 <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
                   <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 1.5 }}>
-                    <Typography variant="h6" sx={{ fontSize: "1rem", fontWeight: 600, color: "text.primary" }}>
-                      {tpl.icon} {tpl.label}
+                    <Typography variant="h6" sx={{ fontSize: "1rem", fontWeight: 600, color: "text.primary", display: "flex", alignItems: "center", gap: 0.75 }}>
+                      {(() => { const Icon = tpl.icon; return <Icon size={18} />; })()} {tpl.label}
                     </Typography>
                     <ScaleBadge label={tpl.scale} />
                   </Box>
@@ -182,7 +183,7 @@ export default function TemplateHubPage() {
             <DialogTitle sx={{ borderBottom: 1, borderColor: "divider", pb: 2 }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 1 }}>
-                  {selected.icon} {selected.label}
+                  {(() => { const Icon = selected.icon; return <Icon size={20} />; })()} {selected.label}
                 </Typography>
                 <ScaleBadge label={selected.scale} />
               </Box>
@@ -206,7 +207,7 @@ export default function TemplateHubPage() {
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                     {selected.nodePreview.map((np, i) => (
                       <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1, px: 1, py: 0.5, borderRadius: 1, "&:hover": { bgcolor: "action.hover" } }}>
-                        <Typography variant="body2">{TYPE_ICONS[np.type] || "⬜"}</Typography>
+                        <Typography variant="body2" sx={{ display: "inline-flex", alignItems: "center" }}>{(() => { const Icon = TYPE_ICONS[np.type]; return Icon ? <Icon size={14} /> : null; })()}</Typography>
                         <Typography variant="body2" sx={{ color: "text.primary", fontWeight: 500 }}>{np.label}</Typography>
                         <Typography variant="caption" sx={{ color: "text.disabled", ml: "auto" }}>{np.type}</Typography>
                       </Box>

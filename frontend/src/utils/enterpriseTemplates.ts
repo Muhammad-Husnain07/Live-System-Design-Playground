@@ -2,6 +2,8 @@ import type { Node, Edge } from "reactflow";
 import type { NodeType, NodeMetrics, SimulationNodeState, EdgeRoutingConfig } from "../types/canvas";
 import { NODE_REGISTRY } from "./nodeRegistry";
 import { getReactFlowType } from "../components/canvas/nodeTypes";
+import { Film, Car, ShoppingCart, Zap } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 export const DEFAULT_SIM: SimulationNodeState = {
   status: "healthy", uptimeSeconds: 0, lastFailure: null, failureCount: 0,
@@ -30,7 +32,7 @@ export interface TemplateEdgePreview {
 export interface EnterpriseTemplate {
   id: string;
   label: string;
-  icon: string;
+  icon: LucideIcon;
   desc: string;
   industry: string;
   scale: string;
@@ -62,7 +64,7 @@ function e(src: Node, tgt: Node, p: EdgeRoutingConfig["protocol"], sync: boolean
 
 export const ENTERPRISE_TEMPLATES: EnterpriseTemplate[] = [
   {
-    id: "netflix-media", label: "Netflix-Scale Media Delivery", icon: "🎬",
+    id: "netflix-media", label: "Netflix-Scale Media Delivery", icon: Film,
     desc: "DNS → CDN → APIGW → Auth + Recommend Engine → Kafka → 40 Encoding Workers",
     industry: "Media", scale: "100K RPS", tags: ["Media", "Streaming", "CDN"],
     totalInstances: 154, peakRPS: 100000,
@@ -115,7 +117,7 @@ export const ENTERPRISE_TEMPLATES: EnterpriseTemplate[] = [
     },
   },
   {
-    id: "uber-dispatch", label: "Uber Real-time Dispatch", icon: "🚗",
+    id: "uber-dispatch", label: "Uber Real-time Dispatch", icon: Car,
     desc: "Mobile → LB → WebSocket → Dispatch Engine → Redis Geospatial + PostgreSQL",
     industry: "RideShare", scale: "200K RPS", tags: ["RideShare", "Real-time", "Mobility"],
     totalInstances: 36, peakRPS: 200000,
@@ -156,7 +158,7 @@ export const ENTERPRISE_TEMPLATES: EnterpriseTemplate[] = [
     },
   },
   {
-    id: "ecommerce-bf", label: "E-Commerce Black Friday", icon: "🛒",
+    id: "ecommerce-bf", label: "E-Commerce Black Friday", icon: ShoppingCart,
     desc: "Shoppers → CDN → ALB → Cart + Queue → Primary DB + 2 Read Replicas",
     industry: "E-Commerce", scale: "100K RPS", tags: ["E-Commerce", "Retail", "Black Friday"],
     totalInstances: 79, peakRPS: 100000,
@@ -211,7 +213,7 @@ export const ENTERPRISE_TEMPLATES: EnterpriseTemplate[] = [
     },
   },
   {
-    id: "hft-pipeline", label: "High-Frequency Trading Pipeline", icon: "⚡",
+    id: "hft-pipeline", label: "High-Frequency Trading Pipeline", icon: Zap,
     desc: "MarketFeed → Kafka → StreamProcessor → MatchingEngine → OrderGateway (sub-5ms hot path)",
     industry: "Finance", scale: "100K RPS", tags: ["Finance", "Trading", "Low-Latency"],
     totalInstances: 27, peakRPS: 100000,
