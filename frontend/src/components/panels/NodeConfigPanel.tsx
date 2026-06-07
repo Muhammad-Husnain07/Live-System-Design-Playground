@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCanvasStore } from "../../store/canvasStore";
 import { NODE_REGISTRY } from "../../utils/nodeRegistry";
@@ -337,10 +337,10 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
                 <Field label="Data Inconsist."><MetricValue>{Math.round(metrics.dataInconsistency)}</MetricValue></Field>
               )}
               {metrics.isSplitBrain && (
-                <Typography variant="caption" sx={{ color: "error.main", fontWeight: 600, display: "block", py: 0.5 }}>⚠ Split-brain detected</Typography>
+                <Typography variant="caption" sx={{ color: "error.main", fontWeight: 600, display: "flex", alignItems: "center", gap: 0.5, py: 0.5 }}><AlertTriangle size={14} /> Split-brain detected</Typography>
               )}
               {metrics.spotInterrupted && (
-                <Typography variant="caption" sx={{ color: "#fb923c", fontWeight: 600, display: "block", py: 0.5 }}>⚠ Spot instance interrupted</Typography>
+                <Typography variant="caption" sx={{ color: "#fb923c", fontWeight: 600, display: "flex", alignItems: "center", gap: 0.5, py: 0.5 }}><AlertTriangle size={14} /> Spot instance interrupted</Typography>
               )}
               {cfg.deployment.isCanaryActive && (
                 <Field label="Canary RPS"><MetricValue>{(metrics as any).canaryRPS?.toLocaleString() ?? 0}</MetricValue></Field>

@@ -1,10 +1,10 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, type ReactNode } from "react";
 import {
   Dialog, TextField, List, ListItemButton, ListItemText, ListItemIcon,
   Box, Typography, Divider,
 } from "@mui/material";
 import {
-  Plus, Play, Square, Bomb, PanelRight, Undo2, Redo2, FileDown,
+  Plus, Play, Square, Bomb, PanelRight, Undo2, Redo2, FileDown, CornerDownLeft, ArrowUp, ArrowDown,
   type LucideIcon,
 } from "lucide-react";
 import type { CommandAction, CommandCategory } from "../../utils/commandActions";
@@ -181,26 +181,26 @@ export default function CommandPalette({ open, onClose, actions, onExecute }: Co
       </Box>
       <Divider sx={{ borderColor: "#27272a" }} />
       <Box sx={{ display: "flex", gap: 1.5, px: 2, py: 0.75, justifyContent: "flex-end" }}>
-        <KeyHint label="↵" desc="select" />
-        <KeyHint label="↑↓" desc="navigate" />
+        <KeyHint icon={<CornerDownLeft size={12} />} desc="select" />
+        <KeyHint icon={<><ArrowUp size={12} /><ArrowDown size={12} /></>} desc="navigate" />
         <KeyHint label="Esc" desc="close" />
       </Box>
     </Dialog>
   );
 }
 
-function KeyHint({ label, desc }: { label: string; desc: string }) {
+function KeyHint({ icon, desc }: { icon: ReactNode; desc: string }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-      <Typography
-        variant="caption"
+      <Box
         sx={{
-          fontSize: "0.55rem", fontFamily: "monospace", color: "#a1a1aa",
+          fontSize: "0.55rem", color: "#a1a1aa",
           bgcolor: "#27272a", px: 0.4, py: 0.15, borderRadius: "2px", lineHeight: 1.3,
+          display: "flex", alignItems: "center", gap: 1,
         }}
       >
-        {label}
-      </Typography>
+        {icon}
+      </Box>
       <Typography variant="caption" sx={{ fontSize: "0.55rem", color: "#52525b" }}>{desc}</Typography>
     </Box>
   );

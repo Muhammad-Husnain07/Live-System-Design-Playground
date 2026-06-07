@@ -1,5 +1,5 @@
 import { Box, Typography, IconButton } from "@mui/material";
-import { X } from "lucide-react";
+import { X, CheckCircle, Clock, XCircle } from "lucide-react";
 import { useObservabilityStore, type SpanData } from "../../store/observabilityStore";
 import { useCanvasStore } from "../../store/canvasStore";
 
@@ -36,7 +36,7 @@ export default function WaterfallPanel() {
         <Typography variant="caption" sx={{ fontSize: "0.65rem", fontWeight: 500, color: "#a1a1aa" }}>
           Waterfall — <Typography variant="caption" component="span" sx={{ fontFamily: "monospace", color: "#f4f4f5", fontSize: "0.6rem" }}>{trace.traceId.slice(0, 12)}…</Typography>
           {" · "}{trace.spans.length} spans · {ms(trace.totalDurationMs)}
-          {trace.hasError && <Typography variant="caption" component="span" sx={{ ml: 0.5, color: "#ef4444", fontSize: "0.6rem" }}>⛔ Error</Typography>}
+          {trace.hasError && <Box component="span" sx={{ ml: 0.5, color: "#ef4444", display: "inline-flex", alignItems: "center", gap: 0.25, verticalAlign: "middle", fontSize: "0.6rem" }}><XCircle size={12} /> Error</Box>}
         </Typography>
         <IconButton size="small" onClick={() => { setSelectedTrace(null); setActiveRightTab("simulate"); }} sx={{ color: "#71717a" }}>
           <X size={14} />
@@ -75,9 +75,9 @@ export default function WaterfallPanel() {
               }}
             >
               <Box sx={{ width: 140, flexShrink: 0, display: "flex", alignItems: "center", gap: 0.25, color: "#f4f4f5" }}>
-                {isCache && <Typography variant="caption" component="span" sx={{ fontSize: "0.55rem", color: "#22c55e" }}>●</Typography>}
-                {isAsync && <Typography variant="caption" component="span" sx={{ fontSize: "0.55rem", color: "#f97316" }}>◉</Typography>}
-                {isError && <Typography variant="caption" component="span" sx={{ fontSize: "0.55rem", color: "#ef4444" }}>⛔</Typography>}
+                {isCache && <CheckCircle size={12} style={{ color: "#22c55e", flexShrink: 0 }} />}
+                {isAsync && <Clock size={12} style={{ color: "#f97316", flexShrink: 0 }} />}
+                {isError && <XCircle size={12} style={{ color: "#ef4444", flexShrink: 0 }} />}
                 {span.nodeLabel}
                 <Typography variant="caption" component="span" sx={{ fontSize: "0.5rem", ml: 0.25, color: "#52525b" }}>{span.nodeType}</Typography>
               </Box>
