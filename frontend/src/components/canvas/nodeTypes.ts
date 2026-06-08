@@ -4,6 +4,8 @@ import DatabaseNode from "./DatabaseNode";
 import LoadBalancerNode from "./LoadBalancerNode";
 import MessageQueueNode from "./MessageQueueNode";
 import ContainerClusterNode from "./ContainerClusterNode";
+import LLMNode from "./nodes/LLMNode";
+import VectorDBNode from "./nodes/VectorDBNode";
 import CustomEdge from "./CustomEdge";
 import type { NodeType } from "../../types/canvas";
 
@@ -13,6 +15,8 @@ export const nodeTypes: NodeTypes = {
   loadBalancer: LoadBalancerNode,
   messageQueue: MessageQueueNode,
   containerCluster: ContainerClusterNode,
+  llm: LLMNode,
+  vectorDb: VectorDBNode,
 };
 
 export const edgeTypes: EdgeTypes = {
@@ -34,6 +38,10 @@ export function getReactFlowType(nodeType: NodeType): string {
       return "messageQueue";
     case "ContainerCluster":
       return "containerCluster";
+    case "LLMNode":
+      return "llm";
+    case "VectorDB":
+      return "vectorDb";
     default:
       return "default";
   }

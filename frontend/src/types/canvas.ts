@@ -8,6 +8,8 @@ export const NodeCategory = {
   Messaging: "messaging",
   Compute: "compute",
   External: "external",
+  AIML: "ai/ml",
+  ModernCompute: "modern-compute",
 } as const;
 
 export type NodeCategory = (typeof NodeCategory)[keyof typeof NodeCategory];
