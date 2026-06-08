@@ -631,12 +631,18 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64, tickNum int) {
 			n.CPUPercent = math.Min(n.CUDAUtilization*0.3, 100)
 		}
 
-		// EdgeCompute: ignores regional latency, sub-10ms cold start, fails if >30ms
+		// EdgeCompute: ignores regional latency, sub-10ms cold start, fails if > execution timeout (LatencyMs)
 		if n.NodeType == NodeEdgeCompute && n.CurrentRPS > 0 {
-			n.ColdStartMs = 5
-			if n.P99LatencyMs > 30 {
+			if n.ColdStartMs > 10 {
+				n.ColdStartMs = 10
+			}
+			timeoutMs := n.LatencyMs
+			if timeoutMs <= 0 {
+				timeoutMs = 30
+			}
+			if n.P99LatencyMs > timeoutMs {
 				n.IsFailed = true
-				n.P99LatencyMs = 30000
+				n.P99LatencyMs = timeoutMs * 1000
 			}
 		}
 
