@@ -38,7 +38,12 @@ export type NodeType =
   | "ExternalClient"
   | "ThirdPartyAPI"
   | "MobileClient"
-  | "WebBrowser";
+  | "WebBrowser"
+  | "VectorDB"
+  | "LLMNode"
+  | "GPUCluster"
+  | "EdgeCompute"
+  | "ServerlessV2";
 
 export interface DeploymentConfig {
   strategy: "rolling" | "blue_green" | "canary";
@@ -88,6 +93,18 @@ export interface NodeConfig {
   replicationLagMs: number;
   computeTier: "on_demand" | "reserved" | "spot";
   permissions: string;
+  // AI/ML fields
+  dimensions: number;
+  indexType: string;
+  topK: number;
+  tokensPerSecond: number;
+  promptTokenCount: number;
+  completionTokenCount: number;
+  vramGB: number;
+  modelSizeGB: number;
+  cudaUtilization: number;
+  geographicLatencyModifier: number;
+  snapStartEnabled: boolean;
 }
 
 export interface NodeMetrics {
@@ -113,6 +130,18 @@ export interface NodeMetrics {
   isSplitBrain: boolean;
   dataInconsistency: number;
   spotInterrupted: boolean;
+  // AI/ML metrics
+  dimensions: number;
+  indexType: string;
+  topK: number;
+  tokensPerSecond: number;
+  promptTokenCount: number;
+  completionTokenCount: number;
+  vramGB: number;
+  modelSizeGB: number;
+  cudaUtilization: number;
+  geographicLatencyModifier: number;
+  snapStartEnabled: boolean;
 }
 
 export interface SimulationNodeState {

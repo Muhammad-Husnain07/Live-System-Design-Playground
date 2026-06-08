@@ -16,6 +16,10 @@ export const DEFAULT_METRICS: NodeMetrics = {
   coldStartMs: 500, diskIOPSMax: 3000, isPrimaryDB: false, activeConnections: 0,
   desiredInstances: 0, scalingEvent: "", staleReadCount: 0, isSplitBrain: false,
   dataInconsistency: 0, spotInterrupted: false,
+  dimensions: 0, indexType: "", topK: 0,
+  tokensPerSecond: 0, promptTokenCount: 0, completionTokenCount: 0,
+  vramGB: 0, modelSizeGB: 0, cudaUtilization: 0,
+  geographicLatencyModifier: 0, snapStartEnabled: false,
 };
 
 export interface TemplateNodePreview {

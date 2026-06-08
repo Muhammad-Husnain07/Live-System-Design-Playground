@@ -2,6 +2,7 @@ import {
   Scale, DoorOpen, Globe, Settings, Puzzle, Database, Leaf, Circle, Search,
   Satellite, Shield, Box, Square, Inbox, Bus, Megaphone, Container, Zap,
   ClipboardList, Wrench, Link, Smartphone, Monitor,
+  DatabaseSearch, BrainCircuit, Cpu, Radio, CloudLightning,
 } from "lucide-react";
 import { NodeCategory } from "../types/canvas";
 import type { NodeType, NodeMetadata } from "../types/canvas";
@@ -21,6 +22,17 @@ const base = {
   replicationLagMs: 0,
   computeTier: "on_demand",
   permissions: "",
+  dimensions: 0,
+  indexType: "",
+  topK: 0,
+  tokensPerSecond: 0,
+  promptTokenCount: 0,
+  completionTokenCount: 0,
+  vramGB: 0,
+  modelSizeGB: 0,
+  cudaUtilization: 0,
+  geographicLatencyModifier: 0,
+  snapStartEnabled: false,
 };
 
 type Override = Partial<typeof base> & { instances: number; maxRPS: number; latencyMs: number };
@@ -245,6 +257,47 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
     color: "#6B7280",
     category: NodeCategory.External,
     defaultConfig: external({ instances: 0, maxRPS: 3000, latencyMs: 100 }),
+  },
+
+  VectorDB: {
+    label: "Vector Database",
+    description: "High-dimensional vector search for embeddings-based retrieval",
+    icon: DatabaseSearch,
+    color: "#F97316",
+    category: NodeCategory.Data,
+    defaultConfig: data({ instances: 2, maxRPS: 2000, latencyMs: 10 }),
+  },
+  LLMNode: {
+    label: "LLM Node",
+    description: "Large language model inference endpoint with token-based processing",
+    icon: BrainCircuit,
+    color: "#22C55E",
+    category: NodeCategory.Compute,
+    defaultConfig: compute({ instances: 2, maxRPS: 500, latencyMs: 50 }),
+  },
+  GPUCluster: {
+    label: "GPU Cluster",
+    description: "CUDA-accelerated compute cluster for ML training and inference",
+    icon: Cpu,
+    color: "#22C55E",
+    category: NodeCategory.Compute,
+    defaultConfig: compute({ instances: 4, maxRPS: 1000, latencyMs: 5 }),
+  },
+  EdgeCompute: {
+    label: "Edge Compute",
+    description: "Low-latency compute at edge PoPs with sub-10ms processing targets",
+    icon: Radio,
+    color: "#22C55E",
+    category: NodeCategory.Compute,
+    defaultConfig: compute({ instances: 10, maxRPS: 3000, latencyMs: 2 }),
+  },
+  ServerlessV2: {
+    label: "Serverless V2",
+    description: "SnapStart-enabled serverless with near-zero cold starts",
+    icon: CloudLightning,
+    color: "#22C55E",
+    category: NodeCategory.Compute,
+    defaultConfig: compute({ instances: 5, maxRPS: 2000, latencyMs: 10 }),
   },
 };
 
