@@ -4818,3 +4818,109 @@ GET /api/simulations/:id/slo-report
 | EdgeCompute had `n.P99LatencyMs = math.Min(n.P99LatencyMs, 10)` which clamped P99 to ≤10ms, making the `>30ms` failure check unreachable | Removed the clamping line; EdgeCompute only sets cold start to 5ms and checks `>30ms` for failure |
 | `backend/config/seeder.go` referenced `NodeGraphQL`, `NodePostgreSQL`, `NodeS3`, `NodeKafka` which don't exist in `simulation/models.go` | Replaced with correct constants: `NodePostgreSQLDB`, `NodeMySQLDB`, `NodeElasticsearch` |
 | `frontend/src/utils/enterpriseTemplates.ts` — `DEFAULT_METRICS` missing AI/ML fields causing TS2740 | Added all 11 AI/ML fields with zero defaults |
+
+---
+
+## Phase L1.2 — Next-gen UI Components & AI/ML Config Panels — 2026-06-08
+
+**Goal**: Add visual custom node components for AI/ML infrastructure types and build dedicated configuration panels for each new node type.
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/types/canvas.ts` | Added `AIML: "ai/ml"` and `ModernCompute: "modern-compute"` to `NodeCategory` |
+| `frontend/src/utils/nodeRegistry.ts` | Added `Sparkles`, `Cloud` icon imports; added `aiMl()` and `modernCompute()` config helpers; recategorized VectorDB (→AIML, violet `#8B5CF6`), LLMNode (→AIML, purple `#A855F7`), GPUCluster (→AIML, red `#EF4444`), EdgeCompute (→ModernCompute, cyan `#06B6D4`), ServerlessV2 (→ModernCompute, blue `#3B82F6`); updated defaultConfigs for AI/ML fields |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | Added conditional AI/ML config sections: LLMNode (Prompt/Completion Tokens sliders, TPS slider), VectorDB (Dimensions dropdown 128/256/768/1536/3072, Index Type dropdown HNSW/IVF/Flat/PQ, Top-K slider), GPUCluster (VRAM input, Model Size input, CUDA Util display), EdgeCompute (Execution Timeout input with fail warning, Cold Start input, Regional Latency toggle); added AI/ML live metrics rows per type |
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/components/canvas/nodes/LLMNode.tsx` | Custom React Flow node with animated SVG streaming blocks (6 moving colored rectangles) that animate horizontally when RPS > 0; idle text when not processing; footer shows TPS and RPS |
+| `frontend/src/components/canvas/nodes/VectorDBNode.tsx` | Custom React Flow node with SVG dimensionality grid pattern (cross-hatch grid + randomly scattered dots representing vector points); footer shows dimensions, Top-K, and index type |
+
+### UI Details
+
+#### LLMNode Visual
+- Animated SVG `<rect>` tokens streaming right-to-left when `currentRPS > 0`
+- 6 blocks with staggered animation delays (`0.2s + i × 0.35s`), each with pulsing opacity
+- Block colors cycle through purple/violet palette (`#a855f7`, `#c084fc`, etc.)
+- Shows "idle" text centered when no RPS
+- Footer: `BrainCircuit` icon + TPS count, `Zap` icon + current RPS
+
+#### VectorDBNode Visual
+- Dual-layer SVG pattern grid: 12px cells with `rgba(139,92,246,0.08)` stroke + 6px dense grid with `rgba(139,92,246,0.05)` stroke
+- 40 randomly placed dots (5 rows × 8 cols) with randomized size and brightness to simulate vector embedding clusters
+- Footer text: "1536d · Top-10 · HNSW" format
+- Footer: `DatabaseSearch` icon + dims count, `Layers` icon + Top-K
+
+#### NodeConfigPanel AI/ML Sections
+| Node Type | Config Controls |
+|-----------|----------------|
+| **LLMNode** | Prompt Tokens slider (64–4096, step 64), Completion Tokens slider (16–4096, step 16), TPS slider (100–10000, step 100) |
+| **VectorDB** | Dimensions dropdown (128, 256, 768, 1536, 3072), Index Type dropdown (HNSW, IVF, Flat, PQ), Top-K slider (1–100) |
+| **GPUCluster** | VRAM input (16–1024 GB, step 8), Model Size input (0–2048 GB), CUDA Utilization live display |
+| **EdgeCompute** | Execution Timeout input (1–100ms) with red warning "Simulation fails if P99 exceeds this value", Cold Start input (0–50ms), Ignore Regional Latency toggle |
+
+### nodeTypes Registration
+
+`nodeTypes.ts` now registers two new React Flow component types:
+- `"llm"` → `LLMNode`
+- `"vectorDb"` → `VectorDBNode`
+
+`getReactFlowType()` maps `LLMNode` → `"llm"` and `VectorDB` → `"vectorDb"`.
+
+### Key Decisions
+- Custom nodes render inside the `BaseNode` wrapper (via `children` slot), inheriting handles, failed overlay, bottleneck badge, metrics bar, and resize handle
+- LLMNode streaming animation uses SVG `<animate>` for both position (`x` attribute) and opacity, avoiding JS-driven animation loops
+- VectorDB dot positions are randomized but deterministic per mount (computed inline, not memoized across renders) to create a "static but organic" grid feel
+- AI/ML config sections are conditionally rendered based on `nodeType` to keep the panel clean — only relevant controls appear
+- EdgeCompute timeout is bound to `latencyMs` field (reused as threshold), with a visual warning note below the input
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` | ✅ 0 errors |
+| `npx tsc --noEmit` | ✅ 0 errors |
+
+### Status
+
+**Phase L1.2 — Next-gen UI components & AI/ML config panels complete**
+
+### Verification: PASSED — 2026-06-08
+
+| Check | Result |
+|-------|--------|
+| `frontend/src/types/canvas.ts` — `AIML` and `ModernCompute` added to `NodeCategory` | ✅ |
+| `frontend/src/utils/nodeRegistry.ts` — VectorDB: AIML category, violet `#8B5CF6` | ✅ |
+| `frontend/src/utils/nodeRegistry.ts` — LLMNode: AIML category, purple `#A855F7` | ✅ |
+| `frontend/src/utils/nodeRegistry.ts` — GPUCluster: AIML category, red `#EF4444`, icon `Sparkles` | ✅ |
+| `frontend/src/utils/nodeRegistry.ts` — EdgeCompute: ModernCompute category, cyan `#06B6D4` | ✅ |
+| `frontend/src/utils/nodeRegistry.ts` — ServerlessV2: ModernCompute category, blue `#3B82F6` | ✅ |
+| `frontend/src/utils/nodeRegistry.ts` — `aiMl()` and `modernCompute()` helper functions | ✅ |
+| `frontend/src/utils/nodeRegistry.ts` — defaultConfigs include AI/ML field values | ✅ |
+| `frontend/src/components/canvas/nodes/LLMNode.tsx` — SVG animated streaming blocks (6 rects, staggered delays, pulsing opacity) | ✅ |
+| `frontend/src/components/canvas/nodes/LLMNode.tsx` — idle text when not processing | ✅ |
+| `frontend/src/components/canvas/nodes/VectorDBNode.tsx` — dual-layer SVG grid pattern (12px + 6px) | ✅ |
+| `frontend/src/components/canvas/nodes/VectorDBNode.tsx` — 40 randomized vector dots with varying size/brightness | ✅ |
+| `frontend/src/components/canvas/nodes/VectorDBNode.tsx` — footer showing dimensions, Top-K, index type | ✅ |
+| `frontend/src/components/canvas/nodeTypes.ts` — `"llm"` → LLMNode, `"vectorDb"` → VectorDBNode | ✅ |
+| `frontend/src/components/canvas/nodeTypes.ts` — `getReactFlowType()` maps LLMNode/VectorDB | ✅ |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` — LLMNode section: Prompt/Completion Tokens + TPS sliders | ✅ |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` — VectorDB section: Dimensions dropdown (5 options), Index Type dropdown (4 options), Top-K slider | ✅ |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` — GPUCluster section: VRAM input, Model Size input, CUDA Util live display | ✅ |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` — EdgeCompute section: Execution Timeout with fail warning, Cold Start input, Regional Latency toggle | ✅ |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` — AI/ML-specific live metrics per type | ✅ |
+| `npx tsc --noEmit` — 0 errors | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+
+### Fixes Applied During Re-Verification — 2026-06-08
+| Issue | File | Fix |
+|-------|------|-----|
+| EdgeCompute backend hardcoded timeout (30ms) instead of configurable `LatencyMs` | `backend/simulation/propagator.go:634-647` | Changed to read `n.LatencyMs` with 30ms fallback; cold start respects config value (capped at 10ms) |
+| EdgeCompute failure alert text hardcoded "30ms limit" | `frontend/src/components/panels/NodeConfigPanel.tsx:476` | Changed to `${cfg.latencyMs \|\| 30}ms limit` — dynamically reflects configured timeout |
+
+### Re-Verification: PASSED — 2026-06-08
+All 23 checks re-verified plus 2 fixes applied. Builds: `go build ./...` (0 errors), `npx tsc --noEmit` (0 errors).
