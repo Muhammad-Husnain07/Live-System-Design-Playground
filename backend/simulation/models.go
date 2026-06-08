@@ -31,6 +31,13 @@ const (
 	NodeThirdPartyAPI     NodeType = "ThirdPartyAPI"
 	NodeMobileClient      NodeType = "MobileClient"
 	NodeWebBrowser        NodeType = "WebBrowser"
+
+	// AI/ML & Modern Compute
+	NodeVectorDB          NodeType = "VectorDB"
+	NodeLLMNode           NodeType = "LLMNode"
+	NodeGPUCluster        NodeType = "GPUCluster"
+	NodeEdgeCompute       NodeType = "EdgeCompute"
+	NodeServerlessV2      NodeType = "ServerlessV2"
 )
 
 func IsAsyncNodeType(nt NodeType) bool {
@@ -97,6 +104,19 @@ type Node struct {
 	ReplicationRole   string      `json:"replicationRole"`
 	ReplicationLagMs  float64     `json:"replicationLagMs"`
 	ComputeTier       string      `json:"computeTier"`
+
+	// AI/ML & Modern Compute config
+	Dimensions          int     `json:"dimensions"`
+	IndexType           string  `json:"indexType"`
+	TopK                int     `json:"topK"`
+	TokensPerSecond     float64 `json:"tokensPerSecond"`
+	PromptTokenCount    float64 `json:"promptTokenCount"`
+	CompletionTokenCount float64 `json:"completionTokenCount"`
+	VRAMGB              float64 `json:"vramGB"`
+	ModelSizeGB         float64 `json:"modelSizeGB"`
+	CUDAUtilization     float64 `json:"cudaUtilization"`
+	GeographicLatencyModifier float64 `json:"geographicLatencyModifier"`
+	SnapStartEnabled    bool    `json:"snapStartEnabled"`
 
 	// Region for multi-region simulation
 	Region string `json:"region"`
@@ -212,6 +232,18 @@ type NodeMetricsSnapshot struct {
 	IsSplitBrain        bool     `json:"isSplitBrain,omitempty"`
 	DataInconsistency   float64  `json:"dataInconsistency,omitempty"`
 	SpotInterrupted      bool    `json:"spotInterrupted,omitempty"`
+	// AI/ML fields
+	Dimensions          int     `json:"dimensions,omitempty"`
+	IndexType           string  `json:"indexType,omitempty"`
+	TopK                int     `json:"topK,omitempty"`
+	TokensPerSecond     float64 `json:"tokensPerSecond,omitempty"`
+	PromptTokenCount    float64 `json:"promptTokenCount,omitempty"`
+	CompletionTokenCount float64 `json:"completionTokenCount,omitempty"`
+	VRAMGB              float64 `json:"vramGB,omitempty"`
+	ModelSizeGB         float64 `json:"modelSizeGB,omitempty"`
+	CUDAUtilization     float64 `json:"cudaUtilization,omitempty"`
+	GeographicLatencyModifier float64 `json:"geographicLatencyModifier,omitempty"`
+	SnapStartEnabled    bool    `json:"snapStartEnabled,omitempty"`
 	// Region for multi-region map
 	Region               string  `json:"region,omitempty"`
 	// SLO / SLI fields

@@ -30,6 +30,14 @@ func isCacheableNode(nt NodeType) bool {
 	return false
 }
 
+func isAINode(nt NodeType) bool {
+	switch nt {
+	case NodeVectorDB, NodeLLMNode, NodeGPUCluster, NodeEdgeCompute, NodeServerlessV2:
+		return true
+	}
+	return false
+}
+
 func isDatabaseNode(nt NodeType) bool {
 	switch nt {
 	case NodePostgreSQLDB, NodeMySQLDB, NodeMongoDB, NodeRedis, NodeElasticsearch:
@@ -587,6 +595,72 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64, tickNum int) {
 			n.PrevActiveInstances = activeInstances
 		}
 
+		// ── AI/ML Compute Paradigms ─────────────────────────────────
+
+		// VectorDB: Latency = BaseMs + (TopK × Dimensions × 0.001)
+		// CPU spikes during index rebuilds (every 100 ticks)
+		if n.NodeType == NodeVectorDB && n.CurrentRPS > 0 {
+			vecLat := float64(n.TopK) * float64(n.Dimensions) * 0.001
+			n.P99LatencyMs += vecLat
+			if tickNum%100 == 0 {
+				n.CPUPercent = math.Min(n.CPUPercent+15, 100)
+			}
+		}
+
+		// LLMNode: ProcessingTime = (PromptTokens + CompletionTokens) / TokensPerSecond
+		// Streamed output simulates chunked edge delays (each chunk = 10ms)
+		if n.NodeType == NodeLLMNode && n.CurrentRPS > 0 && n.TokensPerSecond > 0 {
+			totalTokens := n.PromptTokenCount + n.CompletionTokenCount
+			processingTimeMs := (totalTokens / n.TokensPerSecond) * 1000
+			n.P99LatencyMs += processingTimeMs
+			if n.CompletionTokenCount > 0 {
+				chunks := math.Ceil(n.CompletionTokenCount / 50)
+				n.P99LatencyMs += chunks * 10
+			}
+			n.CPUPercent = math.Min(n.CurrentRPS/n.MaxRPS*100+20, 100)
+		}
+
+		// GPUCluster: OOM crash if VRAM < ModelSize
+		if n.NodeType == NodeGPUCluster {
+			if n.ModelSizeGB > 0 && n.VRAMGB > 0 && n.ModelSizeGB > n.VRAMGB {
+				n.IsFailed = true
+				n.P99LatencyMs = 10000
+				n.ErrorRate = 1.0
+			}
+			n.CUDAUtilization = math.Min(n.CurrentRPS/n.MaxRPS*100, 100)
+			n.CPUPercent = math.Min(n.CUDAUtilization*0.3, 100)
+		}
+
+		// EdgeCompute: ignores regional latency, sub-10ms cold start, fails if >30ms
+		if n.NodeType == NodeEdgeCompute && n.CurrentRPS > 0 {
+			n.ColdStartMs = 5
+			if n.P99LatencyMs > 30 {
+				n.IsFailed = true
+				n.P99LatencyMs = 30000
+			}
+		}
+
+		// ServerlessV2: SnapStart eliminates cold start for Java workloads
+		if n.NodeType == NodeServerlessV2 && n.MaxRPS > 0 {
+			maxPerInstance := n.MaxRPS
+			if maxPerInstance <= 0 {
+				maxPerInstance = 100
+			}
+			activeInstances := int(math.Ceil(n.CurrentRPS / maxPerInstance))
+			if activeInstances < 1 {
+				activeInstances = 1
+			}
+			if n.SnapStartEnabled {
+				n.ColdStartMs = 0
+			}
+			if activeInstances > n.PrevActiveInstances {
+				newInstances := activeInstances - n.PrevActiveInstances
+				coldPenalty := float64(newInstances) * n.ColdStartMs
+				n.P99LatencyMs += coldPenalty
+			}
+			n.PrevActiveInstances = activeInstances
+		}
+
 		outEdges := ctx.EdgeOutMap[id]
 		totalPercent := 0.0
 		for _, e := range outEdges {
@@ -618,7 +692,8 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64, tickNum int) {
 
 				// Inter-region latency: add network transit time when source and target
 				// nodes are deployed in different geographic regions.
-				if tgtNode, ok := nodeMap[e.Target]; ok && n.Region != "" && tgtNode.Region != "" && n.Region != tgtNode.Region {
+				// EdgeCompute nodes ignore inter-region latency (deployed at edge PoPs).
+				if tgtNode, ok := nodeMap[e.Target]; ok && n.Region != "" && tgtNode.Region != "" && n.Region != tgtNode.Region && n.NodeType != NodeEdgeCompute {
 					interLat := GetInterRegionLatency(n.Region, tgtNode.Region)
 					baseLatency += interLat
 					// Sync (blocking) calls across regions suffer double the impact
