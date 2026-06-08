@@ -246,7 +246,109 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
 
       <Divider />
 
-      {/* Section 6 — Deployment Strategy */}
+      {/* Section 6 — AI/ML Config (conditional per node type) */}
+      {nt === "LLMNode" && (
+        <>
+          <Section title="LLM Config">
+            <Box sx={{ px: 1 }}>
+              <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>Prompt Tokens: {cfg.promptTokenCount ?? 0}</Typography>
+              <Slider size="small" value={cfg.promptTokenCount ?? 512} min={64} max={4096} step={64}
+                onChange={(_, v) => debouncedUpdate({ promptTokenCount: v as number })} valueLabelDisplay="auto" />
+            </Box>
+            <Box sx={{ px: 1 }}>
+              <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>Completion Tokens: {cfg.completionTokenCount ?? 0}</Typography>
+              <Slider size="small" value={cfg.completionTokenCount ?? 256} min={16} max={4096} step={16}
+                onChange={(_, v) => debouncedUpdate({ completionTokenCount: v as number })} valueLabelDisplay="auto" />
+            </Box>
+            <Box sx={{ px: 1 }}>
+              <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>Tokens Per Second: {cfg.tokensPerSecond ?? 0}</Typography>
+              <Slider size="small" value={cfg.tokensPerSecond ?? 1000} min={100} max={10000} step={100}
+                onChange={(_, v) => debouncedUpdate({ tokensPerSecond: v as number })} valueLabelDisplay="auto" />
+            </Box>
+          </Section>
+          <Divider />
+        </>
+      )}
+
+      {nt === "VectorDB" && (
+        <>
+          <Section title="Vector DB Config">
+            <Field label="Dimensions">
+              <FormControl fullWidth size="small" sx={sxField}>
+                <Select value={cfg.dimensions ?? 1536} onChange={(e) => debouncedUpdate({ dimensions: Number(e.target.value) })}>
+                  <MenuItem value={128}>128</MenuItem>
+                  <MenuItem value={256}>256</MenuItem>
+                  <MenuItem value={768}>768</MenuItem>
+                  <MenuItem value={1536}>1536</MenuItem>
+                  <MenuItem value={3072}>3072</MenuItem>
+                </Select>
+              </FormControl>
+            </Field>
+            <Field label="Index Type">
+              <FormControl fullWidth size="small" sx={sxField}>
+                <Select value={cfg.indexType ?? "hnsw"} onChange={(e) => debouncedUpdate({ indexType: e.target.value })}>
+                  <MenuItem value="hnsw">HNSW</MenuItem>
+                  <MenuItem value="ivf">IVF</MenuItem>
+                  <MenuItem value="flat">Flat (Brute-force)</MenuItem>
+                  <MenuItem value="pq">Product Quantization</MenuItem>
+                </Select>
+              </FormControl>
+            </Field>
+            <Box sx={{ px: 1 }}>
+              <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>Top-K: {cfg.topK ?? 10}</Typography>
+              <Slider size="small" value={cfg.topK ?? 10} min={1} max={100} step={1}
+                onChange={(_, v) => debouncedUpdate({ topK: v as number })} valueLabelDisplay="auto" />
+            </Box>
+          </Section>
+          <Divider />
+        </>
+      )}
+
+      {nt === "GPUCluster" && (
+        <>
+          <Section title="GPU Cluster Config">
+            <Field label="VRAM (GB)">
+              <TextField type="number" size="small" value={cfg.vramGB ?? 80} slotProps={{ htmlInput: { min: 16, max: 1024, step: 8 } }}
+                onChange={(e) => debouncedUpdate({ vramGB: Number(e.target.value) })} sx={sxField} />
+            </Field>
+            <Field label="Model Size (GB)">
+              <TextField type="number" size="small" value={cfg.modelSizeGB ?? 70} slotProps={{ htmlInput: { min: 0, max: 2048, step: 1 } }}
+                onChange={(e) => debouncedUpdate({ modelSizeGB: Number(e.target.value) })} sx={sxField} />
+            </Field>
+            {metrics && (
+              <Field label="CUDA Util">
+                <Typography variant="caption" sx={{ fontFamily: "monospace", color: metrics.cudaUtilization > 90 ? "#ef4444" : "text.secondary", fontSize: "0.65rem" }}>
+                  {Math.round(metrics.cudaUtilization ?? 0)}%
+                </Typography>
+              </Field>
+            )}
+          </Section>
+          <Divider />
+        </>
+      )}
+
+      {nt === "EdgeCompute" && (
+        <>
+          <Section title="Edge Compute Config">
+            <Field label="Execution Timeout">
+              <TextField type="number" size="small" value={cfg.latencyMs ?? 10} slotProps={{ htmlInput: { min: 1, max: 100, step: 1 } }}
+                onChange={(e) => debouncedUpdate({ latencyMs: Number(e.target.value) })} sx={sxField} />
+              <Typography variant="caption" sx={{ color: "#ef4444", fontSize: "0.6rem", mt: 0.25, display: "block" }}>
+                Simulation fails if P99 latency exceeds this value
+              </Typography>
+            </Field>
+            <Field label="Cold Start">
+              <TextField type="number" size="small" value={cfg.coldStartMs ?? 5} slotProps={{ htmlInput: { min: 0, max: 50, step: 1 } }}
+                onChange={(e) => debouncedUpdate({ coldStartMs: Number(e.target.value) })} sx={sxField} />
+            </Field>
+            <FormControlLabel control={<Switch size="small" checked={cfg.geographicLatencyModifier === 0} onChange={(e) => debouncedUpdate({ geographicLatencyModifier: e.target.checked ? 0 : 1 })} />}
+              label={<Typography variant="caption" sx={{ color: "text.secondary" }}>Ignore Regional Latency</Typography>} />
+          </Section>
+          <Divider />
+        </>
+      )}
+
+      {/* Section 7 — Deployment Strategy */}
       <Section title="Deployment Strategy">
         <Field label="Strategy">
           <FormControl fullWidth size="small" sx={sxField}>
@@ -344,6 +446,35 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
               )}
               {cfg.deployment.isCanaryActive && (
                 <Field label="Canary RPS"><MetricValue>{(metrics as any).canaryRPS?.toLocaleString() ?? 0}</MetricValue></Field>
+              )}
+              {nt === "LLMNode" && (
+                <>
+                  <Field label="Tokens/Sec"><MetricValue>{metrics.tokensPerSecond?.toFixed(0) ?? 0}</MetricValue></Field>
+                  <Field label="Prompt Tokens"><MetricValue>{metrics.promptTokenCount?.toFixed(0) ?? 0}</MetricValue></Field>
+                  <Field label="Completion Tokens"><MetricValue>{metrics.completionTokenCount?.toFixed(0) ?? 0}</MetricValue></Field>
+                </>
+              )}
+              {nt === "VectorDB" && (
+                <Field label="Top-K Hits"><MetricValue>{metrics.topK ?? 0}</MetricValue></Field>
+              )}
+              {nt === "GPUCluster" && (
+                <>
+                  <Field label="VRAM Used"><MetricValue>{(metrics.vramGB ?? 0).toFixed(0)} GB</MetricValue></Field>
+                  <Field label="CUDA Util"><MetricValue>{Math.round(metrics.cudaUtilization ?? 0)}%</MetricValue></Field>
+                </>
+              )}
+              {nt === "EdgeCompute" && (
+                <Field label="Cold Start"><MetricValue>{metrics.coldStartMs ?? 0}ms</MetricValue></Field>
+              )}
+              {metrics.isFailed && nt === "GPUCluster" && (
+                <Typography variant="caption" sx={{ color: "error.main", fontWeight: 600, display: "flex", alignItems: "center", gap: 0.5, py: 0.5 }}>
+                  <AlertTriangle size={14} /> OOM — model exceeds VRAM
+                </Typography>
+              )}
+              {metrics.isFailed && nt === "EdgeCompute" && (
+                <Typography variant="caption" sx={{ color: "error.main", fontWeight: 600, display: "flex", alignItems: "center", gap: 0.5, py: 0.5 }}>
+                  <AlertTriangle size={14} /> Timeout — exceeded {cfg.latencyMs || 30}ms limit
+                </Typography>
               )}
             </>
           ) : (
