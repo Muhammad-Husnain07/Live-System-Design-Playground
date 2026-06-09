@@ -254,6 +254,8 @@ type PropagationContext struct {
 	// FailoverTracker tracks when each node first entered the failed state.
 	// Used by DNS failover to redirect traffic after DNSFailoverDelayTicks.
 	FailoverTracker map[string]int
+	// RAGPendingQueries tracks paused LLMNode→VectorDB→LLMNode requests across ticks.
+	RAGPendingQueries map[string]*RAGPendingQuery
 }
 
 func NewPropagationContext(cfg *Config) *PropagationContext {
@@ -267,7 +269,8 @@ func NewPropagationContext(cfg *Config) *PropagationContext {
 		rng:             rand.New(rand.NewSource(time.Now().UnixNano())),
 		retryBuffer:     make(map[string]float64),
 		tcpConnections:  make(map[string]float64),
-		FailoverTracker: make(map[string]int),
+		FailoverTracker:   make(map[string]int),
+		RAGPendingQueries: make(map[string]*RAGPendingQuery),
 	}
 	for i := range cfg.Nodes {
 		ctx.Nodes[cfg.Nodes[i].ID] = &cfg.Nodes[i]
@@ -595,22 +598,53 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64, tickNum int) {
 			n.PrevActiveInstances = activeInstances
 		}
 
+		// ── RAG Flow: inject completed retrieval context into LLMNode ─────
+		if n.NodeType == NodeLLMNode && n.CurrentRPS > 0 {
+			if pq, ok := ctx.RAGPendingQueries[n.ID]; ok && pq.TickRetrieved > 0 && pq.TickRetrieved < tickNum {
+				// VectorDB has completed retrieval; inject context tokens into this LLMNode
+				n.RagContextTokens += pq.ContextTokens
+				n.RagQueryPending = false
+				delete(ctx.RAGPendingQueries, n.ID)
+			}
+		}
+
 		// ── AI/ML Compute Paradigms ─────────────────────────────────
 
 		// VectorDB: Latency = BaseMs + (TopK × Dimensions × 0.001)
 		// CPU spikes during index rebuilds (every 100 ticks)
+		// Also completes any pending RAG queries routed through this VectorDB
 		if n.NodeType == NodeVectorDB && n.CurrentRPS > 0 {
 			vecLat := float64(n.TopK) * float64(n.Dimensions) * 0.001
+			// RAG surcharge: additional latency for similarity search across the index
+			if n.TopK > 0 && n.Dimensions > 0 {
+				ragSurcharge := vecLat * 0.3 // 30% overhead for RAG lookups vs flat scan
+				n.P99LatencyMs += ragSurcharge
+			}
 			n.P99LatencyMs += vecLat
 			if tickNum%100 == 0 {
 				n.CPUPercent = math.Min(n.CPUPercent+15, 100)
+			}
+
+			// Complete any pending RAG queries that were routed through this VectorDB
+			for _, pq := range ctx.RAGPendingQueries {
+				if pq.TickRetrieved > 0 {
+					continue // already retrieved
+				}
+				// Check if there's a path from this VectorDB to the TargetLLM in same tick
+				for _, e := range ctx.EdgeOutMap[n.ID] {
+					if e.Target == pq.TargetLLMID {
+						pq.TickRetrieved = tickNum
+						break
+					}
+				}
 			}
 		}
 
 		// LLMNode: ProcessingTime = (PromptTokens + CompletionTokens) / TokensPerSecond
 		// Streamed output simulates chunked edge delays (each chunk = 10ms)
 		if n.NodeType == NodeLLMNode && n.CurrentRPS > 0 && n.TokensPerSecond > 0 {
-			totalTokens := n.PromptTokenCount + n.CompletionTokenCount
+			// Include any RAG context tokens injected from a completed VectorDB retrieval
+			totalTokens := n.PromptTokenCount + n.CompletionTokenCount + n.RagContextTokens
 			processingTimeMs := (totalTokens / n.TokensPerSecond) * 1000
 			n.P99LatencyMs += processingTimeMs
 			if n.CompletionTokenCount > 0 {
@@ -618,6 +652,38 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64, tickNum int) {
 				n.P99LatencyMs += chunks * 10
 			}
 			n.CPUPercent = math.Min(n.CurrentRPS/n.MaxRPS*100+20, 100)
+
+			// Register new RAG query if this LLMNode routes to a VectorDB
+			// and there is a downstream LLMNode to receive the context
+			for _, e := range ctx.EdgeOutMap[n.ID] {
+				if tgtNode, ok := nodeMap[e.Target]; ok && tgtNode.NodeType == NodeVectorDB {
+					// Find the downstream LLMNode connected to this VectorDB
+					for _, ve := range ctx.EdgeOutMap[e.Target] {
+						if downstream, ok := nodeMap[ve.Target]; ok && downstream.NodeType == NodeLLMNode {
+							if _, exists := ctx.RAGPendingQueries[n.ID]; !exists {
+								qTokens := n.RagQueryTokens
+								if qTokens <= 0 {
+									qTokens = n.PromptTokenCount * 0.3 // default: 30% of prompt as query
+								}
+								cTokens := n.RagContextTokens
+								if cTokens <= 0 {
+									cTokens = n.CompletionTokenCount * 0.5 // default: 50% of completion as context
+								}
+								ctx.RAGPendingQueries[n.ID] = &RAGPendingQuery{
+									SourceLLMID:   n.ID,
+									TargetLLMID:   ve.Target,
+									QueryTokens:   qTokens,
+									ContextTokens: cTokens,
+									TickStarted:   tickNum,
+								}
+								n.RagQueryPending = true
+								n.RagQueryTokens += qTokens // consumed for generating the embedding
+							}
+							break
+						}
+					}
+				}
+			}
 		}
 
 		// GPUCluster: OOM crash if VRAM < ModelSize
@@ -665,6 +731,93 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64, tickNum int) {
 				n.P99LatencyMs += coldPenalty
 			}
 			n.PrevActiveInstances = activeInstances
+		}
+
+		// ── Orchestrator / Workflow (Temporal / Step Functions) ─────────────
+		if n.NodeType == NodeOrchestrator && n.CurrentRPS > 0 {
+			n.ActiveWorkflows = int(math.Ceil(n.CurrentRPS / 10)) // 1 workflow per 10 RPS
+
+			// Normalize failure mode
+			fm := n.FailureMode
+			if fm == "" {
+				fm = "compensate"
+			}
+
+			// Identify Activity A and Activity B from outgoing edges
+			outEdges := ctx.EdgeOutMap[id]
+			for _, e := range outEdges {
+				if tgt, ok := nodeMap[e.Target]; ok {
+					if n.WorkflowActivityAID == "" {
+						n.WorkflowActivityAID = e.Target
+					} else if n.WorkflowActivityBID == "" && e.Target != n.WorkflowActivityAID {
+						n.WorkflowActivityBID = e.Target
+					}
+					if tgt.ErrorRate > 0.05 {
+						// Activity B failed after Activity A succeeded
+						if e.Target == n.WorkflowActivityBID && n.WorkflowStep >= 2 {
+							switch fm {
+							case "retry":
+								// Retry mode: instead of compensating, keep trying
+								// Activity B gets another chance at 2x latency
+								n.WorkflowStep = 3 // stay on B_running
+								tgt.P99LatencyMs += 100 // retry penalty
+								n.FailedWorkflows++
+							case "panic":
+								// Panic mode: cascading failure — mark orchestrator failed too
+								n.WorkflowStep = -1
+								n.FailedWorkflows++
+								n.IsFailed = true
+								n.ErrorRate = 1.0
+								n.P99LatencyMs = 10000
+							default: // "compensate"
+								n.WorkflowStep = -1 // compensated
+								n.CompensationEvents++
+								n.FailedWorkflows++
+								// Compensation transaction: roll back Activity A
+								// Simulated as extra RPS load (10% of original) representing rollback work
+								n.WorkflowCompensationRPS = n.CurrentRPS * 0.1
+								n.IncomingRPS += n.WorkflowCompensationRPS
+							}
+						}
+					}
+				}
+			}
+
+			// Advance workflow state machine (only if not in panic failure)
+			if !n.IsFailed {
+				switch n.WorkflowStep {
+				case 0:
+					if n.WorkflowActivityAID != "" {
+						n.WorkflowStep = 1
+					}
+				case 1:
+					n.WorkflowStep = 2
+				case 2:
+					if n.WorkflowActivityBID != "" {
+						n.WorkflowStep = 3
+					} else {
+						n.WorkflowStep = 4
+					}
+				case 3:
+					if n.WorkflowStep != -1 {
+						n.WorkflowStep = 4
+					}
+				case 4:
+					// Workflow complete
+				}
+			}
+
+			// Panic mode propagates failure to all downstream activity nodes
+			if fm == "panic" && n.IsFailed {
+				for _, e := range outEdges {
+					if tgt, ok := nodeMap[e.Target]; ok {
+						tgt.IsFailed = true
+						tgt.ErrorRate = 1.0
+					}
+				}
+			}
+
+			n.P99LatencyMs += float64(n.ActiveWorkflows) * 2.0
 		}
 
 		outEdges := ctx.EdgeOutMap[id]

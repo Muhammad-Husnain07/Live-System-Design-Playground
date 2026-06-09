@@ -98,6 +98,12 @@ var DefaultConfigs = map[simulation.NodeType]NodeDefaults{
 		CPUPercent: 50, MemoryUtil: 55, BaseReliability: 0.998, CostPerRPS: 0.002,
 	},
 
+	// ── Orchestrator / Workflow ────────────────────────────────
+	simulation.NodeOrchestrator: {
+		BaseLatency: 10, DefaultRPS: 100, DefaultMaxRPS: 1000,
+		CPUPercent: 30, MemoryUtil: 40, BaseReliability: 0.999, CostPerRPS: 0.005,
+	},
+
 	// ── External / API ──────────────────────────────────────────
 	simulation.NodeExternalClient: {
 		BaseLatency: 30, DefaultRPS: 100, DefaultMaxRPS: 1000,

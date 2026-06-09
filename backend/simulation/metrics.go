@@ -67,9 +67,14 @@ func SnapshotTick(tickNum int, nodes []Node, edges []Edge, depMgr *DeploymentMan
 			DataInconsistency: n.DataInconsistency,
 			SpotInterrupted:   n.SpotInterrupted,
 			Region:            n.Region,
-			SLOTargetMs:       n.SLOTargetMs,
+			RagQueryTokens:       n.RagQueryTokens,
+			RagContextTokens:     n.RagContextTokens,
+			ActiveWorkflows:      n.ActiveWorkflows,
+			FailedWorkflows:      n.FailedWorkflows,
+			CompensationEvents:   n.CompensationEvents,
+			SLOTargetMs:          n.SLOTargetMs,
 			SLOAvailabilityTarget: n.SLOAvailabilityTarget,
-			IsLatencyBreached:     !latencyOK,
+			IsLatencyBreached:    !latencyOK,
 			IsAvailabilityBreached: !availOK,
 		}
 		metrics = append(metrics, snapshot)

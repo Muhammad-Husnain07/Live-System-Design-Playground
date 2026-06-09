@@ -95,6 +95,16 @@ func (e *Engine) restoreNodes() {
 			n.SpotInterrupted = false
 			n.BootTicksRemaining = 0
 			n.LastScaleDir = ""
+			n.RagQueryPending = false
+			n.RagQueryTokens = orig.RagQueryTokens
+			n.RagContextTokens = orig.RagContextTokens
+			n.ActiveWorkflows = 0
+			n.FailedWorkflows = 0
+			n.CompensationEvents = 0
+			n.WorkflowStep = 0
+			n.WorkflowActivityAID = ""
+			n.WorkflowActivityBID = ""
+			n.WorkflowCompensationRPS = 0
 		}
 	}
 	// Sync deployment state from manager into node configs

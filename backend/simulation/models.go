@@ -38,6 +38,9 @@ const (
 	NodeGPUCluster        NodeType = "GPUCluster"
 	NodeEdgeCompute       NodeType = "EdgeCompute"
 	NodeServerlessV2      NodeType = "ServerlessV2"
+
+	// Orchestrator / Workflow
+	NodeOrchestrator      NodeType = "Orchestrator"
 )
 
 func IsAsyncNodeType(nt NodeType) bool {
@@ -46,6 +49,77 @@ func IsAsyncNodeType(nt NodeType) bool {
 		return true
 	}
 	return false
+}
+
+func IsRAGPipeline(nt NodeType) bool {
+	return nt == NodeLLMNode
+}
+
+func IsAsyncWorkflow(nt NodeType) bool {
+	return nt == NodeOrchestrator
+}
+
+func IsOrchestratorNode(nt NodeType) bool {
+	return nt == NodeOrchestrator
+}
+
+// Workflow state machine steps
+const (
+	WorkflowStepIdle          int = 0
+	WorkflowStepARunning      int = 1
+	WorkflowStepADone         int = 2
+	WorkflowStepBRunning      int = 3
+	WorkflowStepBDone         int = 4
+	WorkflowStepCompensated   int = -1
+)
+
+// Composite Pattern detection helpers
+func DetectRAGPipeline(nodes []Node, edges []Edge) bool {
+	// Detect LLMNode→VectorDB→LLMNode chain
+	edgeMap := make(map[string][]Edge)
+	for _, e := range edges {
+		edgeMap[e.Source] = append(edgeMap[e.Source], e)
+	}
+	nodeTypeMap := make(map[string]NodeType)
+	for _, n := range nodes {
+		nodeTypeMap[n.ID] = n.NodeType
+	}
+	for _, n := range nodes {
+		if n.NodeType == NodeLLMNode {
+			for _, e := range edgeMap[n.ID] {
+				if nodeTypeMap[e.Target] == NodeVectorDB {
+					for _, e2 := range edgeMap[e.Target] {
+						if nodeTypeMap[e2.Target] == NodeLLMNode {
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+func DetectAsyncWorkflow(nodes []Node, edges []Edge) bool {
+	for _, n := range nodes {
+		if n.NodeType == NodeOrchestrator {
+			return true
+		}
+	}
+	return false
+}
+
+// RAGPendingQuery tracks a paused RAG request across ticks.
+// When an LLMNode routes to a VectorDB, the request is paused;
+// the VectorDB processes it on a subsequent tick, and the result
+// is injected into the next LLMNode in the chain.
+type RAGPendingQuery struct {
+	SourceLLMID   string  // the LLMNode that generated the embedding query
+	TargetLLMID   string  // the downstream LLMNode receiving context
+	QueryTokens   float64 // tokens consumed for the embedding query
+	ContextTokens float64 // tokens returned as context from VectorDB
+	TickStarted   int
+	TickRetrieved int // tick when VectorDB completed the retrieval
 }
 
 type DeploymentStrategy string
@@ -154,6 +228,23 @@ type Node struct {
 	// SLI tracking (set per tick by SnapshotTick)
 	IsLatencyBreached      bool `json:"-"`
 	IsAvailabilityBreached bool `json:"-"`
+
+	// RAG pipeline fields
+	RagQueryTokens    float64 `json:"ragQueryTokens"`
+	RagContextTokens  float64 `json:"ragContextTokens"`
+	RagQueryPending   bool    `json:"-"` // runtime: LLMNode waiting for RAG context
+
+	// Orchestrator / Workflow config
+	FailureMode              string  `json:"failureMode"`  // "compensate" (default), "retry", "panic"
+
+	// Orchestrator / Workflow runtime tracking
+	ActiveWorkflows           int     `json:"-"`
+	FailedWorkflows           int     `json:"-"`
+	CompensationEvents        int     `json:"-"`
+	WorkflowStep              int     `json:"-"` // 0=idle, 1=A_running, 2=A_done, 3=B_running, 4=B_done, -1=compensated
+	WorkflowActivityAID       string  `json:"-"` // node ID of Activity A
+	WorkflowActivityBID       string  `json:"-"` // node ID of Activity B
+	WorkflowCompensationRPS   float64 `json:"-"` // compensation traffic generated this tick
 }
 
 type Edge struct {
@@ -246,6 +337,12 @@ type NodeMetricsSnapshot struct {
 	SnapStartEnabled    bool    `json:"snapStartEnabled,omitempty"`
 	// Region for multi-region map
 	Region               string  `json:"region,omitempty"`
+	// RAG / Workflow fields
+	RagQueryTokens       float64 `json:"ragQueryTokens,omitempty"`
+	RagContextTokens     float64 `json:"ragContextTokens,omitempty"`
+	ActiveWorkflows      int     `json:"activeWorkflows,omitempty"`
+	FailedWorkflows      int     `json:"failedWorkflows,omitempty"`
+	CompensationEvents   int     `json:"compensationEvents,omitempty"`
 	// SLO / SLI fields
 	SLOTargetMs          float64 `json:"sloTargetMs,omitempty"`
 	SLOAvailabilityTarget float64 `json:"sloAvailabilityTarget,omitempty"`
