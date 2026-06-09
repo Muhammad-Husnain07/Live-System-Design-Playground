@@ -56,17 +56,31 @@ function CustomEdge({
 
   const hasChaos = useChaosStore((s) => s.activeNodeIds.includes(source) || s.activeNodeIds.includes(target));
   const isSecurityHighlighted = useSecurityStore((s) => s.highlightedEdgeIds.includes(id));
-  const { hasCanary, edgeCanaryPct } = useCanvasStore(
+  const { hasCanary, edgeCanaryPct, ragStep } = useCanvasStore(
     useShallow((s) => {
       const srcNode = s.nodes.find((n) => n.id === source);
-      if (!srcNode) return { hasCanary: false, edgeCanaryPct: 0 };
+      const tgtNode = s.nodes.find((n) => n.id === target);
+      if (!srcNode) return { hasCanary: false, edgeCanaryPct: 0, ragStep: 0 };
       const dep = srcNode.data?.config?.deployment;
       const hc = dep?.strategy === "canary" && dep?.isCanaryActive;
       const metrics = srcNode.data?.metrics;
       const pct = metrics?.currentRPS > 0
         ? Math.round((metrics.canaryRPS / metrics.currentRPS) * 100)
         : 0;
-      return { hasCanary: hc, edgeCanaryPct: pct };
+
+      let step = 0;
+      const srcT = srcNode.data?.nodeType;
+      const tgtT = tgtNode?.data?.nodeType;
+      if (srcT === "LLMNode" && tgtT === "VectorDB") {
+        const hasIncomingRag = s.edges.some((e) => {
+          const n = s.nodes.find((n) => n.id === e.source);
+          return e.target === source && n?.data?.nodeType === "VectorDB";
+        });
+        step = hasIncomingRag ? 3 : 1;
+      } else if (srcT === "VectorDB" && tgtT === "LLMNode") {
+        step = 2;
+      }
+      return { hasCanary: hc, edgeCanaryPct: pct, ragStep: step };
     }),
   );
 
@@ -182,6 +196,45 @@ function CustomEdge({
         <circle r={hasChaos ? 5 : isSync ? 3 : 4} fill={strokeColor} opacity={0.85}>
           <animateMotion dur={hasChaos ? "0.3s" : animDuration} repeatCount="indefinite" path={edgePath} />
         </circle>
+      )}
+
+      {/* RAG sequential step badge */}
+      {ragStep > 0 && (
+        <g>
+          <rect
+            x={labelX - 10}
+            y={labelY - 26}
+            width={20}
+            height={16}
+            rx={4}
+            fill={ragStep === 1 ? "#8B5CF6" : ragStep === 2 ? "#A855F7" : "#7C3AED"}
+            opacity={0.9}
+          >
+            <animate attributeName="opacity" values="0.9; 0.5; 0.9" dur={`${0.5 + ragStep * 0.3}s`} repeatCount="indefinite" />
+          </rect>
+          <text
+            x={labelX}
+            y={labelY - 14}
+            textAnchor="middle"
+            fill="#fff"
+            fontSize={8}
+            fontFamily="monospace"
+            fontWeight="bold"
+          >
+            {ragStep}
+          </text>
+          <text
+            x={labelX + (ragStep === 1 ? -14 : ragStep === 2 ? -2 : 14)}
+            y={labelY - 14}
+            textAnchor="middle"
+            fill="#a78bfa"
+            fontSize={7}
+            fontFamily="monospace"
+            opacity={0.7}
+          >
+            {ragStep === 1 ? "→" : ragStep === 2 ? "→" : "→"}
+          </text>
+        </g>
       )}
 
       {/* Security indicator */}

@@ -2,7 +2,7 @@ import type { Node, Edge } from "reactflow";
 import type { NodeType, NodeMetrics, SimulationNodeState, EdgeRoutingConfig } from "../types/canvas";
 import { NODE_REGISTRY } from "./nodeRegistry";
 import { getReactFlowType } from "../components/canvas/nodeTypes";
-import { Film, Car, ShoppingCart, Zap } from "lucide-react";
+import { Film, Car, ShoppingCart, Zap, MessageSquareText, GitBranch } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export const DEFAULT_SIM: SimulationNodeState = {
@@ -249,6 +249,92 @@ export const ENTERPRISE_TEMPLATES: EnterpriseTemplate[] = [
           e(kafka, stream, "TCP", false, 100, 2, 50000),
           e(stream, match, "gRPC", true, 100, 1, 20000),
           e(match, gateway, "HTTP", true, 100, 1, 20000),
+        ],
+      };
+    },
+  },
+  {
+    id: "rag-chatbot", label: "RAG Chatbot", icon: MessageSquareText,
+    desc: "Gateway → Cache → LLM → VectorDB → LLM → Stream — multi-hop RAG with context injection",
+    industry: "AI/ML", scale: "10K RPS", tags: ["AI", "RAG", "Chatbot", "LLM"],
+    totalInstances: 8, peakRPS: 10000,
+    nodePreview: [
+      { label: "API Gateway", type: "APIGateway" },
+      { label: "Cache", type: "Redis" },
+      { label: "LLM (Embed)", type: "LLMNode" },
+      { label: "VectorDB", type: "VectorDB" },
+      { label: "LLM (Generate)", type: "LLMNode" },
+      { label: "Stream Out", type: "ServerlessV2" },
+    ],
+    edgePreview: [
+      { from: "API Gateway", to: "Cache", protocol: "HTTP" },
+      { from: "Cache", to: "LLM (Embed)", protocol: "HTTP" },
+      { from: "LLM (Embed)", to: "VectorDB", protocol: "gRPC" },
+      { from: "VectorDB", to: "LLM (Generate)", protocol: "gRPC" },
+      { from: "LLM (Generate)", to: "Stream Out", protocol: "WebSocket" },
+    ],
+    build: (ox, oy) => {
+      const [gw, cache, llm1, vdb, llm2, stream] = [
+        n("APIGateway","API Gateway",0,80,{instances:2,maxRPS:10000,latencyMs:5,region:"us-east-1",security:{isPublicFacing:true,requiresTLS:true,allowedInbound:["0.0.0.0/0"],vpcId:"vpc-rag"}},ox,oy),
+        n("Redis","Cache",280,80,{instances:2,maxRPS:20000,latencyMs:2,region:"us-east-1",cacheHitRatio:0.8},ox,oy),
+        n("LLMNode","LLM (Embed)",560,80,{instances:2,maxRPS:500,latencyMs:30,region:"us-east-1",tokensPerSecond:1000,promptTokenCount:512,completionTokenCount:128,ragQueryTokens:300},ox,oy),
+        n("VectorDB","VectorDB",840,80,{instances:2,maxRPS:2000,latencyMs:10,region:"us-east-1",dimensions:1536,indexType:"hnsw",topK:10},ox,oy),
+        n("LLMNode","LLM (Generate)",1120,80,{instances:2,maxRPS:500,latencyMs:50,region:"us-east-1",tokensPerSecond:1000,promptTokenCount:512,completionTokenCount:256,ragContextTokens:500},ox,oy),
+        n("ServerlessV2","Stream Out",1400,80,{instances:2,maxRPS:2000,latencyMs:10,region:"us-east-1",snapStartEnabled:true},ox,oy),
+      ];
+      return {
+        nodes: [gw, cache, llm1, vdb, llm2, stream],
+        edges: [
+          e(gw, cache, "HTTP", true, 100, 3, 10000),
+          e(cache, llm1, "HTTP", true, 100, 5, 5000),
+          e(llm1, vdb, "gRPC", true, 100, 10, 500),
+          e(vdb, llm2, "gRPC", true, 100, 15, 500),
+          e(llm2, stream, "WebSocket", false, 100, 20, 500),
+        ],
+      };
+    },
+  },
+  {
+    id: "ecommerce-saga", label: "E-Commerce Saga", icon: GitBranch,
+    desc: "Order API → Orchestrator → [Payment, Inventory, Shipping] with compensation rollback",
+    industry: "E-Commerce", scale: "5K RPS", tags: ["E-Commerce", "Saga", "Orchestrator", "Workflow"],
+    totalInstances: 14, peakRPS: 5000,
+    nodePreview: [
+      { label: "Order API", type: "APIGateway" },
+      { label: "Orchestrator", type: "Orchestrator" },
+      { label: "Payment Worker", type: "WorkerService" },
+      { label: "Inventory Worker", type: "WorkerService" },
+      { label: "Shipping Worker", type: "WorkerService" },
+      { label: "Orders DB", type: "PostgreSQLDB" },
+    ],
+    edgePreview: [
+      { from: "Order API", to: "Orchestrator", protocol: "HTTP" },
+      { from: "Orchestrator", to: "Payment Worker", protocol: "HTTP" },
+      { from: "Orchestrator", to: "Inventory Worker", protocol: "HTTP" },
+      { from: "Orchestrator", to: "Shipping Worker", protocol: "HTTP" },
+      { from: "Payment Worker", to: "Orders DB", protocol: "TCP" },
+      { from: "Inventory Worker", to: "Orders DB", protocol: "TCP" },
+      { from: "Shipping Worker", to: "Orders DB", protocol: "TCP" },
+    ],
+    build: (ox, oy) => {
+      const [api, orch, pay, inv, ship, db] = [
+        n("APIGateway","Order API",0,60,{instances:2,maxRPS:5000,latencyMs:5,region:"us-east-1",security:{isPublicFacing:true,requiresTLS:true,allowedInbound:["0.0.0.0/0"],vpcId:"vpc-saga"}},ox,oy),
+        n("Orchestrator","Saga Orchestrator",280,60,{instances:2,maxRPS:1000,latencyMs:10,region:"us-east-1",failureMode:"compensate"},ox,oy),
+        n("WorkerService","Payment Worker",560,-80,{instances:2,maxRPS:500,latencyMs:80,region:"us-east-1",errorRate:0.01},ox,oy),
+        n("WorkerService","Inventory Worker",560,60,{instances:2,maxRPS:500,latencyMs:40,region:"us-east-1",errorRate:0.005},ox,oy),
+        n("WorkerService","Shipping Worker",560,200,{instances:2,maxRPS:300,latencyMs:100,region:"us-east-1",errorRate:0.02},ox,oy),
+        n("PostgreSQLDB","Orders DB",840,60,{instances:2,maxRPS:2000,latencyMs:15,region:"us-east-1",isPrimaryDB:true,replicationRole:"primary"},ox,oy),
+      ];
+      return {
+        nodes: [api, orch, pay, inv, ship, db],
+        edges: [
+          e(api, orch, "HTTP", true, 100, 5, 5000),
+          e(orch, pay, "HTTP", true, 33, 2, 500),
+          e(orch, inv, "HTTP", true, 33, 2, 500),
+          e(orch, ship, "HTTP", true, 34, 2, 300),
+          e(pay, db, "TCP", true, 100, 3, 500),
+          e(inv, db, "TCP", true, 100, 3, 500),
+          e(ship, db, "TCP", true, 100, 3, 300),
         ],
       };
     },

@@ -6,6 +6,7 @@ import MessageQueueNode from "./MessageQueueNode";
 import ContainerClusterNode from "./ContainerClusterNode";
 import LLMNode from "./nodes/LLMNode";
 import VectorDBNode from "./nodes/VectorDBNode";
+import OrchestratorNode from "./nodes/OrchestratorNode";
 import CustomEdge from "./CustomEdge";
 import type { NodeType } from "../../types/canvas";
 
@@ -17,6 +18,7 @@ export const nodeTypes: NodeTypes = {
   containerCluster: ContainerClusterNode,
   llm: LLMNode,
   vectorDb: VectorDBNode,
+  orchestrator: OrchestratorNode,
 };
 
 export const edgeTypes: EdgeTypes = {
@@ -42,6 +44,8 @@ export function getReactFlowType(nodeType: NodeType): string {
       return "llm";
     case "VectorDB":
       return "vectorDb";
+    case "Orchestrator":
+      return "orchestrator";
     default:
       return "default";
   }

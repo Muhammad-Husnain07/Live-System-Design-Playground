@@ -348,6 +348,24 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
         </>
       )}
 
+      {/* Orchestrator Failure Mode */}
+      {nt === "Orchestrator" && (
+        <>
+          <Section title="Workflow Config">
+            <Field label="Failure Mode">
+              <FormControl fullWidth size="small" sx={sxField}>
+                <Select value={cfg.failureMode ?? "compensate"} onChange={(e) => onUpdate({ failureMode: e.target.value })}>
+                  <MenuItem value="compensate">Compensate (Rollback)</MenuItem>
+                  <MenuItem value="retry">Retry</MenuItem>
+                  <MenuItem value="panic">Panic</MenuItem>
+                </Select>
+              </FormControl>
+            </Field>
+          </Section>
+          <Divider />
+        </>
+      )}
+
       {/* Section 7 — Deployment Strategy */}
       <Section title="Deployment Strategy">
         <Field label="Strategy">
@@ -465,6 +483,13 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
               )}
               {nt === "EdgeCompute" && (
                 <Field label="Cold Start"><MetricValue>{metrics.coldStartMs ?? 0}ms</MetricValue></Field>
+              )}
+              {nt === "Orchestrator" && (
+                <>
+                  <Field label="Active WFs"><MetricValue>{metrics.activeWorkflows ?? 0}</MetricValue></Field>
+                  <Field label="Failed WFs"><MetricValue>{metrics.failedWorkflows ?? 0}</MetricValue></Field>
+                  <Field label="Compensations"><MetricValue>{metrics.compensationEvents ?? 0}</MetricValue></Field>
+                </>
               )}
               {metrics.isFailed && nt === "GPUCluster" && (
                 <Typography variant="caption" sx={{ color: "error.main", fontWeight: 600, display: "flex", alignItems: "center", gap: 0.5, py: 0.5 }}>
