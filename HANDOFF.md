@@ -4924,3 +4924,209 @@ GET /api/simulations/:id/slo-report
 
 ### Re-Verification: PASSED — 2026-06-08
 All 23 checks re-verified plus 2 fixes applied. Builds: `go build ./...` (0 errors), `npx tsc --noEmit` (0 errors).
+
+## Phase L2.1 — RAG & Workflow Simulation — 2026-06-09
+
+**Goal**: Add RAG pipeline simulation (LLMNode→VectorDB→LLMNode with cross-tick query/context passing) and Orchestrator workflow simulation (Temporal/Step Functions with compensation/saga patterns).
+
+### Composite Patterns (Engine-Detected)
+
+| Pattern | Topology | Detection |
+|---------|----------|-----------|
+| **RAGPipeline** | Client → APIGateway → LLMNode → VectorDB → LLMNode → Cache → Client | LLMNode→VectorDB→LLMNode chain with incoming/outgoing edges |
+| **AsyncWorkflow** | Client → APIGateway → Queue → Orchestrator → Activity A → Activity B → DB | Orchestrator node with 2+ activity node edges |
+
+### Structs Added (`backend/simulation/models.go`)
+
+```go
+type RAGPendingQuery struct {
+    SourceLLMID   string
+    TargetLLMID   string
+    QueryTokens   float64
+    ContextTokens float64
+    TickStarted   int
+    TickRetrieved int
+}
+```
+
+### New Node: `Orchestrator`
+
+| Property | Value |
+|----------|-------|
+| **Category** | ModernCompute |
+| **Color** | Amber `#F59E0B` |
+| **Icon** | ClipboardList |
+| **Backend Defaults** | BaseLatency=10ms, MaxRPS=1000, BaseReliability=0.999, CostPerRPS=$0.005 |
+| **Frontend Defaults** | 2 instances, 500 maxRPS, 10ms latency |
+| **Workflow State Machine** | 0=idle → 1=A_running → 2=A_done → 3=B_running → 4=B_done → -1=compensated |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/simulation/models.go` | Added `RagQueryTokens`, `RagContextTokens`, `RagQueryPending` to Node; added `RAGPendingQuery` struct; added `ActiveWorkflows`, `FailedWorkflows`, `CompensationEvents`, `WorkflowStep`, `WorkflowActivityAID`, `WorkflowActivityBID`, `WorkflowCompensationRPS` to Node; added `RagQueryTokens`, `RagContextTokens`, `ActiveWorkflows`, `FailedWorkflows`, `CompensationEvents` to `NodeMetricsSnapshot` |
+| `backend/simulation/propagator.go` | Added `RAGPendingQueries map[string]*RAGPendingQuery` to `PropagationContext`; RAG flow: injects completed context into LLMNode, processes retrieval on VectorDB, registers new queries on LLMNode; Orchestrator: state machine with compensation on Activity B failure after Activity A success; adds orchestration latency overhead per workflow |
+| `backend/simulation/engine.go` | `restoreNodes()` resets all RAG/Workflow runtime fields on each tick |
+| `backend/simulation/metrics.go` | `SnapshotTick()` populates new RAG/Workflow fields |
+| `backend/config/seeder.go` | Added `NodeOrchestrator` defaults |
+| `frontend/src/types/canvas.ts` | Added `"Orchestrator"` to `NodeType` union |
+| `frontend/src/utils/nodeRegistry.ts` | Added `Orchestrator` entry (amber, ClipboardList, ModernCompute, modernCompute defaults) |
+
+### RAG Pipeline Tick Flow
+
+```
+Tick T:
+  1. LLMNode(1) receives request, processes normally
+  2. Outgoing edge to VectorDB detected → register RAGPendingQuery{SourceLLMID, TargetLLMID}
+  3. VectorDB processes retrieval (base latency + 30% RAG surcharge)
+  4. On edge VectorDB→LLMNode(2), mark TickRetrieved
+
+Tick T+1:
+  5. LLMNode(2) checks RAGPendingQueries: TickRetrieved > 0 → injects RagContextTokens
+  6. LLMNode(2) processes totalTokens = PromptTokens + CompletionTokens + RagContextTokens
+```
+
+### Orchestrator Workflow Logic
+
+State machine per tick (resets via restoreNodes):
+
+| WorkflowStep | Meaning | Transition |
+|---|---|---|
+| 0 (idle) | No workflow active | → 1 if WorkflowActivityAID != "" |
+| 1 | Activity A running | → 2 (auto-advance) |
+| 2 | Activity A completed | → 3 if WorkflowActivityBID != "" else → 4 |
+| 3 | Activity B running | → 4 (or → -1 if Activity B error > 5%) |
+| 4 | Workflow complete | Resets next tick |
+| -1 | Compensated | `FailedWorkflows++`, `CompensationEvents++`, 10% rollback RPS generated |
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+| `npx tsc --noEmit` — 0 errors | ✅ |
+
+### Verification: PASSED — 2026-06-09
+
+| Check | Result |
+|-------|--------|
+| `backend/simulation/models.go` — `NodeOrchestrator` constant, `RAGPendingQuery` struct, `Node` RAG fields (RagQueryTokens, RagContextTokens, RagQueryPending), `Node` Workflow fields (ActiveWorkflows, FailedWorkflows, CompensationEvents, WorkflowStep, WorkflowActivityAID/BID, WorkflowCompensationRPS), `NodeMetricsSnapshot` RAG/Workflow fields, `DetectRAGPipeline` (LLMNode→VectorDB→LLMNode topology detection), `DetectAsyncWorkflow`, state machine constants (WorkflowStepIdle through WorkflowStepCompensated) | ✅ |
+| `backend/simulation/propagator.go` — `RAGPendingQueries` map on `PropagationContext`, initialized in `NewPropagationContext`; RAG flow: inject context into LLMNode from completed retrieval, VectorDB processes retrieval with 30% RAG surcharge, LLMNode registers new query with defaults (30% prompt tokens, 50% completion tokens); Orchestrator: auto-detects Activity A/B from edges, 4-step state machine with compensation on Activity B failure after Activity A success, compensation generates 10% rollback RPS, orchestration overhead latency (2ms per workflow) | ✅ |
+| `backend/simulation/engine.go` — `restoreNodes()` resets all RAG/Workflow runtime fields per tick | ✅ |
+| `backend/simulation/metrics.go` — `SnapshotTick` populates RagQueryTokens, RagContextTokens, ActiveWorkflows, FailedWorkflows, CompensationEvents | ✅ |
+| `backend/config/seeder.go` — Orchestrator defaults (10ms latency, 100/1000 RPS, 30% CPU, 40% mem, 0.999 reliability, $0.005/RPS) | ✅ |
+| `frontend/src/types/canvas.ts` — `"Orchestrator"` added to `NodeType` union | ✅ |
+| `frontend/src/utils/nodeRegistry.ts` — Orchestrator entry: amber `#F59E0B`, ClipboardList icon, ModernCompute category, modernCompute defaults (2 instances, 500 maxRPS, 10ms latency) | ✅ |
+| `HANDOFF.md` — Phase L2.1 section with all Files, Structs, Tick Flow, State Machine, Build Results | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+| `npx tsc --noEmit` — 0 errors | ✅ |
+
+### Fix Applied During Verification — 2026-06-09
+| Issue | File | Fix |
+|-------|------|-----|
+| Missing workflow state machine constants (spec requirement) | `backend/simulation/models.go` | Added `WorkflowStepIdle=0`, `WorkflowStepARunning=1`, `WorkflowStepADone=2`, `WorkflowStepBRunning=3`, `WorkflowStepBDone=4`, `WorkflowStepCompensated=-1` |
+| `IsRAGPipeline` was checking node type only, not actual topology (spec requires LLMNode→VectorDB→LLMNode chain detection) | `backend/simulation/models.go` | Replaced with `DetectRAGPipeline` that traverses edges to confirm the chain topology; added `DetectAsyncWorkflow` helper |
+
+## Phase L2.2 — RAG & Workflow UI — 2026-06-09
+
+**Goal**: Add UI for designing and observing RAG and Orchestrated workflows.
+
+### New Templates Added (`frontend/src/utils/enterpriseTemplates.ts`)
+
+| Template | Icon | Nodes | Edges | Topology |
+|----------|------|-------|-------|----------|
+| **RAG Chatbot** | MessageSquareText | 6 | 5 | API Gateway → Cache → LLM (Embed) → VectorDB → LLM (Generate) → Stream Out |
+| **E-Commerce Saga** | GitBranch | 6 | 7 | Order API → Orchestrator → [Payment, Inventory, Shipping] Workers → Orders DB |
+
+The RAG Chatbot template pre-configures `ragQueryTokens` and `ragContextTokens` on the two LLM nodes, and `failureMode: "compensate"` on the Orchestrator.
+
+### Sequential Edge Pulsing for RAG Pipelines (`CustomEdge.tsx`)
+
+When a simulation detects RAG pipeline edges (LLM→VectorDB or VectorDB→LLM), a numbered step badge (1/2/3) appears above the edge midpoint with:
+- **Step 1** (LLM→VectorDB): Violet badge, pulsing animation at 0.8s cadence
+- **Step 2** (VectorDB→LLM): Purple badge, pulsing animation at 1.1s cadence  
+- **Step 3** (LLM→out after VectorDB→LLM): Dark violet badge, pulsing at 1.4s cadence
+- Cascading delay shows the sequential multi-hop nature of RAG (1→2→3)
+
+Detection logic (`ragStep` selector):
+- `ragStep = 1` if source is LLMNode and target is VectorDB (first embed)
+- `ragStep = 2` if source is VectorDB and target is LLMNode (context retrieval)
+- `ragStep = 3` if source is LLMNode and target is not VectorDB AND incoming edge from VectorDB exists (generate with context)
+
+### Orchestrator Node Visual State (`OrchestratorNode.tsx`)
+
+New custom React Flow node component (`frontend/src/components/canvas/nodes/OrchestratorNode.tsx`):
+- Embedded amber-bordered panel showing activity list (Payment, Inventory, Shipping)
+- Each activity line shows an icon and state indicator (✅ / ⏳) during simulation
+- Footer showing Failure Mode, active/failed workflow counts
+- Red compensation alert badge when `compensationEvents > 0`
+
+### Failure Mode Selector (NodeConfigPanel)
+
+New **Workflow Config** section for Orchestrator nodes with a **Failure Mode** dropdown:
+
+| Mode | Behavior |
+|------|----------|
+| **Compensate (Rollback)** | Default: runs compensation transaction (10% rollback RPS), `WorkflowStep = -1`, increments `CompensationEvents` |
+| **Retry** | Keeps Activity B at `WorkflowStep = 3` (running), adds 100ms retry latency penalty, increments `FailedWorkflows` |
+| **Panic** | Sets orchestrator and all downstream activity nodes to `IsFailed = true` with `ErrorRate = 1.0` (cascading failure) |
+
+### Backend FailureMode Support
+
+| File | Change |
+|------|--------|
+| `backend/simulation/models.go` | Added `FailureMode string` field to `Node` struct with JSON tag `failureMode` |
+| `backend/simulation/propagator.go` | Orchestrator logic now reads `n.FailureMode` (defaults to "compensate") and dispatches per-mode behavior |
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/components/canvas/nodes/OrchestratorNode.tsx` | Custom React Flow node with activity state list, failure mode display, compensation badge |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/utils/enterpriseTemplates.ts` | Added "RAG Chatbot" and "E-Commerce Saga" templates; imported `MessageSquareText`, `GitBranch` icons |
+| `frontend/src/components/canvas/nodeTypes.ts` | Registered `OrchestratorNode` as `"orchestrator"` type; `getReactFlowType` maps `"Orchestrator"` → `"orchestrator"` |
+| `frontend/src/components/canvas/CustomEdge.tsx` | Added `ragStep` detection from canvas store; renders sequential step badge (1/2/3) with cascading pulsing animation on RAG pipeline edges |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | Added "Workflow Config" section with Failure Mode selector for Orchestrator; added Orchestrator metrics (Active WFs, Failed WFs, Compensations) to Live Metrics |
+| `backend/simulation/models.go` | Added `FailureMode string` field to `Node` struct |
+| `backend/simulation/propagator.go` | Orchestrator failure handling dispatches by mode: compensate (rollback RPS), retry (latency penalty), panic (cascading failure) |
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+| `npx tsc --noEmit` — 0 errors | ✅ |
+
+### Verification: PASSED — 2026-06-09
+
+| Check | Result |
+|-------|--------|
+| `frontend/src/utils/enterpriseTemplates.ts` — RAG Chatbot template (6 nodes, 5 edges, Gateway→Cache→LLM→VectorDB→LLM→Stream) | ✅ |
+| `frontend/src/utils/enterpriseTemplates.ts` — E-Commerce Saga template (6 nodes, 7 edges, Order API→Orchestrator→3 Workers→DB) | ✅ |
+| `frontend/src/components/canvas/nodes/OrchestratorNode.tsx` — Activity state list (✅ Payment, ⏳ Inventory, ⏳ Shipping), failure mode footer, compensation alert badge | ✅ |
+| `frontend/src/components/canvas/nodeTypes.ts` — `OrchestratorNode` registered as `"orchestrator"` type, `getReactFlowType("Orchestrator")`→`"orchestrator"` | ✅ |
+| `frontend/src/components/canvas/CustomEdge.tsx` — `ragStep` detection (1=LLM→VectorDB, 2=VectorDB→LLM, 3=LLM→after RAG), step badge with cascading pulsing animation | ✅ |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` — "Workflow Config" section with Failure Mode selector (Compensate/Retry/Panic) for Orchestrator | ✅ |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` — Orchestrator live metrics (Active WFs, Failed WFs, Compensations) | ✅ |
+| `backend/simulation/models.go` — `FailureMode string` field on `Node` struct | ✅ |
+| `backend/simulation/propagator.go` — Failure mode dispatch: compensate (rollback RPS), retry (100ms penalty, stay on step 3), panic (cascading IsFailed) | ✅ |
+| `frontend/src/types/canvas.ts` — `activeWorkflows?`, `failedWorkflows?`, `compensationEvents?`, `ragQueryTokens?`, `ragContextTokens?` added to `NodeMetrics`; `failureMode?` added to `NodeConfig` | ✅ |
+| `HANDOFF.md` — Phase L2.2 section with files, templates, flow states, decisions | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+| `npx tsc --noEmit` — 0 errors | ✅ |
+
+### Fixes Applied During Re-Verification — 2026-06-09
+| Issue | File | Fix |
+|-------|------|-----|
+| `NodeMetrics` type missing RAG/Workflow fields (`activeWorkflows`, `failedWorkflows`, `compensationEvents`, `ragQueryTokens`, `ragContextTokens`) | `frontend/src/types/canvas.ts` | Added all 5 as optional fields |
+| `NodeConfig` type missing `failureMode` field | `frontend/src/types/canvas.ts` | Added `failureMode?: string` |
+| `NodeConfigPanel.tsx` used `(cfg as any).failureMode` and `(metrics as any).activeWorkflows` (unsafe casts) | `frontend/src/components/panels/NodeConfigPanel.tsx` | Changed to typed `cfg.failureMode` and `metrics.activeWorkflows` (etc.) now that types are defined |
