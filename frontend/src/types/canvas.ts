@@ -45,7 +45,8 @@ export type NodeType =
   | "LLMNode"
   | "GPUCluster"
   | "EdgeCompute"
-  | "ServerlessV2";
+  | "ServerlessV2"
+  | "Orchestrator";
 
 export interface DeploymentConfig {
   strategy: "rolling" | "blue_green" | "canary";
@@ -107,6 +108,8 @@ export interface NodeConfig {
   cudaUtilization: number;
   geographicLatencyModifier: number;
   snapStartEnabled: boolean;
+  // Orchestrator config
+  failureMode?: string;
 }
 
 export interface NodeMetrics {
@@ -144,6 +147,12 @@ export interface NodeMetrics {
   cudaUtilization: number;
   geographicLatencyModifier: number;
   snapStartEnabled: boolean;
+  // RAG / Workflow metrics
+  ragQueryTokens?: number;
+  ragContextTokens?: number;
+  activeWorkflows?: number;
+  failedWorkflows?: number;
+  compensationEvents?: number;
 }
 
 export interface SimulationNodeState {

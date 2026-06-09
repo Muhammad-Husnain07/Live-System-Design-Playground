@@ -301,6 +301,14 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
     category: NodeCategory.ModernCompute,
     defaultConfig: modernCompute({ instances: 5, maxRPS: 2000, latencyMs: 10 }),
   },
+  Orchestrator: {
+    label: "Orchestrator",
+    description: "Workflow orchestration (Temporal/Step Functions) with compensation and saga patterns",
+    icon: ClipboardList,
+    color: "#F59E0B",
+    category: NodeCategory.ModernCompute,
+    defaultConfig: modernCompute({ instances: 2, maxRPS: 500, latencyMs: 10 }),
+  },
 };
 
 export const nodeRegistry = NODE_REGISTRY;
