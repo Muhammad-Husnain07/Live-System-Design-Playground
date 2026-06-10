@@ -46,7 +46,8 @@ export type NodeType =
   | "GPUCluster"
   | "EdgeCompute"
   | "ServerlessV2"
-  | "Orchestrator";
+  | "Orchestrator"
+  | "ServiceMesh";
 
 export interface DeploymentConfig {
   strategy: "rolling" | "blue_green" | "canary";
@@ -110,6 +111,8 @@ export interface NodeConfig {
   snapStartEnabled: boolean;
   // Orchestrator config
   failureMode?: string;
+  // Service Mesh config
+  mtlsEnabled?: boolean;
 }
 
 export interface NodeMetrics {
@@ -163,7 +166,7 @@ export interface SimulationNodeState {
 }
 
 export interface EdgeRoutingConfig {
-  protocol: "HTTP" | "gRPC" | "TCP" | "WebSocket" | "AMQP" | "Replication";
+  protocol: "HTTP" | "gRPC" | "TCP" | "WebSocket" | "AMQP" | "Replication" | "ServiceMesh";
   isSync: boolean;
   trafficPercent: number;
   requiresTLS: boolean;

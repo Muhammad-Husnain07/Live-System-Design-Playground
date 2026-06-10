@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useState, useMemo } from "react";
 import { BaseEdge, getSmoothStepPath, type EdgeProps } from "reactflow";
 import { useShallow } from "zustand/react/shallow";
 import { useChaosStore } from "../../store/chaosStore";
@@ -17,11 +17,13 @@ const PROTOCOL_COLORS: Record<string, string> = {
   WebSocket: "#EC4899",
   AMQP: "#F59E0B",
   Kafka: "#EF4444",
+  ServiceMesh: "#14B8A6",
 };
 
 const PROTOCOL_DISPLAY: Record<string, string> = {
   AMQP: "AMQP",
   Kafka: "Kfk",
+  ServiceMesh: "Mesh",
 };
 
 function getProtocolColor(protocol: string): string {
@@ -49,6 +51,7 @@ function CustomEdge({
   const isSync = routing?.isSync ?? true;
   const isSecure = data?.isSecure ?? true;
   const requiresTLS = routing?.requiresTLS ?? false;
+  const authRequired = routing?.authRequired ?? false;
   const protocol = routing?.protocol ?? "HTTP";
   const trafficPercent = routing?.trafficPercent ?? 100;
   const throughput = data?.throughputRPS ?? 0;
@@ -56,6 +59,32 @@ function CustomEdge({
 
   const hasChaos = useChaosStore((s) => s.activeNodeIds.includes(source) || s.activeNodeIds.includes(target));
   const isSecurityHighlighted = useSecurityStore((s) => s.highlightedEdgeIds.includes(id));
+
+  // Check for Zero Trust violations involving this edge
+  const violations = useSecurityStore((s) => s.violations);
+  const isImplicitTrust = useMemo(() =>
+    violations.some((v) =>
+      v.type === "implicit_trust" &&
+      ((v.sourceNodeId === source && v.targetNodeId === target) ||
+       (v.sourceNodeId === target && v.targetNodeId === source))
+    ),
+    [violations, source, target]
+  );
+
+  // Check if mTLS is enforced (requiresTLS + authRequired = mTLS)
+  const isMTLS = requiresTLS && authRequired;
+
+  // Check if source or target is a ServiceMesh node with mtlsEnabled
+  const serviceMeshMTLS = useCanvasStore(
+    useShallow((s) => {
+      const srcNode = s.nodes.find((n) => n.id === source);
+      const tgtNode = s.nodes.find((n) => n.id === target);
+      const srcIsMesh = srcNode?.data?.nodeType === "ServiceMesh" && srcNode?.data?.config?.mtlsEnabled;
+      const tgtIsMesh = tgtNode?.data?.nodeType === "ServiceMesh" && tgtNode?.data?.config?.mtlsEnabled;
+      return srcIsMesh || tgtIsMesh;
+    })
+  );
+
   const { hasCanary, edgeCanaryPct, ragStep } = useCanvasStore(
     useShallow((s) => {
       const srcNode = s.nodes.find((n) => n.id === source);
@@ -91,20 +120,25 @@ function CustomEdge({
   let strokeWidth = selected ? 3.5 : 2;
   let opacity = 0.8;
 
-  if (isSaturated) {
+  // ZTA unsecured: implicit trust violation overrides all styling
+  if (isImplicitTrust) {
+    strokeColor = "#EF4444";
+    strokeDasharray = "6 4";
+    opacity = 1;
+  } else if (isSaturated) {
     strokeColor = "#F97316";
     opacity = 1;
   }
-  if (!isSync) {
+  if (!isImplicitTrust && !isSync) {
     strokeDasharray = "10 5";
     opacity = 0.7;
   }
-  if (!isSecure && requiresTLS) {
+  if (!isImplicitTrust && !isSecure && requiresTLS) {
     strokeColor = "#EF4444";
     strokeDasharray = "6 4";
     opacity = 1;
   }
-  if (hasChaos && !isSaturated) {
+  if (!isImplicitTrust && hasChaos && !isSaturated) {
     strokeColor = "#F97316";
     strokeDasharray = "2 3";
   }
@@ -232,7 +266,7 @@ function CustomEdge({
             fontFamily="monospace"
             opacity={0.7}
           >
-            {ragStep === 1 ? "→" : ragStep === 2 ? "→" : "→"}
+            {"→"}
           </text>
         </g>
       )}
@@ -256,13 +290,27 @@ function CustomEdge({
         </g>
       )}
 
-      {/* Secure/insecure icon */}
-      {!isSecurityHighlighted && (isSecure || !requiresTLS) && (
+      {/* mTLS indicator: locked padlock when mTLS is enforced */}
+      {(isMTLS || serviceMeshMTLS) && !isImplicitTrust && (
+        <text x={labelX - 28} y={labelY - 8} textAnchor="middle" fontSize={14} fill="#14B8A6">
+          🔒
+        </text>
+      )}
+
+      {/* Unsecured ZTA indicator: unlocked red padlock when implicit trust violation */}
+      {isImplicitTrust && (
+        <text x={labelX - 28} y={labelY - 8} textAnchor="middle" fontSize={14} fill="#EF4444">
+          🔓
+        </text>
+      )}
+
+      {/* TLS / NoTLS text */}
+      {!isImplicitTrust && !isSecurityHighlighted && (isSecure || !requiresTLS) && (
         <text x={labelX + 12} y={labelY - 6} textAnchor="middle" fill={strokeColor} fontSize={9} opacity={selected ? 1 : 0.5}>
           TLS
         </text>
       )}
-      {!isSecurityHighlighted && !isSecure && requiresTLS && (
+      {!isImplicitTrust && !isSecurityHighlighted && !isSecure && requiresTLS && (
         <text x={labelX + 12} y={labelY - 6} textAnchor="middle" fill="#EF4444" fontSize={9}>
           NoTLS
         </text>
@@ -275,7 +323,7 @@ function CustomEdge({
             x={labelX - 56}
             y={labelY + 12}
             width={112}
-            height={28}
+            height={36}
             rx={4}
             fill="#18181b"
             stroke="#3f3f46"
@@ -302,6 +350,18 @@ function CustomEdge({
           >
             {isSync ? "Synchronous" : "Asynchronous"}
           </text>
+          {(isMTLS || serviceMeshMTLS) && (
+            <text
+              x={labelX}
+              y={labelY + 44}
+              textAnchor="middle"
+              fill="#14B8A6"
+              fontSize={7}
+              fontFamily="monospace"
+            >
+              mTLS 🔒
+            </text>
+          )}
         </g>
       )}
       {hovered && hasCanary && (

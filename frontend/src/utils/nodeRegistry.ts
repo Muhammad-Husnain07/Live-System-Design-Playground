@@ -35,7 +35,7 @@ const base = {
   snapStartEnabled: false,
 };
 
-type Override = Partial<typeof base> & { instances: number; maxRPS: number; latencyMs: number };
+type Override = Partial<typeof base> & { instances: number; maxRPS: number; latencyMs: number; mtlsEnabled?: boolean };
 
 const infra = (overrides: Override) => ({ ...base, region: "us-east-1", errorRate: 0.01, ...overrides });
 const data = (overrides: Override) => ({ ...base, region: "us-east-1", errorRate: 0.001, ...overrides });
@@ -308,6 +308,14 @@ export const NODE_REGISTRY: Record<NodeType, NodeMetadata> = {
     color: "#F59E0B",
     category: NodeCategory.ModernCompute,
     defaultConfig: modernCompute({ instances: 2, maxRPS: 500, latencyMs: 10 }),
+  },
+  ServiceMesh: {
+    label: "Service Mesh",
+    description: "Zero-trust service mesh enforcing mTLS and identity-aware routing between nodes",
+    icon: Shield,
+    color: "#14B8A6",
+    category: NodeCategory.Network,
+    defaultConfig: network({ instances: 0, maxRPS: 0, latencyMs: 1, mtlsEnabled: true }),
   },
 };
 
