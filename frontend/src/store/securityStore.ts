@@ -16,10 +16,12 @@ interface SecurityState {
   showSecurityPanel: boolean;
   highlightedNodeIds: string[];
   highlightedEdgeIds: string[];
+  trustZoneNodeIds: string[];
   setViolations: (v: SecurityViolation[]) => void;
   setShowSecurityPanel: (show: boolean) => void;
   highlightViolation: (violation: SecurityViolation, edges: { id: string; source: string; target: string }[]) => void;
   clearHighlights: () => void;
+  setTrustZoneNodeIds: (ids: string[]) => void;
   reset: () => void;
 }
 
@@ -28,6 +30,7 @@ export const useSecurityStore = create<SecurityState>((set) => ({
   showSecurityPanel: false,
   highlightedNodeIds: [],
   highlightedEdgeIds: [],
+  trustZoneNodeIds: [],
   setViolations: (violations) => set({ violations }),
   setShowSecurityPanel: (show) => set({ showSecurityPanel: show, highlightedNodeIds: [], highlightedEdgeIds: [] }),
   highlightViolation: (violation, edges) => {
@@ -40,5 +43,6 @@ export const useSecurityStore = create<SecurityState>((set) => ({
     set({ highlightedNodeIds: nodeIds, highlightedEdgeIds: edgeIds });
   },
   clearHighlights: () => set({ highlightedNodeIds: [], highlightedEdgeIds: [] }),
-  reset: () => set({ violations: [], showSecurityPanel: false, highlightedNodeIds: [], highlightedEdgeIds: [] }),
+  setTrustZoneNodeIds: (ids) => set({ trustZoneNodeIds: ids }),
+  reset: () => set({ violations: [], showSecurityPanel: false, highlightedNodeIds: [], highlightedEdgeIds: [], trustZoneNodeIds: [] }),
 }));

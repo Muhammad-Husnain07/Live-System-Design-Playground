@@ -124,6 +124,7 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
   const bgBorderColor = deployStrategy === "blue_green" && bgActiveGroup === "green" ? "#22C55E" : deployStrategy === "blue_green" && bgActiveGroup === "blue" ? "#3B82F6" : null;
   const hasChaos = useChaosStore((s) => s.activeNodeIds.includes(nodeId));
   const isSecurityHighlighted = useSecurityStore((s) => s.highlightedNodeIds.includes(nodeId));
+  const isTrustZone = useSecurityStore((s) => s.trustZoneNodeIds.includes(nodeId));
   const isFastBurn = useCanvasStore((s) => s.fastBurnNodeIds.includes(nodeId));
   const exportMode = useCanvasStore((s) => s.exportMode);
   const compatStatus = NODE_COMPAT[nodeType] ?? "skipped";
@@ -140,9 +141,9 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
   });
   const dimStyle = nw || nh ? { width: nw ?? DEFAULT_W, height: nh ?? DEFAULT_H } : undefined;
 
-  const nodeColor = bgBorderColor ?? (isFailed ? "#EF4444" : hasChaos ? "#F97316" : isSecurityHighlighted ? "#EF4444" : selected ? "#22c55e" : meta.color);
-  const shadowColor = isFailed ? "rgba(239,68,68,0.4)" : hasChaos ? "rgba(249,115,22,0.5)" : isSecurityHighlighted ? "rgba(239,68,68,0.5)" : selected ? "rgba(34,197,94,0.4)" : hovered ? `${meta.color}40` : "rgba(0,0,0,0)";
-  const shadowIntensity = selected || isFailed || hasChaos || isSecurityHighlighted ? "14px" : hovered ? "10px" : "0px";
+  const nodeColor = bgBorderColor ?? (isFailed ? "#EF4444" : hasChaos ? "#F97316" : isSecurityHighlighted ? "#EF4444" : isTrustZone ? "#14B8A6" : selected ? "#22c55e" : meta.color);
+  const shadowColor = isTrustZone ? "rgba(20,184,166,0.4)" : isFailed ? "rgba(239,68,68,0.4)" : hasChaos ? "rgba(249,115,22,0.5)" : isSecurityHighlighted ? "rgba(239,68,68,0.5)" : selected ? "rgba(34,197,94,0.4)" : hovered ? `${meta.color}40` : "rgba(0,0,0,0)";
+  const shadowIntensity = selected || isFailed || hasChaos || isSecurityHighlighted || isTrustZone ? "14px" : hovered ? "10px" : "0px";
 
   return (
     <motion.div
@@ -167,6 +168,13 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
             animation: "pulse-red 1.5s ease-in-out infinite",
           }}
         />
+      )}
+      {isTrustZone && selected && hovered && (
+        <Box sx={{ position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", zIndex: 25, pointerEvents: "none" }}>
+          <Typography variant="caption" sx={{ fontSize: 8, fontWeight: 600, bgcolor: "#14B8A6", color: "#fff", px: 0.75, py: 0.25, borderRadius: "4px", fontFamily: "monospace", letterSpacing: "0.05em" }}>
+            Trusted
+          </Typography>
+        </Box>
       )}
       {isFailed && (
         <Box sx={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>

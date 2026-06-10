@@ -1,10 +1,12 @@
 import { useState, useCallback, useEffect } from "react";
-import { Unlock, Database, Globe, DoorOpen, Shield, Lock, Cloud, Bug, Key, UserX, type LucideIcon } from "lucide-react";
+import { Unlock, Database, Globe, DoorOpen, Shield, Lock, Cloud, Bug, Key, UserX, Eye, EyeOff, type LucideIcon } from "lucide-react";
 import { useSecurityStore, type SecurityViolation } from "../../store/securityStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
 import api from "../../utils/api";
 import { Box, Typography, Button } from "@mui/material";
+
+const ZTA_TYPES = new Set(["implicit_trust", "public_secret", "llm_injection"]);
 
 const VIOLATION_ICONS: Record<string, LucideIcon> = {
   unencrypted_transit: Unlock,
@@ -15,6 +17,9 @@ const VIOLATION_ICONS: Record<string, LucideIcon> = {
   ssrf_vector: Bug,
   iam_privilege_escalation: Key,
   missing_authentication: UserX,
+  implicit_trust: Lock,
+  public_secret: Eye,
+  llm_injection: Bug,
 };
 
 function ViolationRow({
@@ -35,7 +40,8 @@ function ViolationRow({
   const isActive =
     highlightedNodeIds.includes(violation.sourceNodeId) || highlightedNodeIds.includes(violation.targetNodeId);
 
-  const ViolationIcon = VIOLATION_ICONS[violation.type] ?? Lock;
+  const ViolationIcon = VIOLATION_ICONS[violation.type] ?? Shield;
+  const isZeroTrust = ZTA_TYPES.has(violation.type);
 
   return (
     <Box
@@ -90,6 +96,14 @@ function ViolationRow({
           >
             {violation.type.replace(/_/g, " ")}
           </Typography>
+          {isZeroTrust && (
+            <Typography
+              variant="caption"
+              sx={{ fontSize: '7px', fontWeight: 500, px: '4px', py: '1px', borderRadius: '4px', bgcolor: 'rgba(20,184,166,0.15)', color: '#14B8A6', fontFamily: 'monospace', flexShrink: 0 }}
+            >
+              ZTA
+            </Typography>
+          )}
         </Box>
         <Typography
           variant="caption"
@@ -170,8 +184,13 @@ export default function SecurityPanel() {
   const violations = useSecurityStore((s) => s.violations);
   const setViolations = useSecurityStore((s) => s.setViolations);
   const clearHighlights = useSecurityStore((s) => s.clearHighlights);
+  const setTrustZoneNodeIds = useSecurityStore((s) => s.setTrustZoneNodeIds);
+  const trustZoneNodeIds = useSecurityStore((s) => s.trustZoneNodeIds);
+  const nodes = useCanvasStore((s) => s.nodes);
+  const edges = useCanvasStore((s) => s.edges);
   const addToast = useToastStore((s) => s.addToast);
   const [auditing, setAuditing] = useState(false);
+  const [ztaScanning, setZtaScanning] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
 
   const projectIdFromUrl = typeof window !== "undefined" ? window.location.pathname.match(/\/project\/([^/]+)/)?.[1] ?? null : null;
@@ -204,6 +223,67 @@ export default function SecurityPanel() {
     }
   }, [addToast, setViolations, clearHighlights, projectIdFromUrl]);
 
+  const handleZeroTrustScan = useCallback(async () => {
+    const pid = projectIdFromUrl;
+    if (!pid) {
+      addToast({ type: "error", title: "No project selected", message: "Open a project to run Zero Trust scan", duration: 4000 });
+      return;
+    }
+    setZtaScanning(true);
+    clearHighlights();
+    try {
+      const resp = await api.post("/security/audit", { projectId: pid });
+      const all = (resp.data.violations ?? []) as SecurityViolation[];
+      const ztaViolations = all.filter((v) => ZTA_TYPES.has(v.type));
+
+      // Compute trust zone node IDs: nodes connected via mTLS edges (requiresTLS + authRequired)
+      // or parented under a ServiceMesh node with mtlsEnabled
+      const protectedNodeIds = new Set<string>();
+      for (const e of edges) {
+        const edgeData = e.data;
+        if (edgeData?.routing?.requiresTLS && edgeData?.routing?.authRequired) {
+          protectedNodeIds.add(e.source);
+          protectedNodeIds.add(e.target);
+        }
+      }
+      // Also include nodes connected to a ServiceMesh node with mtlsEnabled
+      for (const n of nodes) {
+        if (n.data?.nodeType === "ServiceMesh" && n.data?.config?.mtlsEnabled) {
+          // All nodes connected to this mesh node via edges are in the trust zone
+          for (const e of edges) {
+            if (e.source === n.id) protectedNodeIds.add(e.target);
+            if (e.target === n.id) protectedNodeIds.add(e.source);
+          }
+        }
+      }
+
+      setTrustZoneNodeIds(Array.from(protectedNodeIds));
+      setViolations(all);
+
+      if (ztaViolations.length > 0) {
+        addToast({
+          type: "warning",
+          title: `Zero Trust: ${ztaViolations.length} violations`,
+          message: "Implicit trust, public secrets, or LLM injection risks detected",
+          duration: 5000,
+        });
+      } else {
+        addToast({
+          type: "success",
+          title: "Zero Trust: All clear",
+          message: `Architecture is Zero Trust compliant. ${protectedNodeIds.size} nodes in mTLS trust zone.`,
+          duration: 4000,
+        });
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? "Zero Trust scan failed";
+      addToast({ type: "error", title: "Scan failed", message: msg, duration: 5000 });
+    } finally {
+      setZtaScanning(false);
+    }
+  }, [addToast, setViolations, setTrustZoneNodeIds, clearHighlights, projectIdFromUrl, nodes, edges]);
+
+  const ztaViolations = violations.filter((v) => ZTA_TYPES.has(v.type));
   const critical = violations.filter((v) => v.severity === "critical");
   const warnings = violations.filter((v) => v.severity === "warning");
 
@@ -250,7 +330,7 @@ export default function SecurityPanel() {
         )}
       </Box>
 
-      <Box sx={{ px: '12px', py: '8px', borderBottom: '1px solid', borderColor: '#3f3f46' }}>
+      <Box sx={{ px: '12px', py: '8px', borderBottom: '1px solid', borderColor: '#3f3f46', display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <Button
           onClick={handleAudit}
           disabled={auditing}
@@ -294,7 +374,98 @@ export default function SecurityPanel() {
             <><Shield size={16} /> Run Security Audit</>
           )}
         </Button>
+
+        <Box sx={{ display: 'flex', gap: '6px' }}>
+          <Button
+            onClick={handleZeroTrustScan}
+            disabled={ztaScanning}
+            fullWidth
+            sx={{
+              py: '6px',
+              fontSize: '10px',
+              fontWeight: 500,
+              borderRadius: '4px',
+              bgcolor: 'rgba(20,184,166,0.15)',
+              color: '#14B8A6',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              '&:hover': { bgcolor: 'rgba(20,184,166,0.25)' },
+              '&.Mui-disabled': { opacity: 0.3, cursor: 'not-allowed' },
+            }}
+          >
+            {ztaScanning ? (
+              <>
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-block',
+                    width: '10px',
+                    height: '10px',
+                    border: '2px solid rgba(20,184,166,0.3)',
+                    borderTopColor: '#14B8A6',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                  }}
+                />
+                Scanning...
+              </>
+            ) : (
+              <><Lock size={14} /> Zero Trust Scan</>
+            )}
+          </Button>
+
+          {trustZoneNodeIds.length > 0 && (
+            <Button
+              onClick={() => setTrustZoneNodeIds([])}
+              size="small"
+              sx={{
+                py: '6px',
+                px: '8px',
+                fontSize: '10px',
+                fontWeight: 500,
+                borderRadius: '4px',
+                minWidth: 0,
+                bgcolor: 'rgba(239,68,68,0.1)',
+                color: '#ef4444',
+                '&:hover': { bgcolor: 'rgba(239,68,68,0.2)' },
+              }}
+              title="Clear trust zone highlights"
+            >
+              <EyeOff size={14} />
+            </Button>
+          )}
+        </Box>
       </Box>
+
+      {trustZoneNodeIds.length > 0 && (
+        <Box sx={{ px: '12px', py: '4px', borderBottom: '1px solid', borderColor: '#3f3f46', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#14B8A6' }} />
+          <Typography variant="caption" sx={{ fontSize: '8px', color: '#14B8A6', fontFamily: 'monospace' }}>
+            Trust Zone: {trustZoneNodeIds.length} nodes secured by mTLS
+          </Typography>
+        </Box>
+      )}
+
+      {ztaViolations.length > 0 && (
+        <Box sx={{ px: '12px', py: '6px', borderBottom: '1px solid', borderColor: '#3f3f46' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', mb: '6px' }}>
+            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#14B8A6' }} />
+            <Typography
+              variant="caption"
+              sx={{ fontSize: '9px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#14B8A6' }}
+            >
+              Zero Trust ({ztaViolations.length})
+            </Typography>
+          </Box>
+          <Box sx={{ '& > * + *': { mt: '6px' } }}>
+            {ztaViolations.map((v, i) => (
+              <ViolationRow key={`zta-${i}`} violation={v} onClick={() => {}} />
+            ))}
+          </Box>
+        </Box>
+      )}
 
       <Box
         sx={{
@@ -304,7 +475,7 @@ export default function SecurityPanel() {
           '&::-webkit-scrollbar-thumb': { bgcolor: '#3f3f46', borderRadius: '3px' },
         }}
       >
-        {violations.length === 0 && !auditing && (
+        {violations.length === 0 && !auditing && !ztaScanning && (
           <Box sx={{ px: '12px', py: '32px', textAlign: 'center' }}>
             <Box sx={{ width: 48, height: 48, mx: "auto", mb: 1.5, borderRadius: "50%", bgcolor: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Shield size={20} style={{ color: "#60a5fa" }} />
@@ -313,7 +484,7 @@ export default function SecurityPanel() {
               Run a security audit
             </Typography>
             <Typography variant="caption" sx={{ color: "#52525b", fontSize: "0.6rem", display: "block", mb: 2, lineHeight: 1.4, px: 2 }}>
-              Scan your architecture for vulnerabilities, exposed data, and policy violations.
+              Scan your architecture for vulnerabilities, exposed data, Zero Trust risks, and policy violations.
             </Typography>
             <Button
               onClick={handleAudit}
@@ -334,7 +505,7 @@ export default function SecurityPanel() {
           </Box>
         )}
 
-        {critical.length > 0 && (
+        {critical.filter((v) => !ZTA_TYPES.has(v.type)).length > 0 && (
           <Box sx={{ px: '12px', py: '8px' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', mb: '8px' }}>
               <Box sx={{ width: '6px', height: '6px', borderRadius: '50%', bgcolor: '#f87171' }} />
@@ -342,18 +513,18 @@ export default function SecurityPanel() {
                 variant="caption"
                 sx={{ fontSize: '9px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#ef4444' }}
               >
-                Critical ({critical.length})
+                Critical ({critical.filter((v) => !ZTA_TYPES.has(v.type)).length})
               </Typography>
             </Box>
             <Box sx={{ '& > * + *': { mt: '6px' } }}>
-              {critical.map((v, i) => (
+              {critical.filter((v) => !ZTA_TYPES.has(v.type)).map((v, i) => (
                 <ViolationRow key={`crit-${i}`} violation={v} onClick={() => {}} />
               ))}
             </Box>
           </Box>
         )}
 
-        {warnings.length > 0 && (
+        {warnings.filter((v) => !ZTA_TYPES.has(v.type)).length > 0 && (
           <Box sx={{ px: '12px', py: '8px', borderTop: 1, borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', mb: '8px' }}>
               <Box sx={{ width: '6px', height: '6px', borderRadius: '50%', bgcolor: '#fb923c' }} />
@@ -361,11 +532,11 @@ export default function SecurityPanel() {
                 variant="caption"
                 sx={{ fontSize: '9px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fb923c' }}
               >
-                Warnings ({warnings.length})
+                Warnings ({warnings.filter((v) => !ZTA_TYPES.has(v.type)).length})
               </Typography>
             </Box>
             <Box sx={{ '& > * + *': { mt: '6px' } }}>
-              {warnings.map((v, i) => (
+              {warnings.filter((v) => !ZTA_TYPES.has(v.type)).map((v, i) => (
                 <ViolationRow key={`warn-${i}`} violation={v} onClick={() => {}} />
               ))}
             </Box>
