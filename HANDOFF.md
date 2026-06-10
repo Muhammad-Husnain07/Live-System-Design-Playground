@@ -5130,3 +5130,109 @@ New **Workflow Config** section for Orchestrator nodes with a **Failure Mode** d
 | `NodeMetrics` type missing RAG/Workflow fields (`activeWorkflows`, `failedWorkflows`, `compensationEvents`, `ragQueryTokens`, `ragContextTokens`) | `frontend/src/types/canvas.ts` | Added all 5 as optional fields |
 | `NodeConfig` type missing `failureMode` field | `frontend/src/types/canvas.ts` | Added `failureMode?: string` |
 | `NodeConfigPanel.tsx` used `(cfg as any).failureMode` and `(metrics as any).activeWorkflows` (unsafe casts) | `frontend/src/components/panels/NodeConfigPanel.tsx` | Changed to typed `cfg.failureMode` and `metrics.activeWorkflows` (etc.) now that types are defined |
+
+## Phase L3.1 — Zero Trust & OTel Backend — 2026-06-10
+
+**Goal**: Add Zero Trust Architecture (ZTA) audit rules to the security auditor and migrate trace data to OpenTelemetry (OTel) semantic conventions.
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/services/security/auditor.go` | Added 3 ZTA `ViolationType` constants (`implicit_trust`, `public_secret`, `llm_injection`); added `isServerlessType()` and `isLLMType()` helpers; added 3 audit rules (`checkImplicitTrust`, `checkPublicSecret`, `checkLLMInjection`); wired into `Audit()` |
+| `backend/simulation/tracing.go` | Added `SpanEvent` and `SpanLink` types; added OTel fields to `Span` (`ServiceName`, `TelemetrySDKName`, `NetSockPeerAddr`, `Attributes`, `Events`, `Links`); `NewTraceFromNodes` populates OTel attributes (node.id, node.type, rps, error.rate, cache.hit_ratio, retry.count, failed, cloud.region), span events (exception on error, retry.storm on retries), span links for async producer→consumer edges; `annotateChaosEvents` helper adds `chaos.*` span events for active chaos failures; `generateTraces` acquires `tickNum` for event annotation |
+| `backend/handlers/tracing.go` | Replaced raw `{traces: [...]}` response with OTel `ResourceSpans` envelope containing `resource` attributes (service.name, telemetry.sdk.name, simulation.root_node), `scope` (name: "systemdesign/simulation", version: "1.0.0"), and per-span transformation to OTel format with `traceId`, `spanId`, `name`, `kind` (1=Internal, 4=Producer for async), `startTimeUnixNano`, `endTimeUnixNano`, `attributes` (key-value array), `events`, `links`, `status` (code/message) |
+
+### Zero Trust Audit Rules
+
+| Rule | Type | Severity | Description |
+|------|------|----------|-------------|
+| **Implicit Trust** | `implicit_trust` | CRITICAL | Internal node connects to another internal node without mTLS (`RequiresTLS`) or identity-aware auth (`AuthRequired`) — must authenticate every request |
+| **Public Secret** | `public_secret` | CRITICAL | Public-facing ServerlessFunction/ServerlessV2/EdgeCompute contains inline secrets in `Permissions` field (secret, password, token, api_key, access_key, credential) |
+| **LLM Injection** | `llm_injection` | CRITICAL | ExternalClient has unprotected path to LLMNode without a sanitizing APIGateway or Firewall — prompt injection/jailbreak vector |
+
+### OTel Span Format
+
+The `GET /api/simulations/:id/traces` endpoint now returns OTel-compatible JSON:
+
+```json
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "systemdesign"}},
+          {"key": "telemetry.sdk.name", "value": {"stringValue": "opentelemetry"}}
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {"name": "systemdesign/simulation", "version": "1.0.0"},
+          "spans": [
+            {
+              "traceId": "uuid",
+              "spanId": "uuid",
+              "name": "Node Label",
+              "kind": 1,
+              "startTimeUnixNano": 1718000000000000000,
+              "endTimeUnixNano": 1718000000050000000,
+              "attributes": [
+                {"key": "service.name", "value": {"stringValue": "..."}},
+                {"key": "telemetry.sdk.name", "value": {"stringValue": "opentelemetry"}},
+                {"key": "node.type", "value": {"stringValue": "AppServer"}}
+              ],
+              "events": [
+                {"timestamp": "...", "name": "exception", "attributes": {"exception.message": "Span completed with error: node_failure", "exception.type": "node_failure"}},
+                {"timestamp": "...", "name": "chaos.NodeFailure", "attributes": {"chaos.event_type": "NodeFailure", "chaos.severity": 1.0}}
+              ],
+              "links": [
+                {"traceId": "uuid", "spanId": "uuid", "attributes": {"edge.id": "e-1-2", "edge.target": "node-2"}}
+              ],
+              "status": {"code": 2, "message": "span completed with error"}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Span `kind` values: `1` = Internal (default), `4` = Producer (async nodes: MessageQueue, EventBus, PubSub).
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+| `npx tsc --noEmit` — 0 errors | ✅ |
+
+### Verification: PASSED — 2026-06-10
+
+| Check | Result |
+|-------|--------|
+| `auditor.go` — 3 new `ViolationType` constants (`implicit_trust`, `public_secret`, `llm_injection`) | ✅ |
+| `auditor.go` — `isServerlessType()` helper (ServerlessFunction, ServerlessV2, EdgeCompute) | ✅ |
+| `auditor.go` — `isLLMType()` helper (LLMNode) | ✅ |
+| `auditor.go` — `checkImplicitTrust()` CRITICAL: internal→internal without mTLS (`RequiresTLS`) or auth (`AuthRequired`), skips external + protective types | ✅ |
+| `auditor.go` — `checkPublicSecret()` CRITICAL: public-facing serverless/edge with inline secrets in Permissions (secret, password, token, api_key, access_key, credential) | ✅ |
+| `auditor.go` — `checkLLMInjection()` CRITICAL: external→LLM without sanitizing gateway via `hasUnprotectedPath` | ✅ |
+| `auditor.go` — All 3 new rules wired into `Audit()` after existing 8 rules | ✅ |
+| `tracing.go` — `SpanEvent` type (Timestamp, Name, Attributes) | ✅ |
+| `tracing.go` — `SpanLink` type (TraceID, SpanID, Attributes) | ✅ |
+| `tracing.go` — `Span` OTel fields: `ServiceName` (`service.name`), `TelemetrySDKName` (`telemetry.sdk.name`), `NetSockPeerAddr` (`net.sock.peer.addr`), `Attributes`, `Events`, `Links` | ✅ |
+| `tracing.go` — `NewTraceFromNodes` populates OTel attributes (node.id, node.type, rps, error.rate, cache.hit_ratio, retry.count, failed, cloud.region) | ✅ |
+| `tracing.go` — `NewTraceFromNodes` creates "exception" span event on ERROR status, "retry.storm" on retry > 0 | ✅ |
+| `tracing.go` — `NewTraceFromNodes` creates span links for async producer→consumer nodes | ✅ |
+| `tracing.go` — `annotateChaosEvents()` adds `chaos.*` span events for active chaos failures mapped by NodeID | ✅ |
+| `tracing.go` — `generateTraces` acquires `tickNum` and calls `annotateChaosEvents` | ✅ |
+| `handlers/tracing.go` — OTel types: `otelSpanEvent`, `otelSpanLink`, `otelAttribute`, `otelValue`, `otelSpan`, `otelStatus`, `otelScopeSpan`, `otelScope`, `otelResourceSpan`, `otelResource`, `otelTraceResponse` | ✅ |
+| `handlers/tracing.go` — `toOTelSpan()` maps `SpanStatusOK`→code 1, `SpanStatusERROR`→code 2; `SpanTypeAsync`→kind 4 Producer, rest→kind 1 Internal | ✅ |
+| `handlers/tracing.go` — `GetTraces` returns `otelTraceResponse` with `resourceSpans[].resource.attributes` (service.name, telemetry.sdk.name, simulation.root_node) | ✅ |
+| `handlers/tracing.go` — `GetTraces` wraps spans under `scopeSpans[].scope` (name: "systemdesign/simulation", version: "1.0.0") | ✅ |
+| `handlers/tracing.go` — Empty/null TraceCollector returns valid OTel response with empty spans array | ✅ |
+| `HANDOFF.md` — Phase L3.1 section with Files, ZTA Rules, OTel Format, Build Results | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+| `npx tsc --noEmit` — 0 errors | ✅ |
