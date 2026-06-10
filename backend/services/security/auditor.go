@@ -23,6 +23,9 @@ const (
 	ViolationSSRF                     ViolationType = "ssrf_vector"
 	ViolationIAMPrivilegeEscalation   ViolationType = "iam_privilege_escalation"
 	ViolationMissingAuth              ViolationType = "missing_authentication"
+	ViolationImplicitTrust            ViolationType = "implicit_trust"
+	ViolationPublicSecret             ViolationType = "public_secret"
+	ViolationLLMInjection             ViolationType = "llm_injection"
 )
 
 type SecurityViolation struct {
@@ -80,6 +83,9 @@ func (a *SecurityAuditor) Audit() []SecurityViolation {
 	violations = append(violations, a.checkSSRFVectors()...)
 	violations = append(violations, a.checkIAMPrivilegeEscalation()...)
 	violations = append(violations, a.checkMissingAuthentication()...)
+	violations = append(violations, a.checkImplicitTrust()...)
+	violations = append(violations, a.checkPublicSecret()...)
+	violations = append(violations, a.checkLLMInjection()...)
 	if violations == nil {
 		return []SecurityViolation{}
 	}
@@ -119,6 +125,14 @@ func isProtectiveType(nt string) bool {
 		return true
 	}
 	return false
+}
+
+func isServerlessType(nt string) bool {
+	return nt == "ServerlessFunction" || nt == "ServerlessV2" || nt == "EdgeCompute"
+}
+
+func isLLMType(nt string) bool {
+	return nt == "LLMNode"
 }
 
 func isComputeType(nt string) bool {
@@ -448,6 +462,108 @@ func (a *SecurityAuditor) checkMissingAuthentication() []SecurityViolation {
 			Message:      src.Label + " routes to " + tgt.Label + " without authentication — internal API endpoint is unauthenticated and accessible to anyone who reaches the gateway.",
 			Remediation:  "Enable auth on the edge or gateway. Use AWS Cognito / Azure AD B2C for API auth. For internal APIs, use API Gateway Lambda authorizers or JWT validation. Add AWS WAF or Azure Front Door WAF policies to block unauthenticated requests.",
 		})
+	}
+	return out
+}
+
+/* ── Rule 9: Implicit Trust (Zero Trust) ── */
+
+func (a *SecurityAuditor) checkImplicitTrust() []SecurityViolation {
+	var out []SecurityViolation
+	// Zero Trust Principle: no internal node should implicitly trust another.
+	// If two internal (non-external) nodes communicate without mTLS (RequiresTLS)
+	// and without an identity provider (AuthRequired), flag as implicit trust.
+	for _, e := range a.graph.Edges {
+		src := a.nodeByID(e.Source)
+		tgt := a.nodeByID(e.Target)
+		if src == nil || tgt == nil {
+			continue
+		}
+		// Skip edges involving external clients — those are expected to be untrusted
+		if isExternalType(src.NodeType) || isExternalType(tgt.NodeType) {
+			continue
+		}
+		// Skip protective infrastructure that terminates trust
+		if isProtectiveType(src.NodeType) || isProtectiveType(tgt.NodeType) {
+			continue
+		}
+		if e.RequiresTLS && e.AuthRequired {
+			continue
+		}
+		out = append(out, SecurityViolation{
+			Severity:     SeverityCritical,
+			Type:         ViolationImplicitTrust,
+			SourceNodeID: e.Source,
+			TargetNodeID: e.Target,
+			Message:      src.Label + " connects to " + tgt.Label + " without mTLS or identity-aware auth — implicit trust violates Zero Trust principles. Internal nodes must authenticate every request.",
+			Remediation:  "Enable mTLS between all internal services using a service mesh (Istio/Linkerd) or enable AuthRequired on the edge. Use SPIFFE/SPIRE for workload identity. For AWS, use App Mesh with mTLS. For Azure, use Azure AD Workload Identity.",
+		})
+	}
+	return out
+}
+
+/* ── Rule 10: Public Secrets (Zero Trust) ── */
+
+func (a *SecurityAuditor) checkPublicSecret() []SecurityViolation {
+	var out []SecurityViolation
+	// Serverless/Edge nodes that are public-facing must not be configured
+	// with inline secrets (detected via Permissions field containing sensitive keywords).
+	for _, n := range a.graph.Nodes {
+		if !isServerlessType(n.NodeType) {
+			continue
+		}
+		if !n.Security.IsPublicFacing {
+			continue
+		}
+		if n.Permissions == "" {
+			continue
+		}
+		hasSecret := strings.Contains(n.Permissions, "secret") ||
+			strings.Contains(n.Permissions, "password") ||
+			strings.Contains(n.Permissions, "token") ||
+			strings.Contains(n.Permissions, "api_key") ||
+			strings.Contains(n.Permissions, "access_key") ||
+			strings.Contains(n.Permissions, "credential")
+		if !hasSecret {
+			continue
+		}
+		out = append(out, SecurityViolation{
+			Severity:     SeverityCritical,
+			Type:         ViolationPublicSecret,
+			SourceNodeID: n.ID,
+			TargetNodeID: n.ID,
+			Message:      n.Label + " (" + n.NodeType + ") is public-facing and contains inline secrets in its configuration — exposed to credential exfiltration via env vars or config maps.",
+			Remediation:  "Use a secrets manager (AWS Secrets Manager / Azure Key Vault) to inject secrets at runtime via environment variables. Never bake secrets into function code or config maps. Enable encryption at rest for the secrets store.",
+		})
+	}
+	return out
+}
+
+/* ── Rule 11: LLM Injection (Zero Trust) ── */
+
+func (a *SecurityAuditor) checkLLMInjection() []SecurityViolation {
+	var out []SecurityViolation
+	// LLM nodes must not be directly reachable from ExternalClient nodes
+	// without a sanitizing gateway (APIGateway or Firewall) in between.
+	for _, n := range a.graph.Nodes {
+		if !isLLMType(n.NodeType) {
+			continue
+		}
+		for _, en := range a.graph.Nodes {
+			if !isExternalType(en.NodeType) {
+				continue
+			}
+			if a.hasUnprotectedPath(en.ID, n.ID) {
+				out = append(out, SecurityViolation{
+					Severity:     SeverityCritical,
+					Type:         ViolationLLMInjection,
+					SourceNodeID: en.ID,
+					TargetNodeID: n.ID,
+					Message:      en.Label + " has direct access to " + n.Label + " (" + n.NodeType + ") without a sanitizing gateway — prompt injection / jailbreak vector. LLM endpoints must validate and sanitize all external inputs.",
+					Remediation:  "Place an API Gateway or Firewall in front of the LLM endpoint to validate input schemas, implement rate limiting, and detect prompt injection patterns (e.g., AWS WAF with ML-based rules, Azure AI Content Safety). Use a dedicated LLM proxy for input sanitization.",
+				})
+			}
+		}
 	}
 	return out
 }
