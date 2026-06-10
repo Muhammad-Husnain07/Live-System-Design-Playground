@@ -80,7 +80,33 @@ const RedChart = memo(function RedChart({ data, label }: { data: RedDatum[]; lab
   );
 });
 
-interface SpanData { spanId: string; traceId: string; nodeId: string; nodeLabel: string; nodeType: string; entryTime: string; exitTime: string; durationMs: number; status: "OK" | "ERROR"; spanType?: "CACHE_HIT" | "ASYNC_WAIT" | ""; }
+interface TraceSpanEvent {
+  timestamp: string;
+  name: string;
+  attributes?: Record<string, any>;
+}
+
+interface TraceSpanLink {
+  traceId: string;
+  spanId: string;
+  attributes?: Record<string, any>;
+}
+
+interface SpanData {
+  spanId: string;
+  traceId: string;
+  nodeId: string;
+  nodeLabel: string;
+  nodeType: string;
+  entryTime: string;
+  exitTime: string;
+  durationMs: number;
+  status: "OK" | "ERROR";
+  spanType?: "CACHE_HIT" | "ASYNC_WAIT" | "";
+  events?: TraceSpanEvent[];
+  attributes?: Record<string, any>;
+  links?: TraceSpanLink[];
+}
 interface TraceData { traceId: string; spans: SpanData[]; rootNodeId: string; rootNodeLabel: string; startTime: string; endTime: string; totalDurationMs: number; status: "OK" | "ERROR"; hasError: boolean; }
 
 const TraceRow = memo(function TraceRow({ trace, onSelect, selected }: { trace: TraceData; onSelect: () => void; selected: boolean }) {
@@ -98,8 +124,13 @@ const TraceRow = memo(function TraceRow({ trace, onSelect, selected }: { trace: 
   );
 });
 
-function WaterfallChart({ trace }: { trace: TraceData }) {
+function WaterfallChart({ trace, onSpanLinkClick }: { trace: TraceData; onSpanLinkClick: (traceId: string) => void }) {
   const maxDur = Math.max(...trace.spans.map((s) => s.durationMs), 1);
+  const parseTime = (t: string) => new Date(t).getTime();
+  const traceStart = Math.min(...trace.spans.map((s) => parseTime(s.entryTime)).filter((t) => !isNaN(t)));
+  const traceEnd = Math.max(...trace.spans.map((s) => parseTime(s.exitTime)).filter((t) => !isNaN(t)));
+  const totalMs = traceEnd - traceStart || maxDur;
+  const [detailSpan, setDetailSpan] = useState<SpanData | null>(null);
   return (
     <Box sx={{ mt: 1 }}>
       <Typography variant="caption" sx={{ fontSize: "0.6rem", fontWeight: 500, color: "#a1a1aa", display: "block", mb: 1 }}>
@@ -117,31 +148,116 @@ function WaterfallChart({ trace }: { trace: TraceData }) {
           </Box>
         </Box>
         {trace.spans.map((span, i) => {
-          const pct = maxDur > 0 ? (span.durationMs / maxDur) * 100 : 0;
+          const pct = maxDur > 0 ? (span.durationMs / totalMs) * 100 : 0;
           const isError = span.status === "ERROR";
           const isCache = span.spanType === "CACHE_HIT";
           const isAsync = span.spanType === "ASYNC_WAIT";
+          const spanStart = parseTime(span.entryTime);
+          const offsetPct = !isNaN(spanStart) && totalMs > 0 ? ((spanStart - traceStart) / totalMs) * 100 : 0;
           let barColor = "#3b82f6";
           if (isError) barColor = "#ef4444";
           else if (isCache) barColor = "#10b981";
           else if (isAsync) barColor = "#f59e0b";
+          const events = span.events ?? [];
+          const hasException = events.some((e) => e.name === "exception");
+          const hasChaosFailure = events.some((e) => e.name?.startsWith("chaos."));
           return (
             <Box key={span.spanId} sx={{ display: "flex", alignItems: "center", px: 1.5, py: 0.75, bgcolor: i % 2 === 0 ? "#18181b" : "#09090b", fontSize: "0.65rem" }}>
-              <Box sx={{ width: 160, flexShrink: 0, display: "flex", alignItems: "center", gap: 0.25, color: "#f4f4f5" }}>
-                {isCache && <CheckCircle size={12} style={{ color: "#22c55e", flexShrink: 0 }} />}
-                {isAsync && <Clock size={12} style={{ color: "#f97316", flexShrink: 0 }} />}
-                {isError && <XCircle size={12} style={{ color: "#ef4444", flexShrink: 0 }} />}
+              <Box
+                sx={{ width: 160, flexShrink: 0, display: "flex", alignItems: "center", gap: 0.25, color: "#f4f4f5", cursor: "pointer" }}
+                onClick={() => setDetailSpan(detailSpan?.spanId === span.spanId ? null : span)}
+              >
+                {(hasException || hasChaosFailure) && <XCircle size={12} style={{ color: "#ef4444", flexShrink: 0 }} />}
+                {isCache && !hasException && <CheckCircle size={12} style={{ color: "#22c55e", flexShrink: 0 }} />}
+                {isAsync && !hasException && <Clock size={12} style={{ color: "#f97316", flexShrink: 0 }} />}
+                {isError && !hasException && <XCircle size={12} style={{ color: "#ef4444", flexShrink: 0 }} />}
                 {span.nodeLabel}
                 <Typography variant="caption" component="span" sx={{ fontSize: "0.55rem", ml: 0.25, color: "#71717a" }}>{span.nodeType}</Typography>
               </Box>
               <Box sx={{ width: 56, flexShrink: 0, textAlign: "right", fontFamily: "monospace", color: "#a1a1aa", fontSize: "0.65rem" }}>{ms(span.durationMs)}</Box>
               <Box sx={{ flex: 1, ml: 1, position: "relative", height: 16 }}>
-                <Box sx={{ position: "absolute", top: 2, height: 12, borderRadius: "999px", opacity: 0.8, bgcolor: barColor, left: 0, width: `${Math.max(pct, 2)}%` }} />
+                <Box sx={{ position: "absolute", top: 2, height: 12, borderRadius: "999px", opacity: 0.8, bgcolor: barColor, left: `${Math.max(0, offsetPct)}%`, width: `${Math.max(pct, 2)}%` }} />
+                {/* Span event markers - red diamonds */}
+                {events.map((ev, ei) => {
+                  const evTime = parseTime(ev.timestamp);
+                  if (isNaN(evTime)) return null;
+                  const evPct = totalMs > 0 ? ((evTime - traceStart) / totalMs) * 100 : 0;
+                  const isException = ev.name === "exception";
+                  return (
+                    <Box
+                      key={ei}
+                      title={ev.name}
+                      sx={{
+                        position: "absolute",
+                        top: 1,
+                        left: `${Math.max(0, Math.min(100, evPct))}%`,
+                        width: 0,
+                        height: 0,
+                        borderLeft: "4px solid transparent",
+                        borderRight: "4px solid transparent",
+                        borderTop: "6px solid",
+                        borderTopColor: isException ? "#EF4444" : "#F59E0B",
+                        transform: "translateX(-50%)",
+                        opacity: 0.9,
+                        zIndex: 2,
+                        ...(isException ? {
+                          animation: "v-pulse 1s ease-in-out infinite",
+                          "@keyframes v-pulse": {
+                            "0%, 100%": { opacity: 0.9 },
+                            "50%": { opacity: 0.3 },
+                          },
+                        } : {}),
+                      }}
+                    />
+                  );
+                })}
               </Box>
             </Box>
           );
         })}
       </Box>
+      {/* Span detail panel: Attributes + Links */}
+      {detailSpan && (
+        <Box sx={{ mt: 1, border: 1, borderColor: "#27272a", borderRadius: 1, bgcolor: "#18181b", p: 1.5 }}>
+          <Typography variant="caption" sx={{ fontSize: "0.6rem", fontWeight: 500, color: "#a1a1aa", display: "block", mb: 1 }}>
+            {detailSpan.nodeLabel} — {detailSpan.spanId.slice(0, 8)}
+          </Typography>
+          {detailSpan.attributes && Object.keys(detailSpan.attributes).length > 0 && (
+            <Box sx={{ mb: 1.5 }}>
+              <Typography variant="caption" sx={{ fontSize: "0.55rem", fontWeight: 500, color: "#71717a", display: "block", mb: 0.5 }}>Attributes</Typography>
+              <Box component="table" sx={{ width: "100%", borderCollapse: "collapse", fontSize: "0.55rem" }}>
+                <Box component="tbody">
+                  {Object.entries(detailSpan.attributes).map(([k, v]) => (
+                    <Box component="tr" key={k} sx={{ borderBottom: 1, borderColor: "#27272a" }}>
+                      <Box component="td" sx={{ py: 0.25, pr: 1, fontWeight: 600, color: "#a1a1aa", whiteSpace: "nowrap", verticalAlign: "top" }}>{k}</Box>
+                      <Box component="td" sx={{ py: 0.25, fontFamily: "monospace", color: "#22d3ee", wordBreak: "break-all" }}>{String(v)}</Box>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+          )}
+          {detailSpan.links && detailSpan.links.length > 0 && (
+            <Box>
+              <Typography variant="caption" sx={{ fontSize: "0.55rem", fontWeight: 500, color: "#71717a", display: "block", mb: 0.5 }}>Span Links</Typography>
+              {detailSpan.links.map((lnk, li) => (
+                <Box key={li} sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.25 }}>
+                  <Typography variant="caption" sx={{ fontSize: "0.55rem", fontFamily: "monospace", color: "#52525b" }}>
+                    {lnk.traceId.slice(0, 8)}…/{lnk.spanId.slice(0, 8)}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    onClick={() => onSpanLinkClick(lnk.traceId)}
+                    sx={{ fontSize: "0.55rem", color: "#14B8A6", cursor: "pointer", textDecoration: "underline", "&:hover": { color: "#2DD4BF" } }}
+                  >
+                    View Trace &rarr;
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }
@@ -234,7 +350,68 @@ export default function ObservabilityPage() {
     if (!runId) return;
     try {
       const { data } = await api.get(`/simulations/${runId}/traces`);
-      if (data.traces) setTraces(data.traces as TraceData[]);
+      // Parse OTel ResourceSpans envelope
+      if (data.resourceSpans) {
+        const allSpans: SpanData[] = [];
+        for (const rs of data.resourceSpans) {
+          for (const ss of rs.scopeSpans ?? []) {
+            for (const span of ss.spans ?? []) {
+              const sd: SpanData = {
+                spanId: span.spanId ?? span.span_id ?? "",
+                traceId: span.traceId ?? span.trace_id ?? "",
+                nodeId: span.nodeId ?? span.node_id ?? "",
+                nodeLabel: span.nodeLabel ?? span.node_label ?? "",
+                nodeType: span.nodeType ?? span.node_type ?? "",
+                entryTime: span.entryTime ?? span.startTime ?? span.start_time ?? "",
+                exitTime: span.exitTime ?? span.endTime ?? span.end_time ?? "",
+                durationMs: span.durationMs ?? span.duration_ms ?? 0,
+                status: span.status === "ERROR" || span.status_code === 2 ? "ERROR" : "OK",
+                spanType: span.spanType ?? "",
+                events: (span.events ?? []).map((ev: any) => ({
+                  timestamp: ev.timestamp ?? ev.time ?? ev.time_unix_nano ?? "",
+                  name: ev.name ?? "",
+                  attributes: ev.attributes ?? ev.attr ?? {},
+                })),
+                attributes: span.attributes ?? span.attr ?? {},
+                links: (span.links ?? []).map((lnk: any) => ({
+                  traceId: lnk.traceId ?? lnk.trace_id ?? "",
+                  spanId: lnk.spanId ?? lnk.span_id ?? "",
+                  attributes: lnk.attributes ?? lnk.attr ?? {},
+                })),
+              };
+              allSpans.push(sd);
+            }
+          }
+        }
+        // Group by traceId
+        const grouped = new Map<string, SpanData[]>();
+        for (const s of allSpans) {
+          if (!grouped.has(s.traceId)) grouped.set(s.traceId, []);
+          grouped.get(s.traceId)!.push(s);
+        }
+        const tracesArr: TraceData[] = [];
+        for (const [traceId, spans] of grouped) {
+          const startMs = Math.min(...spans.map((s) => new Date(s.entryTime).getTime()).filter((t) => !isNaN(t)));
+          const endMs = Math.max(...spans.map((s) => new Date(s.exitTime).getTime()).filter((t) => !isNaN(t)));
+          const totalDurationMs = endMs - startMs || Math.max(...spans.map((s) => s.durationMs));
+          const root = spans.find((s) => s.nodeId === spans[0]?.nodeId) ?? spans[0];
+          tracesArr.push({
+            traceId,
+            spans,
+            rootNodeId: root.nodeId,
+            rootNodeLabel: root.nodeLabel,
+            startTime: root.entryTime,
+            endTime: root.exitTime,
+            totalDurationMs,
+            status: spans.some((s) => s.status === "ERROR") ? "ERROR" : "OK",
+            hasError: spans.some((s) => s.status === "ERROR"),
+          });
+        }
+        setTraces(tracesArr);
+      } else if (data.traces) {
+        // Fallback to flat format
+        setTraces(data.traces as TraceData[]);
+      }
     } catch { /* ignore */ }
   }, [runId]);
 
@@ -287,6 +464,62 @@ export default function ObservabilityPage() {
       wsRef.current = null;
     };
   }, [projectId, runId, addEvent]);
+
+  const handleSpanLinkClick = useCallback(async (linkTraceId: string) => {
+    const found = traces.find((t) => t.traceId === linkTraceId);
+    if (found) { setSelectedTrace(found); return; }
+    try {
+      const { data } = await api.get(`/simulations/${runId}/traces`);
+      if (data.traces) setTraces(data.traces as TraceData[]);
+      if (data.resourceSpans) {
+        // Re-parse the envelope and look for the linked trace
+        const refresh = await api.get(`/simulations/${runId}/traces`);
+        const refreshData = refresh.data;
+        if (refreshData.resourceSpans) {
+          const linkedSpans: SpanData[] = [];
+          for (const rs of refreshData.resourceSpans) {
+            for (const ss of rs.scopeSpans ?? []) {
+              for (const span of ss.spans ?? []) {
+                if ((span.traceId ?? span.trace_id ?? "") === linkTraceId) {
+                  linkedSpans.push({
+                    spanId: span.spanId ?? span.span_id ?? "",
+                    traceId: span.traceId ?? span.trace_id ?? "",
+                    nodeId: span.nodeId ?? span.node_id ?? "",
+                    nodeLabel: span.nodeLabel ?? span.node_label ?? "",
+                    nodeType: span.nodeType ?? span.node_type ?? "",
+                    entryTime: span.entryTime ?? span.startTime ?? span.start_time ?? "",
+                    exitTime: span.exitTime ?? span.endTime ?? span.end_time ?? "",
+                    durationMs: span.durationMs ?? span.duration_ms ?? 0,
+                    status: span.status === "ERROR" || span.status_code === 2 ? "ERROR" : "OK",
+                    spanType: span.spanType ?? "",
+                    events: (span.events ?? []).map((ev: any) => ({ timestamp: ev.timestamp ?? ev.time ?? "", name: ev.name ?? "", attributes: ev.attributes ?? {} })),
+                    attributes: span.attributes ?? {},
+                    links: (span.links ?? []).map((lnk: any) => ({ traceId: lnk.traceId ?? lnk.trace_id ?? "", spanId: lnk.spanId ?? lnk.span_id ?? "", attributes: lnk.attributes ?? {} })),
+                  });
+                }
+              }
+            }
+          }
+          if (linkedSpans.length > 0) {
+            const startMs = Math.min(...linkedSpans.map((s) => new Date(s.entryTime).getTime()).filter((t) => !isNaN(t)));
+            const endMs = Math.max(...linkedSpans.map((s) => new Date(s.exitTime).getTime()).filter((t) => !isNaN(t)));
+            const root = linkedSpans[0];
+            setSelectedTrace({
+              traceId: linkTraceId,
+              spans: linkedSpans,
+              rootNodeId: root.nodeId,
+              rootNodeLabel: root.nodeLabel,
+              startTime: root.entryTime,
+              endTime: root.exitTime,
+              totalDurationMs: endMs - startMs || Math.max(...linkedSpans.map((s) => s.durationMs)),
+              status: linkedSpans.some((s) => s.status === "ERROR") ? "ERROR" : "OK",
+              hasError: linkedSpans.some((s) => s.status === "ERROR"),
+            });
+          }
+        }
+      }
+    } catch { /* ignore */ }
+  }, [runId]);
 
   const prevRunning = useRef(isRunning);
   const loggedViolations = useRef(new Set<string>());
@@ -469,7 +702,7 @@ export default function ObservabilityPage() {
               {/* Waterfall Chart */}
               <Box sx={{ bgcolor: "#18181b", borderRadius: 1, border: 1, borderColor: "#27272a", p: 1.5, maxHeight: 320, overflowY: "auto" }}>
                 {selectedTrace ? (
-                  <WaterfallChart trace={selectedTrace} />
+                  <WaterfallChart trace={selectedTrace} onSpanLinkClick={handleSpanLinkClick} />
                 ) : (
                   <Box sx={{ height: 240, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Typography variant="caption" sx={{ color: "#52525b", fontSize: "0.6rem" }}>Select a trace to view waterfall chart</Typography>

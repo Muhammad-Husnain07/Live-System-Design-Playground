@@ -5236,3 +5236,70 @@ Span `kind` values: `1` = Internal (default), `4` = Producer (async nodes: Messa
 | `go build ./...` — 0 errors | ✅ |
 | `go vet ./...` — 0 errors | ✅ |
 | `npx tsc --noEmit` — 0 errors | ✅ |
+
+---
+
+## Phase L3.2 — Zero Trust & OTel UI
+
+**Date**: 2026-06-10
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/types/canvas.ts` | Added `ServiceMesh` to `NodeType` union, `mtlsEnabled` to `NodeConfig`, `"ServiceMesh"` to `EdgeRoutingConfig.protocol` |
+| `frontend/src/utils/nodeRegistry.ts` | Added `ServiceMesh` node defaults (teal `#14B8A6`, Shield icon, Network category), `mtlsEnabled` in Override |
+| `frontend/src/components/canvas/CustomEdge.tsx` | 🔒 mTLS icon when `requiresTLS && authRequired` or connected `ServiceMesh.mtlsEnabled`; 🔓 dotted red for `implicit_trust` ZTA violations; protocol color entry for ServiceMesh |
+| `frontend/src/components/panels/SecurityPanel.tsx` | "Zero Trust Scan" button filtering ZTA violations (`implicit_trust`, `public_secret`, `llm_injection`); "Trust Zone Boundaries" section computing `trustZoneNodeIds`; clear/visualize trust zones |
+| `frontend/src/components/canvas/BaseNode.tsx` | `isTrustZone` detection from `securityStore.trustZoneNodeIds`; teal glow `boxShadow` + border for trust-zone nodes |
+| `frontend/src/store/securityStore.ts` | Added `trustZoneNodeIds: string[]` state, `setTrustZoneNodeIds` action, included in `reset()` |
+| `frontend/src/pages/ObservabilityPage.tsx` | OTel `resourceSpans` envelope parsing; `TraceSpanEvent`/`TraceSpanLink` types; red diamond markers on waterfall for span events; exception events get animated pulse; attributes key–value table; span links as clickable teal links; `handleSpanLinkClick` for linked trace navigation |
+
+### ZTA Visual Indicators
+
+| Element | Condition | Visual |
+|---------|-----------|--------|
+| Edge 🔒 | `requiresTLS && authRequired` OR connected `ServiceMesh.mtlsEnabled` | Teal `#14B8A6` lock icon above edge center |
+| Edge 🔓 | ZTA `implicit_trust` violation | Red `#EF4444` unlocked icon, dotted red stroke `6 4` |
+| Edge tooltip | mTLS edge | Additional "mTLS 🔒" line |
+| Node border | Node ID in `trustZoneNodeIds` | `2px solid #14B8A6` inset, `0 0 8px rgba(20,184,166,0.4)` box-shadow |
+| Node badge | Trust zone + selected + hovered | Small "Trusted" overlay badge |
+
+### OTel Trace UI Details
+
+| Feature | Implementation |
+|---------|---------------|
+| Envelope parsing | `fetchTraces` reads `data.resourceSpans[].scopeSpans[].spans[]` → groups by `traceId` → creates flat `TraceData[]` |
+| Span events — red diamonds | SVG `borderTop`-based triangles positioned on timeline at event timestamp pct; exception events (`name === "exception"`) rendered red with vertical pulse animation |
+| Chaos events | Events with `name` starting with `chaos.*` shown with chaos event type name via tooltip |
+| Attributes table | `<table>` with `<tr>` per key-value pair; key bold `#a1a1aa`, value monospace `#22d3ee` |
+| Span links | Teal `#14B8A6` underlined "View Trace →" clickable; calls `handleSpanLinkClick` → finds trace by `traceId` in current list or triggers refetch |
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `go vet ./...` — 0 errors | ✅ |
+| `npx tsc --noEmit` — 0 errors | ✅ |
+
+### Verification: FIXED — 2026-06-10
+
+| Check | Result |
+|-------|--------|
+| `canvas.ts` — ServiceMesh in NodeType, mtlsEnabled in NodeConfig | ✅ |
+| `nodeRegistry.ts` — ServiceMesh entry with defaults, Override allows mtlsEnabled | ✅ |
+| `CustomEdge.tsx` — mTLS 🔒 detection (edge-level + ServiceMesh-level), ZTA 🔓 for implicit_trust | ✅ |
+| `CustomEdge.tsx` — hover tooltip height 36px includes "mTLS 🔒" line | ✅ |
+| `SecurityPanel.tsx` — Zero Trust Scan button calls audit, filters ZTA types, computes trustZoneNodeIds | ✅ |
+| `SecurityPanel.tsx` — Trust Zone boundary visualization with node count, EyeOff clear button | ✅ |
+| `BaseNode.tsx` — isTrustZone, teal glow border/shadow for trust zone nodes | ✅ |
+| `BaseNode.tsx` — "Trusted" badge on `isTrustZone && selected && hovered` | ✅ (was missing, added) |
+| `securityStore.ts` — trustZoneNodeIds + setTrustZoneNodeIds in state and reset | ✅ |
+| `ObservabilityPage.tsx` — OTel resourceSpans envelope parse, groups by traceId | ✅ |
+| `ObservabilityPage.tsx` — red diamond event markers (exception = red + pulse, other = amber) | ✅ |
+| `ObservabilityPage.tsx` — attributes key–value table (key bold, value monospace) | ✅ |
+| `ObservabilityPage.tsx` — span links as clickable teal "View Trace →" | ✅ |
+| `ObservabilityPage.tsx` — `handleSpanLinkClick` async refetch + re-parse for linked traces | ✅ (was stubbed, fixed to properly refetch) |
+| `ObservabilityPage.tsx` — removed unused `traceMap` variable | ✅ (was left over, removed) |
+| `go vet ./...` — 0 errors | ✅ |
+| `npx tsc --noEmit` — 0 errors | ✅ |
