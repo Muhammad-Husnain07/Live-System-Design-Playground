@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 	"systemdesign/simulation"
 )
@@ -11,6 +14,173 @@ type LogsQuery struct {
 	TraceID string `query:"traceId"`
 	Page    int    `query:"page"`
 	PerPage int    `query:"perPage"`
+}
+
+type otelSpanEvent struct {
+	Timestamp  string         `json:"timestamp"`
+	Name       string         `json:"name"`
+	Attributes map[string]any `json:"attributes,omitempty"`
+}
+
+type otelSpanLink struct {
+	TraceID    string         `json:"traceId"`
+	SpanID     string         `json:"spanId"`
+	Attributes map[string]any `json:"attributes,omitempty"`
+}
+
+type otelAttribute struct {
+	Key   string      `json:"key"`
+	Value otelValue   `json:"value"`
+}
+
+type otelValue struct {
+	StringValue string `json:"stringValue,omitempty"`
+	IntValue    int64  `json:"intValue,omitempty"`
+	DoubleValue float64 `json:"doubleValue,omitempty"`
+	BoolValue   bool   `json:"boolValue,omitempty"`
+}
+
+type otelSpan struct {
+	TraceID           string           `json:"traceId"`
+	SpanID            string           `json:"spanId"`
+	ParentSpanID      string           `json:"parentSpanId,omitempty"`
+	Name              string           `json:"name"`
+	Kind              int              `json:"kind"`
+	StartTimeUnixNano int64            `json:"startTimeUnixNano"`
+	EndTimeUnixNano   int64            `json:"endTimeUnixNano"`
+	Attributes        []otelAttribute  `json:"attributes,omitempty"`
+	Events            []otelSpanEvent  `json:"events,omitempty"`
+	Links             []otelSpanLink   `json:"links,omitempty"`
+	Status            otelStatus       `json:"status"`
+}
+
+type otelStatus struct {
+	Code    int    `json:"code"`
+	Message string `json:"message,omitempty"`
+}
+
+type otelScopeSpan struct {
+	Scope otelScope  `json:"scope"`
+	Spans []otelSpan `json:"spans"`
+}
+
+type otelScope struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+type otelResourceSpan struct {
+	Resource   otelResource   `json:"resource"`
+	ScopeSpans []otelScopeSpan `json:"scopeSpans"`
+}
+
+type otelResource struct {
+	Attributes []otelAttribute `json:"attributes"`
+}
+
+type otelTraceResponse struct {
+	ResourceSpans []otelResourceSpan `json:"resourceSpans"`
+}
+
+func toOTelAttributes(m map[string]any) []otelAttribute {
+	if len(m) == 0 {
+		return nil
+	}
+	attrs := make([]otelAttribute, 0, len(m))
+	for k, v := range m {
+		attr := otelAttribute{Key: k}
+		switch val := v.(type) {
+		case string:
+			attr.Value = otelValue{StringValue: val}
+		case float64:
+			attr.Value = otelValue{DoubleValue: val}
+		case int:
+			attr.Value = otelValue{IntValue: int64(val)}
+		case bool:
+			attr.Value = otelValue{BoolValue: val}
+		default:
+			attr.Value = otelValue{StringValue: fmt.Sprintf("%v", val)}
+		}
+		attrs = append(attrs, attr)
+	}
+	return attrs
+}
+
+func toOTelSpanEvents(events []simulation.SpanEvent) []otelSpanEvent {
+	if len(events) == 0 {
+		return nil
+	}
+	out := make([]otelSpanEvent, len(events))
+	for i, e := range events {
+		out[i] = otelSpanEvent{
+			Timestamp:  e.Timestamp.Format(time.RFC3339Nano),
+			Name:       e.Name,
+			Attributes: e.Attributes,
+		}
+	}
+	return out
+}
+
+func toOTelSpanLinks(links []simulation.SpanLink) []otelSpanLink {
+	if len(links) == 0 {
+		return nil
+	}
+	out := make([]otelSpanLink, len(links))
+	for i, l := range links {
+		out[i] = otelSpanLink{
+			TraceID:    l.TraceID,
+			SpanID:     l.SpanID,
+			Attributes: l.Attributes,
+		}
+	}
+	return out
+}
+
+func toOTelSpan(s simulation.Span) otelSpan {
+	statusCode := 0 // Unset
+	statusMsg := ""
+	if s.Status == simulation.SpanStatusOK {
+		statusCode = 1 // OK
+	} else if s.Status == simulation.SpanStatusERROR {
+		statusCode = 2 // Error
+		statusMsg = "span completed with error"
+	}
+
+	kind := 1 // Internal
+	if s.SpanType == simulation.SpanTypeAsync {
+		kind = 4 // Producer
+	}
+
+	span := otelSpan{
+		TraceID:           s.TraceID,
+		SpanID:            s.SpanID,
+		ParentSpanID:      s.ParentSpanID,
+		Name:              s.NodeLabel,
+		Kind:              kind,
+		StartTimeUnixNano: s.EntryTime.UnixNano(),
+		EndTimeUnixNano:   s.ExitTime.UnixNano(),
+		Attributes:        toOTelAttributes(s.Attributes),
+		Events:            toOTelSpanEvents(s.Events),
+		Links:             toOTelSpanLinks(s.Links),
+		Status: otelStatus{
+			Code:    statusCode,
+			Message: statusMsg,
+		},
+	}
+
+	// Add OTel semantic convention attributes
+	span.Attributes = append(span.Attributes,
+		otelAttribute{Key: "service.name", Value: otelValue{StringValue: s.ServiceName}},
+		otelAttribute{Key: "telemetry.sdk.name", Value: otelValue{StringValue: s.TelemetrySDKName}},
+	)
+	if s.NetSockPeerAddr != "" {
+		span.Attributes = append(span.Attributes,
+			otelAttribute{Key: "net.sock.peer.addr", Value: otelValue{StringValue: s.NetSockPeerAddr}},
+		)
+
+	}
+
+	return span
 }
 
 func (h *SimulationHandler) GetTraces(c *fiber.Ctx) error {
@@ -31,11 +201,63 @@ func (h *SimulationHandler) GetTraces(c *fiber.Ctx) error {
 	}
 
 	if engine.TraceCollector == nil {
-		return c.JSON(fiber.Map{"traces": []any{}})
+		return c.JSON(otelTraceResponse{
+			ResourceSpans: []otelResourceSpan{{
+				Resource:   otelResource{Attributes: []otelAttribute{
+					{Key: "service.name", Value: otelValue{StringValue: "systemdesign"}},
+				}},
+				ScopeSpans: []otelScopeSpan{{
+					Scope: otelScope{Name: "systemdesign/simulation", Version: "1.0.0"},
+					Spans: []otelSpan{},
+				}},
+			}},
+		})
 	}
 
 	traces := engine.TraceCollector.Recent()
-	return c.JSON(fiber.Map{"traces": traces})
+	if len(traces) == 0 {
+		return c.JSON(otelTraceResponse{
+			ResourceSpans: []otelResourceSpan{{
+				Resource:   otelResource{Attributes: []otelAttribute{
+					{Key: "service.name", Value: otelValue{StringValue: "systemdesign"}},
+				}},
+				ScopeSpans: []otelScopeSpan{{
+					Scope: otelScope{Name: "systemdesign/simulation", Version: "1.0.0"},
+					Spans: []otelSpan{},
+				}},
+			}},
+		})
+	}
+
+	// Build OTel response
+	resourceSpans := make([]otelResourceSpan, 0, len(traces))
+	for _, t := range traces {
+		otelSpans := make([]otelSpan, 0, len(t.Spans))
+		for _, s := range t.Spans {
+			otelSpans = append(otelSpans, toOTelSpan(s))
+		}
+
+		resourceAttrs := []otelAttribute{
+			{Key: "service.name", Value: otelValue{StringValue: "systemdesign"}},
+			{Key: "telemetry.sdk.name", Value: otelValue{StringValue: "opentelemetry"}},
+		}
+		if t.RootNodeLabel != "" {
+			resourceAttrs = append(resourceAttrs,
+				otelAttribute{Key: "simulation.root_node", Value: otelValue{StringValue: t.RootNodeLabel}},
+			)
+		}
+
+		resourceSpans = append(resourceSpans, otelResourceSpan{
+			Resource: otelResource{Attributes: resourceAttrs},
+			ScopeSpans: []otelScopeSpan{{
+				Scope: otelScope{Name: "systemdesign/simulation", Version: "1.0.0"},
+				Spans: otelSpans,
+			}},
+		})
+	}
+
+	resp := otelTraceResponse{ResourceSpans: resourceSpans}
+	return c.JSON(resp)
 }
 
 func (h *SimulationHandler) GetLogs(c *fiber.Ctx) error {

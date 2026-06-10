@@ -9,6 +9,18 @@ import (
 	"github.com/google/uuid"
 )
 
+type SpanEvent struct {
+	Timestamp time.Time         `json:"timestamp"`
+	Name      string            `json:"name"`
+	Attributes map[string]any   `json:"attributes,omitempty"`
+}
+
+type SpanLink struct {
+	TraceID    string            `json:"traceId"`
+	SpanID     string            `json:"spanId"`
+	Attributes map[string]any    `json:"attributes,omitempty"`
+}
+
 type SpanStatus string
 
 const (
@@ -25,17 +37,24 @@ const (
 )
 
 type Span struct {
-	SpanID       string     `json:"spanId"`
-	TraceID      string     `json:"traceId"`
-	ParentSpanID string     `json:"parentSpanId,omitempty"`
-	NodeID       string     `json:"nodeId"`
-	NodeLabel    string     `json:"nodeLabel"`
-	NodeType     string     `json:"nodeType"`
-	EntryTime    time.Time  `json:"entryTime"`
-	ExitTime     time.Time  `json:"exitTime"`
-	DurationMs   float64    `json:"durationMs"`
-	Status       SpanStatus `json:"status"`
-	SpanType     SpanType   `json:"spanType,omitempty"`
+	SpanID        string            `json:"spanId"`
+	TraceID       string            `json:"traceId"`
+	ParentSpanID  string            `json:"parentSpanId,omitempty"`
+	NodeID        string            `json:"nodeId"`
+	NodeLabel     string            `json:"nodeLabel"`
+	NodeType      string            `json:"nodeType"`
+	EntryTime     time.Time         `json:"entryTime"`
+	ExitTime      time.Time         `json:"exitTime"`
+	DurationMs    float64           `json:"durationMs"`
+	Status        SpanStatus        `json:"status"`
+	SpanType      SpanType          `json:"spanType,omitempty"`
+	// OTel semantic convention fields
+	ServiceName       string            `json:"service.name,omitempty"`
+	TelemetrySDKName  string            `json:"telemetry.sdk.name,omitempty"`
+	NetSockPeerAddr   string            `json:"net.sock.peer.addr,omitempty"`
+	Attributes        map[string]any    `json:"attributes,omitempty"`
+	Events            []SpanEvent       `json:"events,omitempty"`
+	Links             []SpanLink        `json:"links,omitempty"`
 }
 
 type Trace struct {
@@ -116,6 +135,73 @@ func NewTraceFromNodes(traceID string, nodeIDs []string, nodeMap map[string]*Nod
 
 		spanID := uuid.New().String()
 
+		// OTel attributes
+		attrs := map[string]any{
+			"node.id":   n.ID,
+			"node.type": string(n.NodeType),
+		}
+		if n.CurrentRPS > 0 {
+			attrs["rps"] = n.CurrentRPS
+		}
+		if n.ErrorRate > 0 {
+			attrs["error.rate"] = n.ErrorRate
+		}
+		if n.CacheHitRatio > 0 {
+			attrs["cache.hit_ratio"] = n.CacheHitRatio
+		}
+		if n.RetryCount > 0 {
+			attrs["retry.count"] = n.RetryCount
+		}
+		if n.IsFailed {
+			attrs["failed"] = true
+		}
+		if n.Region != "" {
+			attrs["cloud.region"] = n.Region
+		}
+
+		// Span events for error conditions
+		var events []SpanEvent
+		if status == SpanStatusERROR {
+			reason := "error_rate_exceeded"
+			if n.IsFailed {
+				reason = "node_failure"
+			}
+			events = append(events, SpanEvent{
+				Timestamp: entry,
+				Name:      "exception",
+				Attributes: map[string]any{
+					"exception.message": fmt.Sprintf("Span completed with error: %s", reason),
+					"exception.type":    reason,
+				},
+			})
+		}
+		if n.RetryCount > 0 {
+			events = append(events, SpanEvent{
+				Timestamp: entry,
+				Name:      "retry.storm",
+				Attributes: map[string]any{
+					"retry.count": n.RetryCount,
+				},
+			})
+		}
+
+		// Span links for async producer→consumer
+		var links []SpanLink
+		if isAsync && len(edgeOutMap) > 0 {
+			if outEdges, ok := edgeOutMap[n.ID]; ok {
+				for _, e := range outEdges {
+					links = append(links, SpanLink{
+						TraceID: traceID,
+						SpanID:  spanID,
+						Attributes: map[string]any{
+							"edge.id":      e.ID,
+							"edge.target":  e.Target,
+						},
+					})
+				}
+			}
+		}
+
 		spans = append(spans, Span{
 			SpanID:       spanID,
 			TraceID:      traceID,
@@ -128,6 +214,11 @@ func NewTraceFromNodes(traceID string, nodeIDs []string, nodeMap map[string]*Nod
 			DurationMs:   latency,
 			Status:       status,
 			SpanType:     spanType,
+			ServiceName:      n.Label,
+			TelemetrySDKName: "opentelemetry",
+			Attributes:       attrs,
+			Events:           events,
+			Links:            links,
 		})
 		parentSpanID = spanID
 
@@ -187,6 +278,46 @@ func NewTraceFromNodes(traceID string, nodeIDs []string, nodeMap map[string]*Nod
 		Status:          traceStatus,
 		HasError:        hasError,
 	}
+}
+
+func (e *Engine) annotateChaosEvents(trace Trace, tickNum int) Trace {
+	e.mu.RLock()
+	cm := e.chaos
+	runID := e.RunID
+	e.mu.RUnlock()
+	if cm == nil {
+		return trace
+	}
+	activeEvents := cm.ActiveEvents(runID)
+	if len(activeEvents) == 0 {
+		return trace
+	}
+
+	chaosByNode := make(map[string]*ChaosEvent)
+	for _, ce := range activeEvents {
+		chaosByNode[ce.NodeID] = ce
+	}
+
+	for i := range trace.Spans {
+		s := &trace.Spans[i]
+		ce, ok := chaosByNode[s.NodeID]
+		if !ok {
+			continue
+		}
+		evt := SpanEvent{
+			Timestamp: s.EntryTime,
+			Name:      "chaos." + string(ce.EventType),
+			Attributes: map[string]any{
+				"chaos.event_id":    ce.ID,
+				"chaos.event_type":  string(ce.EventType),
+				"chaos.severity":    ce.Severity,
+				"chaos.duration_ticks": ce.DurationTicks,
+				"chaos.started_at":  ce.StartedAt,
+			},
+		}
+		s.Events = append(s.Events, evt)
+	}
+	return trace
 }
 
 type TraceCollector struct {
@@ -291,6 +422,7 @@ func (lc *LogCollector) Filter(service, level, traceID string) []SimLog {
 func (e *Engine) generateTraces(tickTime time.Time) {
 	e.mu.RLock()
 	ctx := e.ctx
+	tickNum := e.tickNum
 	e.mu.RUnlock()
 
 	if ctx == nil {
@@ -357,6 +489,9 @@ func (e *Engine) generateTraces(tickTime time.Time) {
 		traceID := uuid.New().String()
 		var traceLogs []SimLog
 		trace := NewTraceFromNodes(traceID, path, nodeMap, tickTime, ctx.Edges, ctx.EdgeOutMap, &traceLogs)
+
+		// Add chaos failure span events
+		trace = e.annotateChaosEvents(trace, tickNum)
 
 		e.mu.RLock()
 		collector := e.TraceCollector
