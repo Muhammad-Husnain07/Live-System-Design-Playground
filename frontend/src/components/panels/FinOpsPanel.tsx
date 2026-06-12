@@ -5,7 +5,7 @@ import { useFinOpsStore, type CostReport, type CostCategory } from "../../store/
 import { useToastStore } from "../../store/toastStore";
 import EmptyState from "../ui/EmptyState";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
 import { Paper, Typography, Box, ButtonGroup, Button } from "@mui/material";
@@ -129,6 +129,146 @@ const EgressDonutChart = memo(function EgressDonutChart({ estimate }: { estimate
           ))}
         </Box>
       </Box>
+    </Paper>
+  );
+});
+
+const ProviderBreakdownDonut = memo(function ProviderBreakdownDonut({ estimate, nodes }: { estimate: CostReport["currentEstimate"]; nodes: any[] }) {
+  const chartData = useMemo(() => {
+    const providerMap = new Map<string, number>();
+    for (const node of nodes) {
+      const provider = node.data?.config?.cloudProvider ?? "aws";
+      const label = node.data?.label ?? "";
+      for (const cat of estimate.breakdown) {
+        for (const item of cat.items) {
+          if (item.service === label) {
+            providerMap.set(provider, (providerMap.get(provider) || 0) + item.monthlyCost);
+          }
+        }
+      }
+    }
+    return Array.from(providerMap.entries())
+      .filter(([_, v]) => v > 0)
+      .map(([k, v]) => ({ name: k.toUpperCase(), value: Math.round(v * 100) / 100 }));
+  }, [estimate, nodes]);
+
+  if (chartData.length <= 1) return null;
+
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "action.hover" }}>
+      <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, display: "block", mb: 1, fontSize: "0.6rem" }}>
+        Provider Breakdown
+      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <ResponsiveContainer width={120} height={120}>
+          <PieChart>
+            <Pie data={chartData} cx="50%" cy="50%" innerRadius={32} outerRadius={52} dataKey="value" startAngle={90} endAngle={-270}>
+              {chartData.map((_, idx) => (<Cell key={idx} fill={DONUT_COLORS[idx % DONUT_COLORS.length]} stroke="none" />))}
+            </Pie>
+            <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 11 }}
+              formatter={(value: any) => { const v = typeof value === "number" ? value : Number(value ?? 0); return [formatCurrency(v), ""]; }} />
+          </PieChart>
+        </ResponsiveContainer>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+          {chartData.map((d, i) => (
+            <Box key={d.name} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, bgcolor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+              <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.6rem" }}>{d.name}</Typography>
+              <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.primary", ml: "auto", fontSize: "0.65rem" }}>{formatCurrency(d.value)}</Typography>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    </Paper>
+  );
+});
+
+const TokenCostCard = memo(function TokenCostCard({ estimate, nodes }: { estimate: CostReport["currentEstimate"]; nodes: any[] }) {
+  const { inputCost, outputCost } = useMemo(() => {
+    let inp = 0;
+    let out = 0;
+    for (const node of nodes) {
+      if (node.data?.nodeType !== "LLMNode") continue;
+      const label = node.data?.label ?? "";
+      for (const cat of estimate.breakdown) {
+        for (const item of cat.items) {
+          if (item.service === label) {
+            inp += ((node.data?.config?.promptTokenCount ?? 0) / 1000) * 0.03;
+            out += ((node.data?.config?.completionTokenCount ?? 0) / 1000) * 0.06;
+          }
+        }
+      }
+    }
+    return { inputCost: Math.round(inp * 100) / 100, outputCost: Math.round(out * 100) / 100 };
+  }, [estimate, nodes]);
+
+  const total = inputCost + outputCost;
+  if (total <= 0) return null;
+
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "rgba(34,197,94,0.06)", borderColor: "rgba(34,197,94,0.2)" }}>
+      <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, display: "block", mb: 1, fontSize: "0.6rem" }}>
+        Token Cost
+      </Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+          <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.6rem" }}>Input ({formatCurrency(0.03)}/1K tokens)</Typography>
+          <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.primary", fontSize: "0.65rem" }}>{formatCurrency(inputCost)}</Typography>
+        </Box>
+        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+          <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.6rem" }}>Output ({formatCurrency(0.06)}/1K tokens)</Typography>
+          <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.primary", fontSize: "0.65rem" }}>{formatCurrency(outputCost)}</Typography>
+        </Box>
+        <Box sx={{ borderTop: 1, borderColor: "divider", pt: 0.5, display: "flex", justifyContent: "space-between" }}>
+          <Typography variant="caption" sx={{ color: "success.main", fontWeight: 600, fontSize: "0.6rem" }}>Total</Typography>
+          <Typography variant="caption" sx={{ fontFamily: "monospace", color: "success.main", fontWeight: 600, fontSize: "0.65rem" }}>{formatCurrency(total)}</Typography>
+        </Box>
+      </Box>
+    </Paper>
+  );
+});
+
+const EdgeVsOriginChart = memo(function EdgeVsOriginChart({ estimate, nodes }: { estimate: CostReport["currentEstimate"]; nodes: any[] }) {
+  const chartData = useMemo(() => {
+    const edgeTypes = new Set(["EdgeCompute", "CDN"]);
+    const originTypes = new Set(["WebServer", "AppServer", "Microservice", "PostgreSQLDB", "MySQLDB", "MongoDB", "Redis", "Elasticsearch", "GPUCluster", "BatchProcessor", "WorkerService"]);
+    let edgeCost = 0;
+    let originCost = 0;
+    for (const node of nodes) {
+      const nt = node.data?.nodeType as string;
+      const label = node.data?.label ?? "";
+      for (const cat of estimate.breakdown) {
+        for (const item of cat.items) {
+          if (item.service !== label) continue;
+          if (edgeTypes.has(nt)) edgeCost += item.monthlyCost;
+          if (originTypes.has(nt)) originCost += item.monthlyCost;
+        }
+      }
+    }
+    return [
+      { name: "Edge", cost: Math.round(edgeCost * 100) / 100, fill: "#06b6d4" },
+      { name: "Origin", cost: Math.round(originCost * 100) / 100, fill: "#f97316" },
+    ];
+  }, [estimate, nodes]);
+
+  if (chartData.every((d) => d.cost <= 0)) return null;
+
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "action.hover" }}>
+      <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, display: "block", mb: 1, fontSize: "0.6rem" }}>
+        Edge vs Origin Cost
+      </Typography>
+      <ResponsiveContainer width="100%" height={120}>
+        <BarChart data={chartData}>
+          <CartesianGrid {...CHART_GRID} />
+          <XAxis dataKey="name" tick={CHART_TICK} axisLine={false} tickLine={false} />
+          <YAxis tick={CHART_TICK} axisLine={false} tickLine={false} tickFormatter={(v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+          <Tooltip contentStyle={CHART_TOOLTIP} labelStyle={CHART_TOOLTIP_LABEL} formatter={(value: any) => { const v = typeof value === "number" ? value : Number(value ?? 0); return [formatCurrency(v), ""]; }} />
+          <Bar dataKey="cost" radius={[4, 4, 0, 0]}>
+            {chartData.map((entry, index) => (<Cell key={index} fill={entry.fill} />))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
     </Paper>
   );
 });
@@ -370,6 +510,12 @@ export default function FinOpsPanel() {
               </Paper>
 
               <EgressDonutChart estimate={estimate!.currentEstimate} />
+
+              <ProviderBreakdownDonut estimate={estimate!.currentEstimate} nodes={nodes} />
+
+              <TokenCostCard estimate={estimate!.currentEstimate} nodes={nodes} />
+
+              <EdgeVsOriginChart estimate={estimate!.currentEstimate} nodes={nodes} />
 
               <Box>
                 <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, display: "block", mb: 0.75, fontSize: "0.6rem" }}>
