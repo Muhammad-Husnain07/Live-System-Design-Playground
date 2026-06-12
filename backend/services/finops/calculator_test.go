@@ -63,7 +63,7 @@ func TestCategoryForType(t *testing.T) {
 }
 
 func TestCalculateNodeCost(t *testing.T) {
-	result := calculateNodeCost(NodeWebServer, "web", map[string]any{"instances": float64(2)}, 1000, 1.0)
+	result := calculateNodeCost(NodeWebServer, "web", map[string]any{"instances": float64(2)}, 1000, 1.0, "aws", 1000)
 	if len(result.items) == 0 {
 		t.Fatal("expected cost items for WebServer")
 	}
@@ -77,12 +77,12 @@ func TestCalculateNodeCost(t *testing.T) {
 		t.Error("expected per-instance cost item for 2 instances at $30.37 each")
 	}
 
-	resultCDN := calculateNodeCost(NodeCDN, "cdn", map[string]any{}, 10000, 1.0)
+	resultCDN := calculateNodeCost(NodeCDN, "cdn", map[string]any{}, 10000, 1.0, "aws", 1000)
 	if len(resultCDN.items) == 0 {
 		t.Fatal("expected cost items for CDN")
 	}
 
-	emptyResult := calculateNodeCost("NonExistentType", "x", map[string]any{}, 1000, 1.0)
+	emptyResult := calculateNodeCost("NonExistentType", "x", map[string]any{}, 1000, 1.0, "aws", 1000)
 	if len(emptyResult.items) != 0 {
 		t.Error("expected empty result for unknown node type")
 	}
@@ -170,8 +170,8 @@ func TestCalculateWithAllNodeTypes(t *testing.T) {
 
 func TestCalculateNodeCostScaling(t *testing.T) {
 	cfg := map[string]any{"instances": float64(2)}
-	base := calculateNodeCost(NodeWebServer, "web", cfg, 1000, 1.0)
-	scaled := calculateNodeCost(NodeWebServer, "web", cfg, 1000, 3.0)
+	base := calculateNodeCost(NodeWebServer, "web", cfg, 1000, 1.0, "aws", 1000)
+	scaled := calculateNodeCost(NodeWebServer, "web", cfg, 1000, 3.0, "aws", 1000)
 	if scaled.total <= base.total {
 		t.Error("scaled cost should be greater than base cost")
 	}
@@ -186,8 +186,8 @@ func TestGenerateRecommendationsEmpty(t *testing.T) {
 
 func TestGenerateRecommendationsWithCompute(t *testing.T) {
 	nodes := []nodeInfo{
-		{nodeType: NodeWebServer, label: "web", config: map[string]any{"instances": float64(6)}},
-		{nodeType: NodeLoadBalancer, label: "lb", config: map[string]any{"instances": float64(2)}},
+		{nodeType: NodeWebServer, label: "web", config: map[string]any{"instances": float64(6)}, cloudProvider: "aws", rps: 1000},
+		{nodeType: NodeLoadBalancer, label: "lb", config: map[string]any{"instances": float64(2)}, cloudProvider: "aws", rps: 1000},
 	}
 	projections := []CostEstimate{
 		{UserTier: "1M users (scale)", MonthlyUsers: 1_000_000, Multiplier: 30},
@@ -213,7 +213,7 @@ func TestGenerateRecommendationsWithCompute(t *testing.T) {
 
 func TestGenerateRecommendationsDBWithoutCache(t *testing.T) {
 	nodes := []nodeInfo{
-		{nodeType: NodePostgreSQLDB, label: "db", config: map[string]any{"instances": float64(2)}},
+		{nodeType: NodePostgreSQLDB, label: "db", config: map[string]any{"instances": float64(2)}, cloudProvider: "aws", rps: 1000},
 	}
 	recs := generateRecommendations(nodes, []CostEstimate{})
 	found := false
@@ -229,7 +229,7 @@ func TestGenerateRecommendationsDBWithoutCache(t *testing.T) {
 
 func TestGenerateRecommendationsMultiRegion(t *testing.T) {
 	nodes := []nodeInfo{
-		{nodeType: NodeWebServer, label: "web", config: map[string]any{"instances": float64(2)}},
+		{nodeType: NodeWebServer, label: "web", config: map[string]any{"instances": float64(2)}, cloudProvider: "aws", rps: 1000},
 	}
 	projections := []CostEstimate{
 		{UserTier: "1M users (scale)", MonthlyUsers: 1_000_000, Multiplier: 30},
@@ -302,6 +302,7 @@ func TestPricingRulesCoverage(t *testing.T) {
 		NodeRedis, NodeElasticsearch, NodeCDN, NodeDNS, NodeFirewall,
 		NodeVPC, NodeSubnet, NodeMessageQueue, NodeEventBus, NodePubSub,
 		NodeContainerCluster, NodeServerless, NodeBatchProcessor, NodeWorkerService,
+		NodeLLMNode, NodeGPUCluster, NodeEdgeCompute, NodeServerlessV2,
 	}
 	for _, nt := range coveredTypes {
 		if _, ok := pricingRules[nt]; !ok {
@@ -329,7 +330,7 @@ func TestUserTiers(t *testing.T) {
 }
 
 func TestCalculateNodeCostRedis(t *testing.T) {
-	result := calculateNodeCost(NodeRedis, "cache", map[string]any{"instances": float64(2)}, 1000, 1.0)
+	result := calculateNodeCost(NodeRedis, "cache", map[string]any{"instances": float64(2)}, 1000, 1.0, "aws", 1000)
 	hasBase := false
 	for _, item := range result.items {
 		if item.UnitPrice == 15.00 && item.Quantity == 1 {
@@ -342,14 +343,14 @@ func TestCalculateNodeCostRedis(t *testing.T) {
 }
 
 func TestCalculateNodeCostServerless(t *testing.T) {
-	result := calculateNodeCost(NodeServerless, "fn", map[string]any{}, 10000, 1.0)
+	result := calculateNodeCost(NodeServerless, "fn", map[string]any{}, 10000, 1.0, "aws", 1000)
 	if len(result.items) == 0 {
 		t.Fatal("expected cost items for Serverless")
 	}
 }
 
 func TestCalculateNodeCostPostgreSQL(t *testing.T) {
-	result := calculateNodeCost(NodePostgreSQLDB, "pg", map[string]any{"instances": float64(2)}, 1000, 1.0)
+	result := calculateNodeCost(NodePostgreSQLDB, "pg", map[string]any{"instances": float64(2)}, 1000, 1.0, "aws", 1000)
 	hasBase := false
 	for _, item := range result.items {
 		if item.UnitPrice == 50.00 && item.Quantity == 1 {
@@ -377,7 +378,7 @@ func TestCostLineItemJSONRoundTrip(t *testing.T) {
 }
 
 func TestSingleNodeCostWebServer(t *testing.T) {
-	result := calculateNodeCost(NodeWebServer, "my-web", map[string]any{"instances": float64(1)}, 1000, 1.0)
+	result := calculateNodeCost(NodeWebServer, "my-web", map[string]any{"instances": float64(1)}, 1000, 1.0, "aws", 1000)
 	if len(result.items) == 0 {
 		t.Fatal("expected cost items for WebServer")
 	}
@@ -396,7 +397,7 @@ func TestSingleNodeCostWebServer(t *testing.T) {
 }
 
 func TestSingleNodeCostLoadBalancer(t *testing.T) {
-	result := calculateNodeCost(NodeLoadBalancer, "main-lb", map[string]any{}, 1000, 1.0)
+	result := calculateNodeCost(NodeLoadBalancer, "main-lb", map[string]any{}, 1000, 1.0, "aws", 1000)
 	if len(result.items) == 0 {
 		t.Fatal("expected cost items for LoadBalancer")
 	}
@@ -516,5 +517,161 @@ func TestCostReportJSONRoundTrip(t *testing.T) {
 	}
 	if len(decoded.ScalingProjections) != 1 {
 		t.Errorf("expected 1 projection, got %d", len(decoded.ScalingProjections))
+	}
+}
+
+func TestCalculateLLMNodeCost(t *testing.T) {
+	cfg := map[string]any{"maxRPS": float64(50)}
+	result := calculateNodeCost(NodeLLMNode, "my-llm", cfg, 10000, 1.0, "aws", 50.0)
+	if len(result.items) == 0 {
+		t.Fatal("expected cost items for LLMNode")
+	}
+	var hasInputTokens, hasOutputTokens bool
+	for _, item := range result.items {
+		if item.Service == "my-llm (Input Tokens)" && item.UnitPrice == 0.03 {
+			hasInputTokens = true
+		}
+		if item.Service == "my-llm (Output Tokens)" && item.UnitPrice == 0.06 {
+			hasOutputTokens = true
+		}
+	}
+	if !hasInputTokens {
+		t.Error("expected input token line item at $0.03/1k")
+	}
+	if !hasOutputTokens {
+		t.Error("expected output token line item at $0.06/1k")
+	}
+	if result.total <= 0 {
+		t.Error("expected positive total cost for LLMNode")
+	}
+}
+
+func TestCalculateGPUClusterCost(t *testing.T) {
+	cfg := map[string]any{"instances": float64(2)}
+	result := calculateNodeCost(NodeGPUCluster, "gpu-cluster", cfg, 1000, 1.0, "aws", 0)
+	if len(result.items) == 0 {
+		t.Fatal("expected cost items for GPUCluster")
+	}
+	foundGPU := false
+	for _, item := range result.items {
+		if item.Quantity == 2 {
+			foundGPU = true
+			expectedMonthly := 32.77 * 730 * 2 // $32.77/hr × 730h × 2 instances
+			if math.Abs(item.MonthlyCost-expectedMonthly) > 10 {
+				t.Errorf("GPU monthly cost = $%.2f, want ~$%.2f", item.MonthlyCost, expectedMonthly)
+			}
+		}
+	}
+	if !foundGPU {
+		t.Error("expected GPUCluster instance cost item")
+	}
+}
+
+func TestCalculateEdgeComputeCost(t *testing.T) {
+	cfg := map[string]any{"maxRPS": float64(100)}
+	result := calculateNodeCost(NodeEdgeCompute, "edge-fn", cfg, 10000, 1.0, "aws", 100.0)
+	if len(result.items) == 0 {
+		t.Fatal("expected cost items for EdgeCompute")
+	}
+	var hasRequests, hasEgress bool
+	for _, item := range result.items {
+		if item.Service == "edge-fn" && item.UnitPrice == 0.50 {
+			hasRequests = true
+		}
+		if item.Service == "edge-fn (Egress)" && item.UnitPrice == 0.08 {
+			hasEgress = true
+		}
+	}
+	if !hasRequests {
+		t.Error("expected Edge request cost at $0.50/M")
+	}
+	if !hasEgress {
+		t.Error("expected Edge egress cost at $0.08/GB")
+	}
+}
+
+func TestCalculateServerlessV2Cost(t *testing.T) {
+	result := calculateNodeCost(NodeServerlessV2, "snapstart-fn", map[string]any{}, 10000, 1.0, "aws", 0)
+	if len(result.items) == 0 {
+		t.Fatal("expected cost items for ServerlessV2")
+	}
+	foundSnapStart := false
+	for _, item := range result.items {
+		if item.Service == "snapstart-fn" && item.UnitPrice == 0.20 {
+			foundSnapStart = true
+		}
+	}
+	if !foundSnapStart {
+		t.Error("expected ServerlessV2 cost at $0.20/M")
+	}
+}
+
+func TestMultiCloudGCPAppServer(t *testing.T) {
+	cfg := map[string]any{"instances": float64(2)}
+	result := calculateNodeCost(NodeAppServer, "app-gcp", cfg, 1000, 1.0, "gcp", 1000)
+	foundGCP := false
+	for _, item := range result.items {
+		if item.Quantity == 2 {
+			foundGCP = true
+			expectedMonthly := 0.20 * 730 * 2 // $0.20/hr × 730h × 2 instances
+			if math.Abs(item.MonthlyCost-expectedMonthly) > 1 {
+				t.Errorf("GCP AppServer monthly cost = $%.2f, want ~$%.2f", item.MonthlyCost, expectedMonthly)
+			}
+		}
+	}
+	if !foundGCP {
+		t.Error("expected GCP AppServer cost item")
+	}
+}
+
+func TestMultiCloudAzureAppServer(t *testing.T) {
+	cfg := map[string]any{"instances": float64(2)}
+	result := calculateNodeCost(NodeAppServer, "app-azure", cfg, 1000, 1.0, "azure", 1000)
+	foundAzure := false
+	for _, item := range result.items {
+		if item.Quantity == 2 {
+			foundAzure = true
+			expectedMonthly := 0.192 * 730 * 2 // $0.192/hr × 730h × 2 instances
+			if math.Abs(item.MonthlyCost-expectedMonthly) > 1 {
+				t.Errorf("Azure AppServer monthly cost = $%.2f, want ~$%.2f", item.MonthlyCost, expectedMonthly)
+			}
+		}
+	}
+	if !foundAzure {
+		t.Error("expected Azure AppServer cost item")
+	}
+}
+
+func TestCalculateAllNewTypesInCanvas(t *testing.T) {
+	canvas := `{
+		"nodes": [
+			{"id":"llm-1","data":{"nodeType":"LLMNode","label":"LLM","config":{"instances":1,"maxRPS":100,"latencyMs":200,"errorRate":0},"resource":{"cloudProvider":"aws"}}},
+			{"id":"gpu-1","data":{"nodeType":"GPUCluster","label":"GPU","config":{"instances":2,"maxRPS":0,"latencyMs":1,"errorRate":0}}},
+			{"id":"edge-1","data":{"nodeType":"EdgeCompute","label":"Edge","config":{"instances":1,"maxRPS":500,"latencyMs":10,"errorRate":0},"resource":{"cloudProvider":"aws"}}},
+			{"id":"sv2-1","data":{"nodeType":"ServerlessV2","label":"SnapStart","config":{"instances":1,"maxRPS":1000,"latencyMs":50,"errorRate":0},"resource":{"cloudProvider":"aws"}}}
+		],
+		"edges": []
+	}`
+	report, err := Calculate([]byte(canvas), "proj-modern", 10000)
+	if err != nil {
+		t.Fatalf("Calculate failed: %v", err)
+	}
+	if report.CurrentEstimate.TotalMonthlyCost <= 0 {
+		t.Error("expected positive total monthly cost for modern workloads")
+	}
+	var hasAIGPU, hasEdge bool
+	for _, cat := range report.CurrentEstimate.Breakdown {
+		if cat.Category == "AI / GPU" && cat.Subtotal > 0 {
+			hasAIGPU = true
+		}
+		if cat.Category == "Edge & Serverless" && cat.Subtotal > 0 {
+			hasEdge = true
+		}
+	}
+	if !hasAIGPU {
+		t.Error("expected AI / GPU breakdown category with positive cost")
+	}
+	if !hasEdge {
+		t.Error("expected Edge & Serverless breakdown category with positive cost")
 	}
 }

@@ -36,6 +36,11 @@ const (
 	NodeThirdPartyAPI     NodeType = "ThirdPartyAPI"
 	NodeMobileClient      NodeType = "MobileClient"
 	NodeWebBrowser        NodeType = "WebBrowser"
+	// Modern workload types
+	NodeLLMNode          NodeType = "LLMNode"
+	NodeGPUCluster       NodeType = "GPUCluster"
+	NodeEdgeCompute      NodeType = "EdgeCompute"
+	NodeServerlessV2     NodeType = "ServerlessV2"
 )
 
 // AWS-style pricing constants
@@ -68,6 +73,26 @@ const (
 	RespSizeDB        = 10.0
 	RespSizeCDN       = 500.0
 	RespSizeDefault   = 10.0
+
+	// LLM token pricing ($ per 1k tokens)
+	LLMInputTokenPrice  = 0.03  // per 1k input tokens
+	LLMOutputTokenPrice = 0.06  // per 1k output tokens
+	LLMTokensPerRPSUnit = 1000  // estimated tokens per request
+
+	// GPU compute (AWS P4d)
+	GPUPricePerHour = 32.77
+
+	// Edge compute (Cloudflare Workers)
+	EdgeRequestPrice     = 0.50  // per million requests
+	EdgeEgressPricePerGB = 0.08
+
+	// ServerlessV2 (Lambda SnapStart)
+	ServerlessV2PricePerMillion = 0.20 // same as Lambda
+	ServerlessV2MinDurationSec  = 10   // minimum 10s execution billing
+
+	// Multi-cloud per-instance prices (hourly)
+	GCPAppServerHourly = 0.20   // GCE n2-standard-4
+	AzureAppServerHourly = 0.192 // D4s v3
 )
 
 type PricingRule struct {
@@ -101,6 +126,11 @@ var pricingRules = map[NodeType]PricingRule{
 	NodeServerless:       {BaseMonthly: 0, PerInstance: 0, PerUnitDesc: "per 1M invocations", UnitPrice: 0.20},
 	NodeBatchProcessor:   {BaseMonthly: 0, PerInstance: BaseComputeMonthly, PerUnitDesc: "per compute instance", UnitPrice: 0},
 	NodeWorkerService:    {BaseMonthly: 0, PerInstance: BaseComputeMonthly, PerUnitDesc: "per instance (t3.medium)", UnitPrice: 0},
+	// Modern workloads
+	NodeLLMNode:          {BaseMonthly: 0, PerInstance: 0, PerUnitDesc: "per 1k tokens", UnitPrice: 0},
+	NodeGPUCluster:       {BaseMonthly: 0, PerInstance: GPUPricePerHour, PerUnitDesc: "per GPU instance (P4d)", UnitPrice: 0},
+	NodeEdgeCompute:      {BaseMonthly: 0, PerInstance: 0, PerUnitDesc: "per million requests", UnitPrice: EdgeRequestPrice},
+	NodeServerlessV2:     {BaseMonthly: 0, PerInstance: 0, PerUnitDesc: "per 1M invocations", UnitPrice: ServerlessV2PricePerMillion},
 }
 
 type categoryInfo struct {
@@ -117,7 +147,13 @@ var categories = []categoryInfo{
 	{Name: "Tiered Storage", Types: []NodeType{}},
 	{Name: "Messaging & Events", Types: []NodeType{NodeMessageQueue, NodeEventBus, NodePubSub}},
 	{Name: "Orchestration", Types: []NodeType{NodeContainerCluster}},
+	{Name: "AI / GPU", Types: []NodeType{NodeLLMNode, NodeGPUCluster}},
+	{Name: "Edge & Serverless", Types: []NodeType{NodeEdgeCompute, NodeServerlessV2}},
 	{Name: "External", Types: []NodeType{NodeExternalClient, NodeThirdPartyAPI, NodeMobileClient, NodeWebBrowser}},
+}
+
+type InfraResource struct {
+	CloudProvider string `json:"cloudProvider,omitempty"`
 }
 
 type canvasNode struct {
@@ -127,6 +163,7 @@ type canvasNode struct {
 		Label    string                  `json:"label"`
 		Config   map[string]any          `json:"config"`
 		Metrics  map[string]any          `json:"metrics"`
+		Resource InfraResource           `json:"resource,omitempty"`
 	} `json:"data"`
 }
 
@@ -407,7 +444,19 @@ func estimateStorageFromNode(nt NodeType, instances int) float64 {
 	}
 }
 
-func calculateNodeCost(nt NodeType, label string, cfg map[string]any, monthlyUsers int, multiplier float64) costResult {
+func getCloudProvider(cfg map[string]any, resource InfraResource) string {
+	if resource.CloudProvider != "" {
+		return resource.CloudProvider
+	}
+	if v, ok := cfg["cloudProvider"]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return "aws"
+}
+
+func calculateNodeCost(nt NodeType, label string, cfg map[string]any, monthlyUsers int, multiplier float64, cloudProvider string, rps float64) costResult {
 	rule, ok := pricingRules[nt]
 	if !ok {
 		return costResult{}
@@ -444,6 +493,18 @@ func calculateNodeCost(nt NodeType, label string, cfg map[string]any, monthlyUse
 	if rule.PerInstance > 0 {
 		adjustedPrice := rule.PerInstance * tierMult
 		effectivePrice := adjustedPrice
+		// Multi-cloud pricing: override base price for AppServer
+		if nt == NodeAppServer {
+			if cloudProvider == "gcp" {
+				effectivePrice = GCPAppServerHourly * 730 * tierMult // 730 hours/month
+			} else if cloudProvider == "azure" {
+				effectivePrice = AzureAppServerHourly * 730 * tierMult // 730 hours/month
+			}
+		}
+		// GPUCluster price is per-hour, convert to monthly (730 hours)
+		if nt == NodeGPUCluster {
+			effectivePrice = GPUPricePerHour * 730 * tierMult
+		}
 		cost := effectivePrice * float64(scaledInstances)
 		tierLabel := ""
 		switch tier {
@@ -506,6 +567,89 @@ func calculateNodeCost(nt NodeType, label string, cfg map[string]any, monthlyUse
 		total += cost
 	}
 
+	// LLM token cost: based on RPS
+	if nt == NodeLLMNode && rps > 0 {
+		scaledRPS := rps * multiplier
+		requestsPerMonth := scaledRPS * 86400.0 * 30.0
+		totalTokens := requestsPerMonth * LLMTokensPerRPSUnit
+		inputTokensK := (totalTokens * 0.6) / 1000.0  // ~60% input
+		outputTokensK := (totalTokens * 0.4) / 1000.0  // ~40% output
+		inputCost := inputTokensK * LLMInputTokenPrice
+		outputCost := outputTokensK * LLMOutputTokenPrice
+		tokenCost := inputCost + outputCost
+		if tokenCost > 0 {
+			items = append(items,
+				CostLineItem{
+					Service:     label + " (Input Tokens)",
+					Description: fmt.Sprintf("%s — %.0fK input tokens × $%.4f/K", label, inputTokensK, LLMInputTokenPrice),
+					UnitPrice:   LLMInputTokenPrice,
+					Quantity:    int(math.Ceil(inputTokensK)),
+					MonthlyCost: mathRound(inputCost, 2),
+				},
+				CostLineItem{
+					Service:     label + " (Output Tokens)",
+					Description: fmt.Sprintf("%s — %.0fK output tokens × $%.4f/K", label, outputTokensK, LLMOutputTokenPrice),
+					UnitPrice:   LLMOutputTokenPrice,
+					Quantity:    int(math.Ceil(outputTokensK)),
+					MonthlyCost: mathRound(outputCost, 2),
+				},
+			)
+			total += tokenCost
+		}
+	}
+
+	// Edge compute: request-based pricing (already in UnitPrice) + egress
+	if nt == NodeEdgeCompute && rule.UnitPrice > 0 {
+		estimatedUnits := float64(monthlyUsers) / 1_000_000 * multiplier
+		if estimatedUnits < 0.1 {
+			estimatedUnits = 0.1
+		}
+		reqCost := rule.UnitPrice * estimatedUnits
+		items = append(items, CostLineItem{
+			Service:     label,
+			Description: fmt.Sprintf("%s — %.1fM requests ($%.2f/M)", label, estimatedUnits, EdgeRequestPrice),
+			UnitPrice:   EdgeRequestPrice,
+			Quantity:    int(math.Ceil(estimatedUnits)),
+			MonthlyCost: mathRound(reqCost, 2),
+		})
+		total += reqCost
+
+		// Edge egress
+		edgeRespSizeKB := RespSizeDefault
+		gbPerMonth := (rps * edgeRespSizeKB * 86400.0 * 30.0) / (1024.0 * 1024.0)
+		if gbPerMonth > 0 {
+			egressCost := gbPerMonth * EdgeEgressPricePerGB
+			items = append(items, CostLineItem{
+				Service:     label + " (Egress)",
+				Description: fmt.Sprintf("%s — %.1f GB egress × $%.2f/GB", label, gbPerMonth, EdgeEgressPricePerGB),
+				UnitPrice:   EdgeEgressPricePerGB,
+				Quantity:    int(math.Ceil(gbPerMonth)),
+				MonthlyCost: mathRound(egressCost, 2),
+			})
+			total += egressCost
+		}
+	}
+
+	// ServerlessV2: same per-invocation as Lambda but with minimum 10s billing
+	if nt == NodeServerlessV2 && rule.UnitPrice > 0 {
+		estimatedUnits := float64(monthlyUsers) / 1_000_000 * multiplier
+		if estimatedUnits < 0.1 {
+			estimatedUnits = 0.1
+		}
+		// Min 10s billing ~ 2x multiplier for typical fast functions
+		minDurationMult := 2.0
+		adjusted := estimatedUnits * minDurationMult
+		cost := rule.UnitPrice * adjusted
+		items = append(items, CostLineItem{
+			Service:     label,
+			Description: fmt.Sprintf("%s — %.1fM invocations × $%.2f/M (min 10s billing)", label, adjusted, rule.UnitPrice),
+			UnitPrice:   rule.UnitPrice,
+			Quantity:    int(math.Ceil(adjusted)),
+			MonthlyCost: mathRound(cost, 2),
+		})
+		total += cost
+	}
+
 	return costResult{items: items, total: total}
 }
 
@@ -523,9 +667,11 @@ var userTiers = []userTier{
 }
 
 type nodeInfo struct {
-	nodeType NodeType
-	label    string
-	config   map[string]any
+	nodeType      NodeType
+	label         string
+	config        map[string]any
+	cloudProvider string
+	rps           float64
 }
 
 type edgeInfo struct {
@@ -557,7 +703,14 @@ func Calculate(canvasData []byte, projectID string, monthlyUsers int) (*CostRepo
 		if isExternalClient(nt) {
 			continue
 		}
-		nodes = append(nodes, nodeInfo{nodeType: nt, label: n.Data.Label, config: n.Data.Config})
+		cp := getCloudProvider(n.Data.Config, n.Data.Resource)
+		rps := 1000.0
+		if v, ok := n.Data.Config["maxRPS"]; ok {
+			if f, ok := v.(float64); ok {
+				rps = f
+			}
+		}
+		nodes = append(nodes, nodeInfo{nodeType: nt, label: n.Data.Label, config: n.Data.Config, cloudProvider: cp, rps: rps})
 	}
 
 	if len(nodes) == 0 {
@@ -583,7 +736,7 @@ func Calculate(canvasData []byte, projectID string, monthlyUsers int) (*CostRepo
 		totalEgress := 0.0
 
 		for _, info := range nodes {
-			result := calculateNodeCost(info.nodeType, info.label, info.config, tier.users, tier.multiplier)
+			result := calculateNodeCost(info.nodeType, info.label, info.config, tier.users, tier.multiplier, info.cloudProvider, info.rps)
 			catName := categoryForType(info.nodeType)
 			categoryMap[catName] = append(categoryMap[catName], result.items...)
 			catTotals[catName] += result.total

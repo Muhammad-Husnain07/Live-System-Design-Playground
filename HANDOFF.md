@@ -5303,3 +5303,67 @@ Span `kind` values: `1` = Internal (default), `4` = Producer (async nodes: Messa
 | `ObservabilityPage.tsx` — removed unused `traceMap` variable | ✅ (was left over, removed) |
 | `go vet ./...` — 0 errors | ✅ |
 | `npx tsc --noEmit` — 0 errors | ✅ |
+
+---
+
+## Phase L4.1 — Next-Gen FinOps: Multi-Cloud, GPU, LLM, & Edge Pricing
+
+**Date**: 2026-06-10
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/services/finops/calculator.go` | Added `NodeLLMNode`, `NodeGPUCluster`, `NodeEdgeCompute`, `NodeServerlessV2` constants; `InfraResource` struct with `CloudProvider` field; pricing constants for LLM tokens ($0.03/1k input, $0.06/1k output), GPU P4d ($32.77/hr), Edge Workers ($0.50/M requests + $0.08/GB egress), ServerlessV2 ($0.20/M with min 10s billing), GCP n2-standard-4 ($0.20/hr), Azure D4s v3 ($0.192/hr); multi-cloud pricing override in `calculateNodeCost`; LLM token cost based on `maxRPS`; Edge egress cost calculation; ServerlessV2 min-duration billing multiplier; new "AI / GPU" and "Edge & Serverless" cost categories |
+| `backend/handlers/finops.go` | Added `provider` field to `estimateRequest` JSON body |
+| `backend/services/finops/calculator_test.go` | Added 8 new tests: `TestCalculateLLMNodeCost`, `TestCalculateGPUClusterCost`, `TestCalculateEdgeComputeCost`, `TestCalculateServerlessV2Cost`, `TestMultiCloudGCPAppServer`, `TestMultiCloudAzureAppServer`, `TestCalculateAllNewTypesInCanvas`; updated all existing `calculateNodeCost` calls with `cloudProvider` + `rps` params; added new types to `TestPricingRulesCoverage`; updated `nodeInfo` struct usage in test data |
+
+### Multi-Cloud Pricing
+
+| Provider | AppServer Instance | Hourly Rate | Monthly (730h) |
+|----------|-------------------|-------------|----------------|
+| AWS (default) | t3.medium | $0.0416 | $30.37 |
+| GCP | n2-standard-4 | $0.20 | $146.00 |
+| Azure | D4s v3 | $0.192 | $140.16 |
+
+CloudProvider is read from `node.data.resource.cloudProvider` (JSON), falling back to `config.cloudProvider`, defaulting to `"aws"`.
+
+### Modern Workload Cost Formulas
+
+| Node Type | Formula |
+|-----------|---------|
+| **LLMNode** | `scaledRPS × 86400 × 30 × 1000 tokens/req → 60% input @ $0.03/1k + 40% output @ $0.06/1k` |
+| **GPUCluster** | `instances × $32.77/hr × 730h/month × compute tier multiplier` |
+| **EdgeCompute** | `(monthlyUsers/1M × multiplier) × $0.50/M requests + (RPS × respSizeKB × 86400 × 30 / 1M) × $0.08/GB egress` |
+| **ServerlessV2** | `(monthlyUsers/1M × multiplier × 2.0 min-duration factor) × $0.20/M invocations` |
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `go vet ./...` — 0 errors | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go test ./services/finops/...` — 34/34 pass | ✅ |
+
+### Verification: FIXED — 2026-06-10
+
+| Check | Result |
+|-------|--------|
+| `calculator.go` — 4 new `NodeType` constants (LLMNode, GPUCluster, EdgeCompute, ServerlessV2) | ✅ |
+| `calculator.go` — `InfraResource` struct with `CloudProvider` field on `canvasNode.Data` | ✅ |
+| `calculator.go` — `getCloudProvider()` helper (resource → config → "aws") | ✅ |
+| `calculator.go` — LLM token pricing with input/output split, based on `maxRPS` | ✅ |
+| `calculator.go` — GPUCluster monthly cost at $32.77/hr × 730h | ✅ |
+| `calculator.go` — EdgeCompute request-pricing + egress @ $0.08/GB | ✅ |
+| `calculator.go` — ServerlessV2 with min 10s billing ×2 multiplier | ✅ |
+| `calculator.go` — Multi-cloud AppServer: GCP $0.20/hr, Azure $0.192/hr | ✅ |
+| `calculator.go` — `calculateNodeCost` accepts `cloudProvider string` + `rps float64` | ✅ |
+| `calculator.go` — `nodeInfo` struct includes `cloudProvider` + `rps` | ✅ |
+| `calculator.go` — `Calculate()` passes cloudProvider/rps through from canvas nodes | ✅ |
+| `calculator.go` — New "AI / GPU" and "Edge & Serverless" categories added | ✅ |
+| `finops.go` — `estimateRequest.Provider` field accepted in POST body | ✅ |
+| `calculator_test.go` — 8 new tests covering all new node types + multi-cloud | ✅ |
+| `calculator_test.go` — All 34 tests pass | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go test ./services/finops/...` — 34/34 pass | ✅ |

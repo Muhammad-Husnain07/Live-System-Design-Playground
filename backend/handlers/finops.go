@@ -21,6 +21,7 @@ func NewFinOpsHandler(db *sql.DB, rdb *redis.Client) *FinOpsHandler {
 type estimateRequest struct {
 	ProjectID    string `json:"projectId"`
 	MonthlyUsers int    `json:"monthlyUsers"`
+	Provider     string `json:"provider,omitempty"`
 }
 
 func (h *FinOpsHandler) Estimate(c *fiber.Ctx) error {
