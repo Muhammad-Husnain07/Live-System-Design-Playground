@@ -7,6 +7,7 @@ import type { NodeType, NodeConfig, NodeMetrics, EdgeRoutingConfig } from "../..
 import { TextField, Slider, FormControl, Select, MenuItem, Switch, FormControlLabel, Chip, Divider, Typography, Box } from "@mui/material";
 
 const REGIONS = ["us-east-1", "us-west-2", "eu-west-1", "eu-central-1", "ap-southeast-1", "ap-northeast-1", "sa-east-1"];
+const CLOUD_PROVIDERS = ["aws", "gcp", "azure"];
 
 const PROTOCOLS = ["HTTP", "gRPC", "TCP", "WebSocket", "AMQP", "Replication"] as const;
 
@@ -139,6 +140,13 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
             </Select>
           </FormControl>
         </Field>
+        <Field label="Cloud Provider">
+          <FormControl fullWidth size="small" sx={sxField}>
+            <Select value={cfg.cloudProvider ?? "aws"} onChange={(e) => onUpdate({ cloudProvider: e.target.value })}>
+              {CLOUD_PROVIDERS.map((p) => <MenuItem key={p} value={p}>{p.toUpperCase()}</MenuItem>)}
+            </Select>
+          </FormControl>
+        </Field>
       </Section>
 
       <Divider />
@@ -264,6 +272,26 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
               <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.65rem", display: "block", mb: 0.5 }}>Tokens Per Second: {cfg.tokensPerSecond ?? 0}</Typography>
               <Slider size="small" value={cfg.tokensPerSecond ?? 1000} min={100} max={10000} step={100}
                 onChange={(_, v) => debouncedUpdate({ tokensPerSecond: v as number })} valueLabelDisplay="auto" />
+            </Box>
+            <Box sx={{ mt: 1, p: 1, bgcolor: "rgba(34,197,94,0.08)", borderRadius: 1, border: "1px solid rgba(34,197,94,0.2)" }}>
+              <Typography variant="caption" sx={{ color: "success.main", fontWeight: 600, fontSize: "0.6rem", display: "block", mb: 0.5 }}>
+                Token Pricing
+              </Typography>
+              <Field label="Input ($0.03/1K)">
+                <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.primary", fontSize: "0.65rem" }}>
+                  ${((cfg.promptTokenCount ?? 0) / 1000 * 0.03).toFixed(4)}
+                </Typography>
+              </Field>
+              <Field label="Output ($0.06/1K)">
+                <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.primary", fontSize: "0.65rem" }}>
+                  ${((cfg.completionTokenCount ?? 0) / 1000 * 0.06).toFixed(4)}
+                </Typography>
+              </Field>
+              <Field label="Total">
+                <Typography variant="caption" sx={{ fontFamily: "monospace", color: "success.main", fontWeight: 600, fontSize: "0.65rem" }}>
+                  ${((cfg.promptTokenCount ?? 0) / 1000 * 0.03 + (cfg.completionTokenCount ?? 0) / 1000 * 0.06).toFixed(4)}
+                </Typography>
+              </Field>
             </Box>
           </Section>
           <Divider />
