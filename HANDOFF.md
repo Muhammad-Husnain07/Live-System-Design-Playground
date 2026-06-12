@@ -5368,3 +5368,42 @@ CloudProvider is read from `node.data.resource.cloudProvider` (JSON), falling ba
 | `go vet ./...` — 0 errors | ✅ |
 | `go build ./...` — 0 errors | ✅ |
 | `go test ./services/finops/...` — 34/34 pass | ✅ |
+
+---
+
+## Phase L4.2 — Multi-Cloud UI: Provider Selector, Token Pricing, FinOps Charts & IaC Exports
+
+**Date**: 2026-06-12
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/types/canvas.ts` | Added `cloudProvider?: string` to `NodeConfig` interface for per-node cloud provider selection |
+| `frontend/src/utils/iacExporter.ts` | Added 4 new export functions (`exportTerraformGCP`, `exportTerraformAzure`, `exportDeploymentManager`, `exportArm`) with helpers `genTerraformGCPNode`, `genTerraformAzureNode`, `genDeploymentManagerNode`, `genArmResource` — covering all 31 node types for GCP/Azure IaC |
+| `frontend/src/components/panels/ExportModal.tsx` | Added 4 new IaCTab entries ("Terraform (GCP)", "Terraform (Azure)", "Deployment Manager", "ARM Template") with correct language detection (yaml/hcl/json) |
+| `frontend/src/components/panels/NodeConfigPanel.tsx` | Added `CLOUD_PROVIDERS` constant, Cloud Provider `<Select>` in Identity section for all compute/LLM nodes; LLM token pricing box (Input/Output/Total) inside LLM Config section |
+| `frontend/src/components/panels/FinOpsPanel.tsx` | Imported `BarChart`, `Bar`, `Cell` from recharts; added 3 memoized components: `ProviderBreakdownDonut` (inner donut + legend, hidden when ≤1 provider), `TokenCostCard` (LLM token cost card with green accent, hidden when $0), `EdgeVsOriginChart` (horizontal bar chart comparing Edge vs Origin costs, hidden when both $0) |
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `npx tsc --noEmit` — 0 errors | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+
+### Verification: PASSED — 2026-06-12
+
+| Check | Result |
+|-------|--------|
+| `types/canvas.ts` — `cloudProvider?: string` on `NodeConfig` | ✅ |
+| `iacExporter.ts` — 4 new export functions (TerraformGCP, TerraformAzure, DeploymentManager, ARM) | ✅ |
+| `iacExporter.ts` — all 31 node types handled in each new exporter | ✅ |
+| `ExportModal.tsx` — 4 new tabs with correct language detection | ✅ |
+| `NodeConfigPanel.tsx` — Cloud Provider dropdown in Identity section | ✅ |
+| `NodeConfigPanel.tsx` — LLM token pricing in LLM Config section | ✅ |
+| `FinOpsPanel.tsx` — `ProviderBreakdownDonut` (returns null if ≤1 provider) | ✅ |
+| `FinOpsPanel.tsx` — `TokenCostCard` (returns null if total ≤ 0) | ✅ |
+| `FinOpsPanel.tsx` — `EdgeVsOriginChart` (returns null if both $0) | ✅ |
+| `npx tsc --noEmit` — 0 errors | ✅ |
+| `go build ./...` — 0 errors | ✅ |
