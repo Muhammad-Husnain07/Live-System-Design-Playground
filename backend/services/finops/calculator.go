@@ -88,7 +88,6 @@ const (
 
 	// ServerlessV2 (Lambda SnapStart)
 	ServerlessV2PricePerMillion = 0.20 // same as Lambda
-	ServerlessV2MinDurationSec  = 10   // minimum 10s execution billing
 
 	// Multi-cloud per-instance prices (hourly)
 	GCPAppServerHourly = 0.20   // GCE n2-standard-4
@@ -444,7 +443,7 @@ func estimateStorageFromNode(nt NodeType, instances int) float64 {
 	}
 }
 
-func getCloudProvider(cfg map[string]any, resource InfraResource) string {
+func getCloudProvider(cfg map[string]any, resource InfraResource, defaultProvider string) string {
 	if resource.CloudProvider != "" {
 		return resource.CloudProvider
 	}
@@ -452,6 +451,9 @@ func getCloudProvider(cfg map[string]any, resource InfraResource) string {
 		if s, ok := v.(string); ok {
 			return s
 		}
+	}
+	if defaultProvider != "" {
+		return defaultProvider
 	}
 	return "aws"
 }
@@ -682,7 +684,7 @@ type edgeInfo struct {
 	}
 }
 
-func Calculate(canvasData []byte, projectID string, monthlyUsers int) (*CostReport, error) {
+func Calculate(canvasData []byte, projectID string, monthlyUsers int, defaultProvider string) (*CostReport, error) {
 	var canvas struct {
 		Nodes []canvasNode `json:"nodes"`
 		Edges []canvasEdge `json:"edges"`
@@ -703,7 +705,7 @@ func Calculate(canvasData []byte, projectID string, monthlyUsers int) (*CostRepo
 		if isExternalClient(nt) {
 			continue
 		}
-		cp := getCloudProvider(n.Data.Config, n.Data.Resource)
+		cp := getCloudProvider(n.Data.Config, n.Data.Resource, defaultProvider)
 		rps := 1000.0
 		if v, ok := n.Data.Config["maxRPS"]; ok {
 			if f, ok := v.(float64); ok {
