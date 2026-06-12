@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useExportStore } from "../../store/exportStore";
-import { exportTerraform, exportKubernetes, exportCloudFormation } from "../../utils/iacExporter";
+import { exportTerraform, exportKubernetes, exportCloudFormation, exportTerraformGCP, exportTerraformAzure, exportDeploymentManager, exportArm } from "../../utils/iacExporter";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, Box, Button, Typography } from "@mui/material";
 
 interface IaCTab {
@@ -20,8 +20,12 @@ export default function ExportModal() {
 
   const tabs: IaCTab[] = [
     { id: "terraform", label: "Terraform", generator: exportTerraform },
+    { id: "terraform-gcp", label: "Terraform (GCP)", generator: exportTerraformGCP },
+    { id: "terraform-azure", label: "Terraform (Azure)", generator: exportTerraformAzure },
     { id: "kubernetes", label: "Kubernetes", generator: exportKubernetes },
     { id: "cloudformation", label: "CloudFormation", generator: exportCloudFormation },
+    { id: "deployment-manager", label: "Deployment Manager", generator: exportDeploymentManager },
+    { id: "arm", label: "ARM Template", generator: exportArm },
   ];
 
   const currentTab = tabs[tabIndex];
@@ -74,7 +78,7 @@ export default function ExportModal() {
         <Box sx={{ height: 400, borderBottom: 1, borderColor: "#27272a" }}>
           <Editor
             key={`${currentTab.id}-${iacError ?? "ok"}`}
-            language={currentTab.id === "kubernetes" ? "yaml" : "hcl"}
+            language={currentTab.id === "kubernetes" || currentTab.id === "deployment-manager" ? "yaml" : currentTab.id === "arm" ? "json" : "hcl"}
             theme="vs-dark"
             value={getCode()}
             options={{ readOnly: true, minimap: { enabled: false }, fontSize: 12, lineNumbers: "on", scrollBeyondLastLine: false, wordWrap: "on" }}
