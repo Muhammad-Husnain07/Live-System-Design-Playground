@@ -90,7 +90,7 @@ func TestCalculateNodeCost(t *testing.T) {
 
 func TestCalculateEmptyCanvas(t *testing.T) {
 	emptyCanvas := `{"nodes":[]}`
-	_, err := Calculate([]byte(emptyCanvas), "proj-1", 1000)
+	_, err := Calculate([]byte(emptyCanvas), "proj-1", 1000, "aws")
 	if err == nil {
 		t.Error("expected error for empty canvas")
 	}
@@ -98,7 +98,7 @@ func TestCalculateEmptyCanvas(t *testing.T) {
 
 func TestCalculateOnlyClientNodes(t *testing.T) {
 	canvas := `{"nodes":[{"id":"e1","data":{"nodeType":"ExternalClient","label":"Client","config":{}}}]}`
-	_, err := Calculate([]byte(canvas), "proj-1", 1000)
+	_, err := Calculate([]byte(canvas), "proj-1", 1000, "aws")
 	if err == nil {
 		t.Error("expected error when only client nodes exist")
 	}
@@ -114,7 +114,7 @@ func TestCalculateWithValidCanvas(t *testing.T) {
 		"edges": []
 	}`
 
-	report, err := Calculate([]byte(canvas), "proj-1", 1000)
+	report, err := Calculate([]byte(canvas), "proj-1", 1000, "aws")
 	if err != nil {
 		t.Fatalf("Calculate failed: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestCalculateWithAllNodeTypes(t *testing.T) {
 	}
 	canvas := map[string]any{"nodes": nodes, "edges": []any{}}
 	raw, _ := json.Marshal(canvas)
-	report, err := Calculate(raw, "proj-all", 1000)
+	report, err := Calculate(raw, "proj-all", 1000, "aws")
 	if err != nil {
 		t.Fatalf("Calculate with all types failed: %v", err)
 	}
@@ -420,7 +420,7 @@ func TestScalingProjection1kUsers(t *testing.T) {
 		],
 		"edges": []
 	}`
-	report, err := Calculate([]byte(canvas), "proj-scale-1k", 1000)
+	report, err := Calculate([]byte(canvas), "proj-scale-1k", 1000, "aws")
 	if err != nil {
 		t.Fatalf("Calculate failed: %v", err)
 	}
@@ -450,7 +450,7 @@ func TestScalingProjection1MUsers(t *testing.T) {
 		],
 		"edges": []
 	}`
-	report, err := Calculate([]byte(canvas), "proj-scale-1m", 1_000_000)
+	report, err := Calculate([]byte(canvas), "proj-scale-1m", 1_000_000, "aws")
 	if err != nil {
 		t.Fatalf("Calculate failed: %v", err)
 	}
@@ -652,7 +652,7 @@ func TestCalculateAllNewTypesInCanvas(t *testing.T) {
 		],
 		"edges": []
 	}`
-	report, err := Calculate([]byte(canvas), "proj-modern", 10000)
+	report, err := Calculate([]byte(canvas), "proj-modern", 10000, "aws")
 	if err != nil {
 		t.Fatalf("Calculate failed: %v", err)
 	}

@@ -64,7 +64,7 @@ func (h *FinOpsHandler) Estimate(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to read project data"})
 	}
 
-	report, err := finops.Calculate(canvasRaw, req.ProjectID, req.MonthlyUsers)
+	report, err := finops.Calculate(canvasRaw, req.ProjectID, req.MonthlyUsers, req.Provider)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}

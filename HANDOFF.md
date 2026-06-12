@@ -5351,7 +5351,7 @@ CloudProvider is read from `node.data.resource.cloudProvider` (JSON), falling ba
 |-------|--------|
 | `calculator.go` — 4 new `NodeType` constants (LLMNode, GPUCluster, EdgeCompute, ServerlessV2) | ✅ |
 | `calculator.go` — `InfraResource` struct with `CloudProvider` field on `canvasNode.Data` | ✅ |
-| `calculator.go` — `getCloudProvider()` helper (resource → config → "aws") | ✅ |
+| `calculator.go` — `getCloudProvider()` accepts `defaultProvider` fallback param | ✅ (was missing default fallback, added) |
 | `calculator.go` — LLM token pricing with input/output split, based on `maxRPS` | ✅ |
 | `calculator.go` — GPUCluster monthly cost at $32.77/hr × 730h | ✅ |
 | `calculator.go` — EdgeCompute request-pricing + egress @ $0.08/GB | ✅ |
@@ -5359,10 +5359,11 @@ CloudProvider is read from `node.data.resource.cloudProvider` (JSON), falling ba
 | `calculator.go` — Multi-cloud AppServer: GCP $0.20/hr, Azure $0.192/hr | ✅ |
 | `calculator.go` — `calculateNodeCost` accepts `cloudProvider string` + `rps float64` | ✅ |
 | `calculator.go` — `nodeInfo` struct includes `cloudProvider` + `rps` | ✅ |
-| `calculator.go` — `Calculate()` passes cloudProvider/rps through from canvas nodes | ✅ |
+| `calculator.go` — `Calculate()` accepts `defaultProvider` param, passes through | ✅ (was missing, added) |
 | `calculator.go` — New "AI / GPU" and "Edge & Serverless" categories added | ✅ |
-| `finops.go` — `estimateRequest.Provider` field accepted in POST body | ✅ |
-| `calculator_test.go` — 8 new tests covering all new node types + multi-cloud | ✅ |
+| `calculator.go` — Removed unused `ServerlessV2MinDurationSec` constant | ✅ (was dead code, removed) |
+| `finops.go` — `estimateRequest.Provider` wired to `Calculate(..., req.Provider)` | ✅ (was stored but unused, fixed) |
+| `calculator_test.go` — 8 new tests, all existing updated for new signatures | ✅ |
 | `calculator_test.go` — All 34 tests pass | ✅ |
 | `go vet ./...` — 0 errors | ✅ |
 | `go build ./...` — 0 errors | ✅ |
