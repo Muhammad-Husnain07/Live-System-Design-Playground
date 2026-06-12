@@ -113,6 +113,8 @@ export interface NodeConfig {
   failureMode?: string;
   // Service Mesh config
   mtlsEnabled?: boolean;
+  // Multi-cloud
+  cloudProvider?: string;
 }
 
 export interface NodeMetrics {
