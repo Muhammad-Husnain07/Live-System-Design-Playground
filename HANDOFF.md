@@ -5466,3 +5466,70 @@ The `requiredNodeTypes` field was added to `PassingCriteria` JSON. When present,
 ### Verification: PASSED — 2026-06-13
 
 All 4 challenges are correctly seeded with matching initial canvases, requirements, and passing criteria. The `requiredNodeTypes` field is parsed in `ScoreSubmission` and validated against canvas nodes before simulation. Frontend requires no changes — challenges are served dynamically via the existing `/api/challenges` endpoint. Backend builds pass with zero errors.
+
+---
+
+## Phase L5.2 — Architecture Insights & Visual Badges (Design Co-Pilot)
+
+**Date**: 2026-06-13
+
+### New Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/store/architectureStore.ts` | Zustand store for badge assignments per node and scorecard computation; `computeBadges(nodes, edges)` scans canvas and updates `nodeBadges` map + `scorecards` array |
+| `frontend/src/components/panels/ArchitectureInsightsPanel.tsx` | Dialog panel with 3 MUI `<Card>` scorecards — "AI Readiness", "Edge Readiness", "Resilience" — plus a radial overall progress meter; triggered via 💡 icon in TopToolbar |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `frontend/src/components/canvas/BaseNode.tsx` | Added `useArchitectureStore` subscription for `nodeBadges`; renders holographic badges (🛡️ ⚡ 🧠) as absolute-positioned 18px circles at top-right with color-coded glow/backdrop-filter |
+| `frontend/src/components/toolbar/TopToolbar.tsx` | Added `showInsightsPanel`/`onToggleInsightsPanel` props; imported `Lightbulb` icon; rendered yello‑glowing 💡 `<IconButton>` after Maturity Assessment button |
+| `frontend/src/pages/ProjectPage.tsx` | Added `showInsightsPanel` state + `onToggleInsightsPanel` callback; wired props to TopToolbar; renders `<ArchitectureInsightsPanel>` at bottom alongside MaturityModal |
+
+### Scorecard Logic
+
+| Scorecard | Checks | Source Data |
+|-----------|--------|------------|
+| **AI Readiness** | LLMNode present, VectorDB present, Redis cache present, Firewall/ServiceMesh for Zero Trust | `canvas.nodes` nodeType scan |
+| **Edge Readiness** | CDN deployed, EdgeCompute deployed | `canvas.nodes` nodeType scan |
+| **Resilience** | Orchestrator present, Async messaging (MQ/EventBus/PubSub), Multi-region redundancy (≥3 AppServer/PostgreSQLDB instances) | `canvas.nodes` nodeType + instance count |
+
+### Badge Assignment Logic
+
+| Badge | Icon | Applies To | Condition |
+|-------|------|-----------|-----------|
+| 🛡️ Zero-Trust Applied | 🛡️ | Any node behind Firewall/ServiceMesh with `isPublicFacing === false` | Firewall or ServiceMesh node exists on canvas |
+| ⚡ Edge-Optimized | ⚡ | EdgeCompute or CDN nodes, or any node connected to an EdgeCompute | Node type is `EdgeCompute`/`CDN`, or edge exists to an EdgeCompute |
+| 🧠 AI-Ready | 🧠 | LLMNode, VectorDB, or Redis/AppServer when both LLM + VectorDB present | LLMNode + VectorDB exist AND Redis exists |
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `npx tsc --noEmit` — 0 errors | ✅ |
+
+### Verification: PASSED — 2026-06-13
+
+| Check | Result |
+|-------|--------|
+| `architectureStore.ts` — Zustand store with `nodeBadges` + `scorecards` + `computeBadges` action | ✅ |
+| `architectureStore.ts` — `computeBadges` scans all nodes/edges to assign badge types per node | ✅ |
+| `architectureStore.ts` — scorecard detection: AI Readiness (4 checks), Edge Readiness (2 checks), Resilience (3 checks) | ✅ |
+| `ArchitectureInsightsPanel.tsx` — Dialog with radial progress + 3 MUI `<Card>` sections with progress bars and insight rows | ✅ |
+| `ArchitectureInsightsPanel.tsx` — Triggers `computeBadges` on open via `useEffect` | ✅ |
+| `BaseNode.tsx` — imports `BadgeType` from architectureStore, subscribes to `nodeBadges[nodeId]` | ✅ |
+| `BaseNode.tsx` — renders holographic badges at top-right with per-badge glow color and backdrop-filter | ✅ |
+| `BaseNode.tsx` — `BADGE_META` constant maps 3 badge types to icon/label/bg/border/glow | ✅ |
+| `TopToolbar.tsx` — 💡 button with `Lightbulb` icon, toggles `showInsightsPanel` | ✅ |
+| `ProjectPage.tsx` — state/callback wired to TopToolbar + renders ArchitectureInsightsPanel | ✅ |
+| `npx tsc --noEmit` — 0 errors | ✅ |
+
+---
+
+## SYSTEM FULLY UPGRADED TO 2024 STANDARDS
+
+### Re-Verification: PASSED — 2026-06-13
+
+Full re-verification of Phase L5.2 confirms all files exist, all components are wired correctly, and builds pass with zero errors. No fixes were needed.
