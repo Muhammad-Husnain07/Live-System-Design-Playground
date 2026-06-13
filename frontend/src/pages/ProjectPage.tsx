@@ -38,6 +38,7 @@ import { useAuthStore } from "../store/authStore";
 import { useExportStore } from "../store/exportStore";
 import { useMaturityStore } from "../store/maturityStore";
 import MaturityModal from "../components/panels/MaturityModal";
+import ArchitectureInsightsPanel from "../components/panels/ArchitectureInsightsPanel";
 import ExportModal from "../components/panels/ExportModal";
 import BottomDrawer from "../components/panels/BottomDrawer";
 import CommandPalette from "../components/ui/CommandPalette";
@@ -262,6 +263,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const [showDrillPanel, setShowDrillPanel] = useState(false);
   const [showMaturityPanel, setShowMaturityPanel] = useState(false);
   const onToggleMaturityPanel = useCallback(() => setShowMaturityPanel((v) => !v), []);
+  const [showInsightsPanel, setShowInsightsPanel] = useState(false);
+  const onToggleInsightsPanel = useCallback(() => setShowInsightsPanel((v) => !v), []);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const reactFlowRef = useRef<any>(null);
@@ -776,6 +779,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         onToggleDrillPanel={() => setShowDrillPanel(!showDrillPanel)}
         showMaturityPanel={showMaturityPanel}
         onToggleMaturityPanel={onToggleMaturityPanel}
+        showInsightsPanel={showInsightsPanel}
+        onToggleInsightsPanel={onToggleInsightsPanel}
         collabConnected={collabConnected}
         remoteUsers={remoteUsers}
       />
@@ -958,6 +963,10 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         projectName={currentProject?.name}
         reactFlowRef={reactFlowWrapper}
         simulationRunId={useSimulationStore.getState().runId ?? undefined}
+      />
+      <ArchitectureInsightsPanel
+        open={showInsightsPanel}
+        onClose={() => setShowInsightsPanel(false)}
       />
     </Box>
   );

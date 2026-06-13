@@ -8,8 +8,10 @@ import { useSecurityStore } from "../../store/securityStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useDeployStore } from "../../store/deploymentStore";
 import { useFinOpsStore } from "../../store/finopsStore";
+import { useArchitectureStore } from "../../store/architectureStore";
 import { NODE_COMPAT } from "../../store/exportStore";
 import type { CanvasNode } from "../../types/canvas";
+import type { BadgeType } from "../../store/architectureStore";
 import { Box, Stack, Typography, LinearProgress, Chip, Badge } from "@mui/material";
 
 export type BaseNodeData = CanvasNode["data"];
@@ -17,6 +19,12 @@ export type BaseNodeData = CanvasNode["data"];
 export interface BaseNodeProps extends NodeProps<BaseNodeData> {
   children?: ReactNode;
 }
+
+const BADGE_META: Record<BadgeType, { icon: string; label: string; bg: string; border: string; glow: string }> = {
+  "zero-trust": { icon: "\uD83D\uDEE1\uFE0F", label: "Zero-Trust Applied", bg: "rgba(20,184,166,0.2)", border: "rgba(20,184,166,0.4)", glow: "rgba(20,184,166,0.3)" },
+  "edge-optimized": { icon: "\u26A1", label: "Edge-Optimized", bg: "rgba(34,197,94,0.2)", border: "rgba(34,197,94,0.4)", glow: "rgba(34,197,94,0.3)" },
+  "ai-ready": { icon: "\uD83E\uDD16", label: "AI-Ready", bg: "rgba(168,85,247,0.2)", border: "rgba(168,85,247,0.4)", glow: "rgba(168,85,247,0.3)" },
+};
 
 const MIN_W = 180;
 const MIN_H = 80;
@@ -129,6 +137,7 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
   const exportMode = useCanvasStore((s) => s.exportMode);
   const compatStatus = NODE_COMPAT[nodeType] ?? "skipped";
   const nodeCost = useFinOpsStore((s) => s.nodeCosts.find((c) => c.nodeId === id));
+  const nodeBadges = useArchitectureStore((s) => s.nodeBadges[nodeId] ?? []);
   const nw = useCanvasStore((s) => {
     const n = s.nodes.find((n) => n.id === nodeId);
     const raw = n?.style?.width;
@@ -215,6 +224,31 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
           }}
         >
           ${nodeCost.monthlyCost.toFixed(0)}/mo
+        </Box>
+      )}
+
+      {nodeBadges.length > 0 && (
+        <Box sx={{ position: "absolute", top: -10, right: -10, zIndex: 20, display: "flex", gap: 0.25 }}>
+          {nodeBadges.map((badge) => {
+            const bmeta = BADGE_META[badge];
+            return (
+              <Box
+                key={badge}
+                title={bmeta?.label ?? badge}
+                sx={{
+                  width: 18, height: 18, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 10, lineHeight: 1,
+                  bgcolor: bmeta?.bg ?? "rgba(0,0,0,0.6)",
+                  border: 1, borderColor: bmeta?.border ?? "rgba(255,255,255,0.15)",
+                  boxShadow: `0 0 6px ${bmeta?.glow ?? "rgba(255,255,255,0.1)"}`,
+                  backdropFilter: "blur(4px)",
+                }}
+              >
+                {bmeta?.icon ?? "?"}
+              </Box>
+            );
+          })}
         </Box>
       )}
 
