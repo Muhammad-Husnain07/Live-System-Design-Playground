@@ -58,6 +58,34 @@ func SeedChallenges(db *sql.DB) error {
 			InitialCanvas: json.RawMessage(`{"nodes":[{"id":"lb-primary","type":"default","position":{"x":100,"y":100},"data":{"nodeType":"LoadBalancer","label":"Primary LB","config":{"instances":2,"maxRPS":30000,"latencyMs":1,"errorRate":0}}},{"id":"lb-dr","type":"default","position":{"x":100,"y":300},"data":{"nodeType":"LoadBalancer","label":"DR LB","config":{"instances":1,"maxRPS":15000,"latencyMs":1,"errorRate":0}}},{"id":"app-1","type":"default","position":{"x":400,"y":50},"data":{"nodeType":"AppServer","label":"Primary App","config":{"instances":4,"maxRPS":4000,"latencyMs":20,"errorRate":0}}},{"id":"app-2","type":"default","position":{"x":400,"y":200},"data":{"nodeType":"AppServer","label":"DR App","config":{"instances":2,"maxRPS":2000,"latencyMs":25,"errorRate":0}}},{"id":"db-1","type":"default","position":{"x":700,"y":50},"data":{"nodeType":"PostgreSQLDB","label":"Primary DB","config":{"instances":2,"maxRPS":10000,"latencyMs":5,"errorRate":0}}},{"id":"db-dr","type":"default","position":{"x":700,"y":250},"data":{"nodeType":"PostgreSQLDB","label":"DR DB","config":{"instances":1,"maxRPS":5000,"latencyMs":10,"errorRate":0}}},{"id":"cache-1","type":"default","position":{"x":700,"y":400},"data":{"nodeType":"Redis","label":"DR Cache","config":{"instances":1,"maxRPS":20000,"latencyMs":2,"errorRate":0}}}]}`),
 			PassingCriteria: json.RawMessage(`{"minCostScore":30,"minReliabilityScore":70,"minPerformanceScore":30}`),
 		},
+		{
+			Title: "Design a RAG Chatbot for Enterprise Docs", Difficulty: "medium", TimeLimit: 2400,
+			Desc: "Build a RAG-powered chatbot for enterprise documents. Must achieve sub-2s p99 latency, 99% uptime, and defend against prompt injection. Add a VectorDB for semantic search, a Redis cache for frequent queries, and place guardrails behind a Zero Trust security boundary.",
+			Requirements: map[string]any{"targetRPS": 500.0, "maxLatencyMs": 2000.0, "features": []string{"rag", "vector_search", "prompt_injection_protection", "zero_trust"}, "nodeTypes": []string{"LoadBalancer", "WebServer", "AppServer", "LLMNode", "VectorDB", "Redis"}},
+			InitialCanvas: json.RawMessage(`{"nodes":[{"id":"lb-1","type":"default","position":{"x":100,"y":200},"data":{"nodeType":"LoadBalancer","label":"API Gateway","config":{"instances":2,"maxRPS":5000,"latencyMs":1,"errorRate":0}}},{"id":"web-1","type":"default","position":{"x":400,"y":100},"data":{"nodeType":"WebServer","label":"Web Server","config":{"instances":2,"maxRPS":2000,"latencyMs":15,"errorRate":0}}},{"id":"app-1","type":"default","position":{"x":400,"y":300},"data":{"nodeType":"AppServer","label":"Chat Service","config":{"instances":2,"maxRPS":500,"latencyMs":30,"errorRate":0}}},{"id":"db-1","type":"default","position":{"x":700,"y":200},"data":{"nodeType":"PostgreSQLDB","label":"Document Store","config":{"instances":1,"maxRPS":2000,"latencyMs":5,"errorRate":0}}}]}`),
+			PassingCriteria: json.RawMessage(`{"minCostScore":30,"minReliabilityScore":60,"minPerformanceScore":50,"requiredNodeTypes":["VectorDB","Redis"]}`),
+		},
+		{
+			Title: "Build a Global Edge-First E-Commerce API", Difficulty: "hard", TimeLimit: 3000,
+			Desc: "Architect a global e-commerce API with <50ms p99 latency worldwide. Must survive Black Friday 10x traffic spikes and a full region outage with automatic failover to a DR region. Leverage edge compute for low-latency lookups and a CDN for static assets.",
+			Requirements: map[string]any{"targetRPS": 50000.0, "maxLatencyMs": 50.0, "surviveScenario": "region_down", "features": []string{"edge_compute", "cdn", "multi_region_db", "failover"}, "nodeTypes": []string{"EdgeCompute", "CDN", "LoadBalancer", "AppServer", "PostgreSQLDB", "Redis"}},
+			InitialCanvas: json.RawMessage(`{"nodes":[{"id":"lb-1","type":"default","position":{"x":100,"y":200},"data":{"nodeType":"LoadBalancer","label":"Global LB","config":{"instances":3,"maxRPS":100000,"latencyMs":1,"errorRate":0}}},{"id":"app-1","type":"default","position":{"x":400,"y":100},"data":{"nodeType":"AppServer","label":"Catalog API","config":{"instances":4,"maxRPS":5000,"latencyMs":25,"errorRate":0}}},{"id":"app-2","type":"default","position":{"x":400,"y":300},"data":{"nodeType":"AppServer","label":"Cart API","config":{"instances":4,"maxRPS":5000,"latencyMs":25,"errorRate":0}}},{"id":"db-1","type":"default","position":{"x":700,"y":100},"data":{"nodeType":"PostgreSQLDB","label":"Primary DB","config":{"instances":2,"maxRPS":10000,"latencyMs":5,"errorRate":0}}},{"id":"cache-1","type":"default","position":{"x":700,"y":300},"data":{"nodeType":"Redis","label":"Session Cache","config":{"instances":2,"maxRPS":50000,"latencyMs":2,"errorRate":0}}}]}`),
+			PassingCriteria: json.RawMessage(`{"minCostScore":20,"minReliabilityScore":70,"minPerformanceScore":70,"requiredNodeTypes":["EdgeCompute","CDN"]}`),
+		},
+		{
+			Title: "The LLM Token Cost Crisis", Difficulty: "hard", TimeLimit: 1800,
+			Desc: "Your AI-powered feature works but burns $10,000/month at 10,000 users. You must slash costs to $1,000/month without sacrificing core functionality. Add a semantic cache (Redis) to serve repeated queries, shrink prompt sizes, or switch to a distilled model. Cache hit ratio must exceed 0.8 and total monthly cost must drop 90%.",
+			Requirements: map[string]any{"targetRPS": 500.0, "features": []string{"cost_optimization", "caching", "prompt_optimization", "model_selection"}, "nodeTypes": []string{"LLMNode", "VectorDB", "Redis", "AppServer", "LoadBalancer"}},
+			InitialCanvas: json.RawMessage(`{"nodes":[{"id":"lb-1","type":"default","position":{"x":100,"y":200},"data":{"nodeType":"LoadBalancer","label":"API LB","config":{"instances":2,"maxRPS":5000,"latencyMs":1,"errorRate":0}}},{"id":"app-1","type":"default","position":{"x":400,"y":100},"data":{"nodeType":"AppServer","label":"Query Router","config":{"instances":4,"maxRPS":1000,"latencyMs":20,"errorRate":0}}},{"id":"llm-1","type":"default","position":{"x":400,"y":300},"data":{"nodeType":"LLMNode","label":"LLM (gpt-4)","config":{"instances":3,"maxRPS":200,"latencyMs":200,"errorRate":0,"promptTokenCount":4000,"completionTokenCount":1000}}},{"id":"vdb-1","type":"default","position":{"x":700,"y":200},"data":{"nodeType":"VectorDB","label":"Vector Index","config":{"instances":2,"maxRPS":1000,"latencyMs":15,"errorRate":0}}}]}`),
+			PassingCriteria: json.RawMessage(`{"minCostScore":80,"minReliabilityScore":30,"minPerformanceScore":30,"requiredNodeTypes":["Redis"]}`),
+		},
+		{
+			Title: "Saga Compensation Failure", Difficulty: "expert", TimeLimit: 2400,
+			Desc: "Your order-processing pipeline must handle failures gracefully. When the Shipping Worker crashes mid-order, the system MUST roll back the payment — zero data loss, zero orphaned orders. Use an Orchestrator to coordinate the saga and a MessageQueue to decouple steps. Survive a ChaosNodeFailure on the shipping worker and verify compensation completes.",
+			Requirements: map[string]any{"surviveScenario": "node_failure", "zeroDataLoss": true, "features": []string{"saga", "compensation", "orchestrator", "chaos_survival"}, "nodeTypes": []string{"Orchestrator", "AppServer", "MessageQueue", "PostgreSQLDB", "WorkerService"}},
+			InitialCanvas: json.RawMessage(`{"nodes":[{"id":"lb-1","type":"default","position":{"x":100,"y":200},"data":{"nodeType":"LoadBalancer","label":"Order Gateway","config":{"instances":2,"maxRPS":10000,"latencyMs":1,"errorRate":0}}},{"id":"app-1","type":"default","position":{"x":400,"y":100},"data":{"nodeType":"AppServer","label":"Order Service","config":{"instances":2,"maxRPS":2000,"latencyMs":25,"errorRate":0}}},{"id":"mq-1","type":"default","position":{"x":400,"y":300},"data":{"nodeType":"MessageQueue","label":"Order Events","config":{"instances":2,"maxRPS":10000,"latencyMs":5,"errorRate":0}}},{"id":"payment-1","type":"default","position":{"x":700,"y":50},"data":{"nodeType":"ThirdPartyAPI","label":"Payment Gateway","config":{"instances":1,"maxRPS":1000,"latencyMs":200,"errorRate":0.01}}},{"id":"shipping-1","type":"default","position":{"x":700,"y":200},"data":{"nodeType":"WorkerService","label":"Shipping Worker","config":{"instances":2,"maxRPS":500,"latencyMs":30,"errorRate":0}}},{"id":"db-1","type":"default","position":{"x":700,"y":350},"data":{"nodeType":"PostgreSQLDB","label":"Orders DB","config":{"instances":2,"maxRPS":5000,"latencyMs":5,"errorRate":0}}}]}`),
+			PassingCriteria: json.RawMessage(`{"minCostScore":20,"minReliabilityScore":80,"minPerformanceScore":40,"requiredNodeTypes":["Orchestrator"]}`),
+		},
 	}
 
 	for _, c := range challenges {
@@ -167,15 +195,17 @@ func ScoreSubmission(canvasData []byte, challenge *models.Challenge) (*ScoreRepo
 	}
 
 	var criteria struct {
-		MinCostScore        float64 `json:"minCostScore"`
-		MinReliabilityScore float64 `json:"minReliabilityScore"`
-		MinPerformanceScore float64 `json:"minPerformanceScore"`
+		MinCostScore        float64  `json:"minCostScore"`
+		MinReliabilityScore float64  `json:"minReliabilityScore"`
+		MinPerformanceScore float64  `json:"minPerformanceScore"`
+		RequiredNodeTypes   []string `json:"requiredNodeTypes"`
 	}
 	if err := json.Unmarshal(challenge.PassingCriteria, &criteria); err != nil {
 		criteria = struct {
-			MinCostScore        float64 `json:"minCostScore"`
-			MinReliabilityScore float64 `json:"minReliabilityScore"`
-			MinPerformanceScore float64 `json:"minPerformanceScore"`
+			MinCostScore        float64  `json:"minCostScore"`
+			MinReliabilityScore float64  `json:"minReliabilityScore"`
+			MinPerformanceScore float64  `json:"minPerformanceScore"`
+			RequiredNodeTypes   []string `json:"requiredNodeTypes"`
 		}{MinCostScore: 20, MinReliabilityScore: 40, MinPerformanceScore: 40}
 	}
 
@@ -209,6 +239,18 @@ func ScoreSubmission(canvasData []byte, challenge *models.Challenge) (*ScoreRepo
 			node.Instances = 1
 		}
 		simNodes = append(simNodes, node)
+	}
+
+	if len(criteria.RequiredNodeTypes) > 0 {
+		present := make(map[string]bool)
+		for _, n := range canvas.Nodes {
+			present[n.Data.NodeType] = true
+		}
+		for _, req := range criteria.RequiredNodeTypes {
+			if !present[req] {
+				return &ScoreReport{Cost: 0, Reliability: 0, Performance: 0, Total: 0, Passed: false}, nil
+			}
+		}
 	}
 
 	if len(simNodes) == 0 {
