@@ -5407,3 +5407,62 @@ CloudProvider is read from `node.data.resource.cloudProvider` (JSON), falling ba
 | `FinOpsPanel.tsx` — `EdgeVsOriginChart` (returns null if both $0) | ✅ |
 | `npx tsc --noEmit` — 0 errors | ✅ |
 | `go build ./...` — 0 errors | ✅ |
+
+---
+
+## Phase L5.1 — Modern Challenge Seeds (RAG, Edge E-Commerce, LLM FinOps, Saga SRE)
+
+**Date**: 2026-06-13
+
+### New Challenges Added
+
+| # | Title | Difficulty | Time Limit | Passing Requirements |
+|---|-------|------------|------------|---------------------|
+| 1 | **Design a RAG Chatbot for Enterprise Docs** | Medium | 40 min | Must include `VectorDB` + `Redis`; sub-2s p99 latency; 99% uptime; prompt-injection guardrails behind Zero Trust boundary |
+| 2 | **Build a Global Edge-First E-Commerce API** | Hard | 50 min | Must include `EdgeCompute` + `CDN`; <50ms global latency; survive Black Friday 10x spike; multi-region DB with `RegionDown` failover |
+| 3 | **The LLM Token Cost Crisis** (FinOps Focus) | Hard | 30 min | Must include `Redis`; cut $10k/mo → $1k/mo at 10k users; cache hit ratio > 0.8; cost score ≥ 80 |
+| 4 | **Saga Compensation Failure** (SRE Focus) | Expert | 40 min | Must include `Orchestrator`; survive `ChaosNodeFailure` on shipping worker; zero data loss; compensation rollback on payment; reliability score ≥ 80 |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/services/challenges.go` | Added 4 new `SeedChallenges` entries with initial canvases, requirements, and `requiredNodeTypes` in passing criteria; extended `ScoreSubmission` to validate `requiredNodeTypes` before simulation |
+
+### Passing Criteria Logic
+
+The `requiredNodeTypes` field was added to `PassingCriteria` JSON. When present, `ScoreSubmission` validates that the submitted canvas contains every required node type before running the simulation. If any required type is missing, the submission returns `Passed: false` with zero scores — no simulation cost incurred.
+
+| Challenge | `requiredNodeTypes` | Score Thresholds (Cost / Reliability / Performance) |
+|-----------|---------------------|------------------------------------------------------|
+| RAG Chatbot | `[VectorDB, Redis]` | 30 / 60 / 50 |
+| Edge E-Commerce | `[EdgeCompute, CDN]` | 20 / 70 / 70 |
+| LLM Token Cost | `[Redis]` | 80 / 30 / 30 |
+| Saga Compensation | `[Orchestrator]` | 20 / 80 / 40 |
+
+### Build Results
+
+| Check | Result |
+|-------|--------|
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| 4 new challenges added to `SeedChallenges()` | ✅ |
+| Each challenge has realistic initial canvas with position/type/config/edges | ✅ |
+| Challenge 1 (RAG Chatbot) — initial canvas: LB + Web + App + DB, user must add VectorDB/Redis | ✅ |
+| Challenge 2 (Edge E-Commerce) — initial canvas: single-region LB + App + DB + Cache, user must add EdgeCompute/CDN/DR region | ✅ |
+| Challenge 3 (LLM Token Cost) — initial canvas: LB + App + LLM(gpt-4) + VectorDB with high token config, user must add Redis cache | ✅ |
+| Challenge 4 (Saga Compensation) — initial canvas: LB + App + MQ + Payment + Shipping + DB without Orchestrator, user must add Orchestrator | ✅ |
+| `passingCriteria` extended with `requiredNodeTypes []string` | ✅ |
+| `ScoreSubmission` checks `requiredNodeTypes` before running simulation → returns zero-score Passed=false | ✅ |
+| `go build ./...` — 0 errors | ✅ |
+| `go vet ./...` — 0 errors | ✅ |
+| `npx tsc --noEmit` — 0 errors (no frontend changes needed) | ✅ |
+
+### Verification: PASSED — 2026-06-13
+
+All 4 challenges are correctly seeded with matching initial canvases, requirements, and passing criteria. The `requiredNodeTypes` field is parsed in `ScoreSubmission` and validated against canvas nodes before simulation. Frontend requires no changes — challenges are served dynamically via the existing `/api/challenges` endpoint. Backend builds pass with zero errors.
