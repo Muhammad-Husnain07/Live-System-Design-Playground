@@ -4,7 +4,7 @@ import { ThemeProvider } from '@mui/material/styles'
 import './index.css'
 import App from './App.tsx'
 import ErrorBoundary from './components/ui/ErrorBoundary.tsx'
-import theme from './theme.ts'
+import theme from './theme'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

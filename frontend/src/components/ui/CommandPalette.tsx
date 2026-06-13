@@ -4,7 +4,7 @@ import {
   Box, Typography, Divider,
 } from "@mui/material";
 import {
-  Plus, Play, Square, Bomb, PanelRight, Undo2, Redo2, FileDown, CornerDownLeft, ArrowUp, ArrowDown,
+  Plus, Play, Bomb, PanelRight, Undo2, FileDown, CornerDownLeft, ArrowUp, ArrowDown,
   type LucideIcon,
 } from "lucide-react";
 import type { CommandAction, CommandCategory } from "../../utils/commandActions";
@@ -83,15 +83,6 @@ export default function CommandPalette({ open, onClose, actions, onExecute }: Co
     [onExecute, onClose],
   );
 
-  const uniqueCategories = useMemo(() => {
-    const seen = new Set<string>();
-    const cats: CommandCategory[] = [];
-    for (const a of grouped.groups) {
-      if (!seen.has(a.category)) { seen.add(a.category); cats.push(a.category); }
-    }
-    return cats;
-  }, [grouped.groups]);
-
   return (
     <Dialog
       open={open}
@@ -102,8 +93,9 @@ export default function CommandPalette({ open, onClose, actions, onExecute }: Co
         backdrop: { sx: { bgcolor: "rgba(0,0,0,0.5)" } },
         paper: {
           sx: {
-            bgcolor: "#18181b", border: "1px solid #3f3f46", borderRadius: "10px",
-            boxShadow: "0 16px 48px rgba(0,0,0,0.4)", overflow: "hidden", mt: "-15vh",
+            bgcolor: "background.paper", border: "1px solid", borderColor: "divider",
+            borderRadius: 0, boxShadow: "0 16px 48px rgba(0,0,0,0.4)",
+            overflow: "hidden", mt: "-15vh",
           },
         },
       }}
@@ -117,18 +109,18 @@ export default function CommandPalette({ open, onClose, actions, onExecute }: Co
         variant="standard"
         fullWidth
         sx={{
-          px: 2, py: 1.5,
+          px: 2.5, py: 2,
           "& .MuiInput-root:before, & .MuiInput-root:after": { display: "none" },
           "& input": {
-            fontSize: "0.85rem", color: "#f4f4f5", fontFamily: '"Inter", sans-serif',
-            "&::placeholder": { color: "#52525b", opacity: 1 },
+            fontSize: "1rem", color: "text.primary", fontFamily: '"Inter", sans-serif',
+            "&::placeholder": { color: "#555558", opacity: 1 },
           },
         }}
       />
-      <Divider sx={{ borderColor: "#27272a" }} />
+      <Divider sx={{ borderColor: "divider" }} />
       <Box sx={{ maxHeight: "50vh", overflow: "auto" }} ref={listRef}>
         {grouped.groups.length === 0 ? (
-          <Typography variant="caption" sx={{ display: "block", textAlign: "center", py: 4, color: "#52525b", fontSize: "0.7rem" }}>
+          <Typography variant="caption" sx={{ display: "block", textAlign: "center", py: 4, color: "text.secondary", fontSize: "0.7rem" }}>
             No matching commands
           </Typography>
         ) : (
@@ -145,7 +137,7 @@ export default function CommandPalette({ open, onClose, actions, onExecute }: Co
                         variant="caption"
                         sx={{
                           display: "block", px: 2, pt: catIdx === 0 ? 1 : 1.5, pb: 0.25,
-                          fontSize: "0.55rem", fontWeight: 600, color: "#71717a",
+                          fontSize: "0.55rem", fontWeight: 600, color: "text.secondary",
                           textTransform: "uppercase", letterSpacing: "0.08em",
                         }}
                       >
@@ -157,18 +149,18 @@ export default function CommandPalette({ open, onClose, actions, onExecute }: Co
                       onClick={() => handleClick(action)}
                       sx={{
                         px: 2, py: 0.5, mx: 0.5, borderRadius: "4px",
-                        "&.Mui-selected": { bgcolor: "rgba(59,130,246,0.12)" },
-                        "&.Mui-selected:hover": { bgcolor: "rgba(59,130,246,0.16)" },
+                        "&.Mui-selected": { bgcolor: "rgba(99,102,241,0.12)" },
+                        "&.Mui-selected:hover": { bgcolor: "rgba(99,102,241,0.16)" },
                         "&:hover": { bgcolor: "rgba(255,255,255,0.03)" },
                       }}
                     >
-                      <ListItemIcon sx={{ minWidth: 24, mr: 1, color: "#71717a", "& svg": { width: 14, height: 14 } }}>
+                      <ListItemIcon sx={{ minWidth: 24, mr: 1, color: "text.secondary", "& svg": { width: 14, height: 14 } }}>
                         {(() => { const Icon = CATEGORY_ICONS[action.category]; return <Icon />; })()}
                       </ListItemIcon>
                       <ListItemText
                         primary={action.label}
                         slotProps={{
-                          primary: { sx: { fontSize: "0.75rem", fontWeight: 500, color: "#f4f4f5" } },
+                          primary: { sx: { fontSize: "0.75rem", fontWeight: 500, color: "text.primary" } },
                         }}
                       />
                     </ListItemButton>
@@ -179,7 +171,7 @@ export default function CommandPalette({ open, onClose, actions, onExecute }: Co
           </List>
         )}
       </Box>
-      <Divider sx={{ borderColor: "#27272a" }} />
+      <Divider sx={{ borderColor: "divider" }} />
       <Box sx={{ display: "flex", gap: 1.5, px: 2, py: 0.75, justifyContent: "flex-end" }}>
         <KeyHint icon={<CornerDownLeft size={12} />} desc="select" />
         <KeyHint icon={<><ArrowUp size={12} /><ArrowDown size={12} /></>} desc="navigate" />
@@ -189,19 +181,19 @@ export default function CommandPalette({ open, onClose, actions, onExecute }: Co
   );
 }
 
-function KeyHint({ icon, desc }: { icon: ReactNode; desc: string }) {
+function KeyHint({ icon, label, desc }: { icon?: ReactNode; label?: string; desc: string }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
       <Box
         sx={{
-          fontSize: "0.55rem", color: "#a1a1aa",
-          bgcolor: "#27272a", px: 0.4, py: 0.15, borderRadius: "2px", lineHeight: 1.3,
+          fontSize: "0.55rem", color: "text.secondary",
+          bgcolor: "background.elevated", px: 0.4, py: 0.15, borderRadius: "2px", lineHeight: 1.3,
           display: "flex", alignItems: "center", gap: 1,
         }}
       >
-        {icon}
+        {icon ?? label}
       </Box>
-      <Typography variant="caption" sx={{ fontSize: "0.55rem", color: "#52525b" }}>{desc}</Typography>
+      <Typography variant="caption" sx={{ fontSize: "0.55rem", color: "text.secondary" }}>{desc}</Typography>
     </Box>
   );
 }

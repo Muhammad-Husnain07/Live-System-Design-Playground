@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef, useState, useMemo, type DragEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ReactFlow, {
-  Background,
+  Background, BackgroundVariant,
   Controls,
   MiniMap,
   Panel,
@@ -15,7 +15,7 @@ import ReactFlow, {
   ReactFlowProvider,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Sword, Trophy, Frown, Check, Play, Zap } from "lucide-react";
+import { Sword, Trophy, Frown } from "lucide-react";
 import { useProjectStore } from "../store/projectStore";
 import { useCanvasStore } from "../store/canvasStore";
 import { useShallow } from "zustand/react/shallow";
@@ -36,10 +36,10 @@ import { useChallengeStore } from "../store/challengeStore";
 import { useSimulationStore } from "../store/simulationStore";
 import { useAuthStore } from "../store/authStore";
 import { useExportStore } from "../store/exportStore";
-import { useMaturityStore } from "../store/maturityStore";
 import MaturityModal from "../components/panels/MaturityModal";
 import ArchitectureInsightsPanel from "../components/panels/ArchitectureInsightsPanel";
 import ExportModal from "../components/panels/ExportModal";
+import FinOpsModal from "../components/panels/FinOpsModal";
 import BottomDrawer from "../components/panels/BottomDrawer";
 import CommandPalette from "../components/ui/CommandPalette";
 import {
@@ -52,6 +52,9 @@ import api from "../utils/api";
 import { ENTERPRISE_TEMPLATES, DEFAULT_SIM, DEFAULT_METRICS } from "../utils/enterpriseTemplates";
 import type { NodeType } from "../types/canvas";
 import { Box, Typography, Button } from "@mui/material";
+import { Group, Panel as ResizablePanel } from "react-resizable-panels";
+import ResizeHandle from "../components/layout/ResizeHandle";
+import ActivityBar from "../components/layout/ActivityBar";
 
 const VPC_COLORS = [
   "rgba(59,130,246,0.08)", "rgba(16,185,129,0.08)", "rgba(245,158,11,0.08)",
@@ -258,15 +261,16 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   const setShowDeployPanel = useDeployStore((s) => s.setShowDeployPanel);
   const showSecurityPanel = useSecurityStore((s) => s.showSecurityPanel);
   const setShowSecurityPanel = useSecurityStore((s) => s.setShowSecurityPanel);
-  const showFinOpsPanel = useFinOpsStore((s) => s.showPanel);
-  const setShowFinOpsPanel = useFinOpsStore((s) => s.setShowPanel);
+
   const [showDrillPanel, setShowDrillPanel] = useState(false);
   const [showMaturityPanel, setShowMaturityPanel] = useState(false);
+  const [showFinOpsModal, setShowFinOpsModal] = useState(false);
   const onToggleMaturityPanel = useCallback(() => setShowMaturityPanel((v) => !v), []);
   const [showInsightsPanel, setShowInsightsPanel] = useState(false);
   const onToggleInsightsPanel = useCallback(() => setShowInsightsPanel((v) => !v), []);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [activeSidebar, setActiveSidebar] = useState<"components" | "templates" | "search" | null>("components");
   const reactFlowRef = useRef<any>(null);
   useEffect(() => { reactFlowRef.current = reactFlowInstance; }, [reactFlowInstance]);
   const activeChallenge = useChallengeStore((s) => s.activeChallenge);
@@ -759,7 +763,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
   }
 
   return (
-    <Box sx={{ height: "100vh", bgcolor: "#09090b", display: "flex", flexDirection: "column", overflow: "hidden", color: "#f4f4f5" }}>
+    <Box sx={{ height: "100vh", bgcolor: "background.default", display: "flex", flexDirection: "column", overflow: "hidden", color: "text.primary" }}>
+      {/* Row 1: Top Command Bar — fixed 44px */}
       <TopToolbar
         projectId={projectId}
         saving={saving}
@@ -773,8 +778,8 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         onToggleDeployPanel={() => { setActiveRightTab("deploy"); setShowDeployPanel(!showDeployPanel); }}
         showSecurityPanel={showSecurityPanel}
         onToggleSecurityPanel={() => { setActiveRightTab("security"); setShowSecurityPanel(!showSecurityPanel); }}
-        showFinOpsPanel={showFinOpsPanel}
-        onToggleFinOpsPanel={() => { setActiveRightTab("finops"); setShowFinOpsPanel(!showFinOpsPanel); }}
+        showFinOpsModal={showFinOpsModal}
+        onToggleFinOpsModal={() => setShowFinOpsModal((v) => !v)}
         showDrillPanel={showDrillPanel}
         onToggleDrillPanel={() => setShowDrillPanel(!showDrillPanel)}
         showMaturityPanel={showMaturityPanel}
@@ -785,6 +790,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         remoteUsers={remoteUsers}
       />
 
+      {/* Conditional bars */}
       {activeChallenge && (
         <ChallengeTimerBar
           challenge={activeChallenge}
@@ -812,142 +818,167 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
         />
       )}
 
-      <Box sx={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
-        <NodePanel onApplyTemplate={applyTemplate} />
-        <Box ref={reactFlowWrapper} sx={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative", cursor: isDraggingOver ? "crosshair" : undefined, "& .react-flow": isDraggingOver ? { boxShadow: "inset 0 0 60px rgba(34,197,94,0.08)", transition: "box-shadow 0.15s" } : {}, "& .react-flow__selection": { background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.4)" } }} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} onMouseMove={handleMouseMove}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onInit={setReactFlowInstance}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            onNodeClick={onNodeClick}
-            onEdgeClick={onEdgeClick}
-            onPaneClick={onPaneClick}
-            onNodeDragStop={onNodeDragStop}
-            isValidConnection={isValidConnection}
-            fitView
-            panOnScroll
-            elevateNodesOnSelect
-            nodeExtent={canvasExtent}
-            translateExtent={canvasExtent}
-            onlyRenderVisibleElements
-            snapToGrid
-            snapGrid={[16, 16]}
-            onNodesDelete={(deleted) => {
-              deleted.forEach((n) => removeNode(n.id));
-              scheduleAutoSave();
-              debouncedSync();
-            }}
-            onEdgesDelete={(deleted) => {
-              deleted.forEach((e) => removeEdge(e.id));
-              scheduleAutoSave();
-              debouncedSync();
-            }}
-          >
-            <VpcBoundaries nodes={nodes} />
-            <Background variant="dots" gap={20} size={1} color="#27272a" />
-            <Box sx={{
-              "& .react-flow__controls": {
-                background: "transparent !important",
-                border: "none !important",
-                boxShadow: "none !important",
-                display: "flex !important",
-                flexDirection: "column-reverse !important",
-              },
-              "& .react-flow__controls-button": {
-                background: "#27272a !important",
-                border: "1px solid #3f3f46 !important",
-                boxShadow: "none !important",
-                "&:hover": {
-                  background: "#3f3f46 !important",
-                },
-              },
-            }}>
-              <Controls />
-            </Box>
-            <MiniMap
-              style={{
-                background: "#09090b",
-                border: "1px solid #3f3f46",
-                borderRadius: "8px",
-                overflow: "hidden",
-              }}
-              nodeColor={(n) => {
-                const nt = (n.data as any)?.nodeType;
-                const meta = nt ? (NODE_REGISTRY as any)[nt] : null;
-                return meta?.color ?? "#27272a";
-              }}
-              maskColor="rgba(9,9,11,0.85)"
-              nodeStrokeWidth={2}
-            />
-            <Panel position="bottom-left">
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "10px", fontFamily: '"ui-monospace", "SFMono-Regular", monospace', bgcolor: "rgba(9,9,11,0.8)", backdropFilter: "blur(4px)", px: "10px", py: "4px", borderRadius: "4px", border: "1px solid", borderColor: "#27272a", pointerEvents: "auto", color: "#52525b" }}>
-                <Typography component="span" sx={{ fontSize: "inherit", fontFamily: "inherit" }}>Nodes: {nodes.length}</Typography>
-                <Typography component="span" sx={{ fontSize: "inherit", color: "#3f3f46" }}>|</Typography>
-                <Typography component="span" sx={{ fontSize: "inherit", fontFamily: "inherit" }}>Edges: {edges.length}</Typography>
-              </Box>
-            </Panel>
-          </ReactFlow>
-          {collabConnected && remoteCursors.map((c) => (
-            <Box
-              key={c.clientId}
-              sx={{ position: "absolute", pointerEvents: "none", zIndex: 50, left: c.x, top: c.y }}
-            >
-              <svg width="20" height="24" viewBox="0 0 20 24" fill="none">
-                <path d="M2 2L15 20L10.5 13.5L18 11L2 2Z" fill={c.color} stroke="white" strokeWidth="1.5" />
-              </svg>
-              <Typography
-                component="span"
-                sx={{ position: "absolute", left: 16, top: 0, fontSize: "10px", fontWeight: 500, whiteSpace: "nowrap", px: "6px", py: "2px", borderRadius: "4px", bgcolor: c.color, color: "#fff" }}
-              >
-                {c.name}
-              </Typography>
-            </Box>
-          ))}
-          {nodes.length === 0 && !isLoading && (
-            <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Box sx={{ textAlign: "center", maxWidth: 420 }}>
-                <Box sx={{ width: 64, height: 64, mx: "auto", mb: 2, borderRadius: "50%", bgcolor: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Typography component="span" sx={{ fontSize: "24px", lineHeight: 1, color: "#22c55e" }}>&#9678;</Typography>
-                </Box>
-                <Typography variant="h5" sx={{ fontSize: "18px", fontWeight: 600, color: "#f4f4f5", mb: 0.5 }}>
-                  Start Designing Your System
-                </Typography>
-                <Typography variant="body1" sx={{ fontSize: "12px", color: "#71717a", mb: 2.5, lineHeight: 1.5 }}>
-                  Drag components from the left, or start with a template
-                </Typography>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1, pointerEvents: "auto" }}>
-                  {allTemplates.map((tpl) => (
-                    <Button
-                      key={tpl.id}
-                      onClick={() => applyTemplate(tpl.id)}
-                      variant="outlined"
-                      sx={{
-                        textTransform: "none", justifyContent: "flex-start", gap: 1.5, px: 2, py: 1,
-                        borderColor: "#3f3f46", color: "#d4d4d8", fontSize: "0.75rem", fontWeight: 500,
-                        "&:hover": { borderColor: "#22c55e", bgcolor: "rgba(34,197,94,0.08)", color: "#22c55e" },
+      {/* Rows 2-3: Resizable IDE layout */}
+      <Box sx={{ flex: 1, minHeight: 0 }}>
+        <Group orientation="vertical" style={{ height: "100%" }}>
+          {/* Main horizontal area */}
+          <ResizablePanel defaultSize="80%" minSize="30%">
+            <Box sx={{ display: "flex", height: "100%", minHeight: 0 }}>
+              {/* Activity Bar — fixed 48px icon strip */}
+              <ActivityBar activeView={activeSidebar} onViewChange={setActiveSidebar} />
+              {/* Sidebar | Canvas | Inspector */}
+              <Group orientation="horizontal" style={{ flex: 1, minWidth: 0 }}>
+                <ResizablePanel defaultSize="20%" minSize="15%" maxSize="40%" collapsible collapsedSize={0}>
+                  {activeSidebar ? <NodePanel view={activeSidebar} onApplyTemplate={applyTemplate} /> : null}
+                </ResizablePanel>
+                <ResizeHandle direction="horizontal" />
+                <ResizablePanel>
+                  <Box ref={reactFlowWrapper} sx={{ width: "100%", height: "100%", position: "relative", cursor: isDraggingOver ? "crosshair" : undefined, "& .react-flow": isDraggingOver ? { boxShadow: "inset 0 0 60px rgba(34,197,94,0.08)", transition: "box-shadow 0.15s" } : {}, "& .react-flow__selection": { background: "rgba(99,102,241,0.1)", border: "1px solid #6366F1" } }} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} onMouseMove={handleMouseMove}>
+                    <ReactFlow
+                      nodes={nodes}
+                      edges={edges}
+                      onNodesChange={onNodesChange}
+                      onEdgesChange={onEdgesChange}
+                      onConnect={onConnect}
+                      onInit={setReactFlowInstance}
+                      nodeTypes={nodeTypes}
+                      edgeTypes={edgeTypes}
+                      onNodeClick={onNodeClick}
+                      onEdgeClick={onEdgeClick}
+                      onPaneClick={onPaneClick}
+                      onNodeDragStop={onNodeDragStop}
+                      isValidConnection={isValidConnection}
+                      fitView
+                      panOnScroll
+                      elevateNodesOnSelect
+                      nodeExtent={canvasExtent}
+                      translateExtent={canvasExtent}
+                      onlyRenderVisibleElements
+                      snapToGrid
+                      snapGrid={[16, 16]}
+                      onNodesDelete={(deleted) => {
+                        deleted.forEach((n) => removeNode(n.id));
+                        scheduleAutoSave();
+                        debouncedSync();
+                      }}
+                      onEdgesDelete={(deleted) => {
+                        deleted.forEach((e) => removeEdge(e.id));
+                        scheduleAutoSave();
+                        debouncedSync();
                       }}
                     >
-                      <Typography component="span" sx={{ fontSize: "16px", lineHeight: 1 }}>{tpl.icon}</Typography>
-                      <Box sx={{ textAlign: "left" }}>
-                        <Typography sx={{ fontSize: "0.75rem", fontWeight: 500, color: "inherit" }}>{tpl.label}</Typography>
-                        <Typography sx={{ fontSize: "0.6rem", color: "#71717a", mt: 0.25 }}>{tpl.desc}</Typography>
+                      <VpcBoundaries nodes={nodes} />
+                      <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#1E1E20" />
+                      <Box sx={{
+                        "& .react-flow__controls": {
+                          background: "transparent !important",
+                          border: "none !important",
+                          boxShadow: "none !important",
+                          display: "flex !important",
+                          flexDirection: "column-reverse !important",
+                        },
+                        "& .react-flow__controls-button": {
+                          background: "#27272a !important",
+                          border: "1px solid #3f3f46 !important",
+                          boxShadow: "none !important",
+                          "&:hover": {
+                            background: "#3f3f46 !important",
+                          },
+                        },
+                      }}>
+                        <Controls />
                       </Box>
-                    </Button>
-                  ))}
-                </Box>
-              </Box>
+                      <MiniMap
+                        style={{
+                          background: "#09090b",
+                          border: "1px solid #3f3f46",
+                          borderRadius: "8px",
+                          overflow: "hidden",
+                        }}
+                        nodeColor={(n) => {
+                          const nt = (n.data as any)?.nodeType;
+                          const meta = nt ? (NODE_REGISTRY as any)[nt] : null;
+                          return meta?.color ?? "#27272a";
+                        }}
+                        maskColor="rgba(10,10,11,0.8)"
+                        nodeStrokeWidth={2}
+                      />
+                      <Panel position="bottom-left">
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "10px", fontFamily: '"ui-monospace", "SFMono-Regular", monospace', bgcolor: "rgba(9,9,11,0.8)", backdropFilter: "blur(4px)", px: "10px", py: "4px", borderRadius: "4px", border: "1px solid", borderColor: "#27272a", pointerEvents: "auto", color: "#52525b" }}>
+                          <Typography component="span" sx={{ fontSize: "inherit", fontFamily: "inherit" }}>Nodes: {nodes.length}</Typography>
+                          <Typography component="span" sx={{ fontSize: "inherit", color: "#3f3f46" }}>|</Typography>
+                          <Typography component="span" sx={{ fontSize: "inherit", fontFamily: "inherit" }}>Edges: {edges.length}</Typography>
+                        </Box>
+                      </Panel>
+                    </ReactFlow>
+                    {collabConnected && remoteCursors.map((c) => (
+                      <Box
+                        key={c.clientId}
+                        sx={{ position: "absolute", pointerEvents: "none", zIndex: 50, left: c.x, top: c.y }}
+                      >
+                        <svg width="20" height="24" viewBox="0 0 20 24" fill="none">
+                          <path d="M2 2L15 20L10.5 13.5L18 11L2 2Z" fill={c.color} stroke="white" strokeWidth="1.5" />
+                        </svg>
+                        <Typography
+                          component="span"
+                          sx={{ position: "absolute", left: 16, top: 0, fontSize: "10px", fontWeight: 500, whiteSpace: "nowrap", px: "6px", py: "2px", borderRadius: "4px", bgcolor: c.color, color: "#fff" }}
+                        >
+                          {c.name}
+                        </Typography>
+                      </Box>
+                    ))}
+                    {nodes.length === 0 && !isLoading && (
+                      <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Box sx={{ textAlign: "center", maxWidth: 420 }}>
+                          <Box sx={{ width: 64, height: 64, mx: "auto", mb: 2, borderRadius: "50%", bgcolor: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <Typography component="span" sx={{ fontSize: "24px", lineHeight: 1, color: "#22c55e" }}>&#9678;</Typography>
+                          </Box>
+                          <Typography variant="h5" sx={{ fontSize: "18px", fontWeight: 600, color: "#f4f4f5", mb: 0.5 }}>
+                            Start Designing Your System
+                          </Typography>
+                          <Typography variant="body1" sx={{ fontSize: "12px", color: "#71717a", mb: 2.5, lineHeight: 1.5 }}>
+                            Drag components from the left, or start with a template
+                          </Typography>
+                          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, pointerEvents: "auto" }}>
+                            {allTemplates.map((tpl) => (
+                              <Button
+                                key={tpl.id}
+                                onClick={() => applyTemplate(tpl.id)}
+                                variant="outlined"
+                                sx={{
+                                  textTransform: "none", justifyContent: "flex-start", gap: 1.5, px: 2, py: 1,
+                                  borderColor: "#3f3f46", color: "#d4d4d8", fontSize: "0.75rem", fontWeight: 500,
+                                  "&:hover": { borderColor: "#22c55e", bgcolor: "rgba(34,197,94,0.08)", color: "#22c55e" },
+                                }}
+                              >
+                                <Box component="span" sx={{ fontSize: "16px", lineHeight: 1, display: "inline-flex" }}><tpl.icon size={16} /></Box>
+                                <Box sx={{ textAlign: "left" }}>
+                                  <Typography sx={{ fontSize: "0.75rem", fontWeight: 500, color: "inherit" }}>{tpl.label}</Typography>
+                                  <Typography sx={{ fontSize: "0.6rem", color: "#71717a", mt: 0.25 }}>{tpl.desc}</Typography>
+                                </Box>
+                              </Button>
+                            ))}
+                          </Box>
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+                </ResizablePanel>
+                <ResizeHandle direction="horizontal" />
+                <ResizablePanel defaultSize="25%" minSize="20%" maxSize="50%">
+                  {showDrillPanel ? <DrillPanel /> : <UnifiedRightPanel onSimStart={simStart} onSimStop={simStop} />}
+                </ResizablePanel>
+              </Group>
             </Box>
-          )}
-        </Box>
-        {showDrillPanel ? <DrillPanel /> : <UnifiedRightPanel onSimStart={simStart} onSimStop={simStop} />}
+          </ResizablePanel>
+          <ResizeHandle direction="vertical" />
+          <ResizablePanel defaultSize="20%" minSize="4%" maxSize="50%">
+            <BottomDrawer />
+          </ResizablePanel>
+        </Group>
       </Box>
 
-      <BottomDrawer projectId={projectId} />
+      {/* Overlays */}
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
@@ -956,6 +987,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
       />
       <ToastContainer />
       <ExportModal />
+      {showFinOpsModal && <FinOpsModal onClose={() => setShowFinOpsModal(false)} />}
       <MaturityModal
         projectId={projectId}
         open={showMaturityPanel}

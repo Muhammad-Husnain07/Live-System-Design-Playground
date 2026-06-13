@@ -1,36 +1,44 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { motion } from "framer-motion";
 import Editor from "@monaco-editor/react";
 import { useExportStore } from "../../store/exportStore";
 import { exportTerraform, exportKubernetes, exportCloudFormation, exportTerraformGCP, exportTerraformAzure, exportDeploymentManager, exportArm } from "../../utils/iacExporter";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, Box, Button, Typography } from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
+import { X } from "lucide-react";
 
 interface IaCTab {
   id: string;
   label: string;
+  sublabel: string;
   generator: () => string;
 }
 
-import { useShallow } from "zustand/react/shallow";
+const TABS: IaCTab[] = [
+  { id: "terraform", label: "Terraform", sublabel: "HashiCorp HCL", generator: exportTerraform },
+  { id: "terraform-gcp", label: "Terraform (GCP)", sublabel: "Google Cloud", generator: exportTerraformGCP },
+  { id: "terraform-azure", label: "Terraform (Azure)", sublabel: "Microsoft Azure", generator: exportTerraformAzure },
+  { id: "kubernetes", label: "Kubernetes", sublabel: "K8s YAML", generator: exportKubernetes },
+  { id: "cloudformation", label: "CloudFormation", sublabel: "AWS JSON", generator: exportCloudFormation },
+  { id: "deployment-manager", label: "Deployment Manager", sublabel: "GCP YAML", generator: exportDeploymentManager },
+  { id: "arm", label: "ARM Template", sublabel: "Azure JSON", generator: exportArm },
+];
+
+function getLang(id: string): string {
+  if (id === "kubernetes" || id === "deployment-manager") return "yaml";
+  if (id === "arm") return "json";
+  return "hcl";
+}
 
 export default function ExportModal() {
-  const { showModal, closeExport } = useExportStore(useShallow((s) => ({ showModal: s.showModal, closeExport: s.closeExport })));
+  const showModal = useExportStore((s) => s.showModal);
+  const closeExport = useExportStore((s) => s.closeExport);
   const [tabIndex, setTabIndex] = useState(0);
   const [copied, setCopied] = useState(false);
   const [iacError, setIacError] = useState<string | null>(null);
 
-  const tabs: IaCTab[] = [
-    { id: "terraform", label: "Terraform", generator: exportTerraform },
-    { id: "terraform-gcp", label: "Terraform (GCP)", generator: exportTerraformGCP },
-    { id: "terraform-azure", label: "Terraform (Azure)", generator: exportTerraformAzure },
-    { id: "kubernetes", label: "Kubernetes", generator: exportKubernetes },
-    { id: "cloudformation", label: "CloudFormation", generator: exportCloudFormation },
-    { id: "deployment-manager", label: "Deployment Manager", generator: exportDeploymentManager },
-    { id: "arm", label: "ARM Template", generator: exportArm },
-  ];
+  const currentTab = TABS[tabIndex];
 
-  const currentTab = tabs[tabIndex];
-
-  const getCode = (): string => {
+  const code = useMemo(() => {
     if (iacError) return iacError;
     try {
       return currentTab.generator();
@@ -39,65 +47,150 @@ export default function ExportModal() {
       setIacError(msg);
       return `// Error generating ${currentTab.label} configuration:\n// ${msg}`;
     }
-  };
+  }, [currentTab, iacError]);
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(getCode());
+      await navigator.clipboard.writeText(code);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback
-    }
+    } catch { /* ignore */ }
   };
 
-  const handleTabChange = (_: React.SyntheticEvent, v: number) => {
-    setTabIndex(v);
+  const handleTabClick = (i: number) => {
+    setTabIndex(i);
     setIacError(null);
   };
 
+  if (!showModal) return null;
+
   return (
-    <Dialog open={showModal} onClose={closeExport} maxWidth="md" fullWidth slotProps={{ paper: { sx: { bgcolor: "#18181b", border: 1, borderColor: "#27272a" } } }}>
-      <DialogTitle sx={{ color: "text.primary", borderBottom: 1, borderColor: "#27272a", px: 2, py: 1.5 }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "0.95rem" }}>Export Infrastructure as Code</Typography>
-      </DialogTitle>
-      <DialogContent sx={{ px: 0, pt: 0 }}>
-        <Tabs
-          value={tabIndex}
-          onChange={handleTabChange}
-          variant="fullWidth"
-          sx={{
-            borderBottom: 1, borderColor: "#27272a",
-            "& .MuiTab-root": { color: "#a1a1aa", textTransform: "none", fontWeight: 500, fontSize: "0.8rem", minHeight: 40 },
-            "& .Mui-selected": { color: "#22c55e !important" },
-            "& .MuiTabs-indicator": { bgcolor: "#22c55e" },
-          }}
-        >
-          {tabs.map((t) => <Tab key={t.id} label={t.label} />)}
-        </Tabs>
-        <Box sx={{ height: 400, borderBottom: 1, borderColor: "#27272a" }}>
-          <Editor
-            key={`${currentTab.id}-${iacError ?? "ok"}`}
-            language={currentTab.id === "kubernetes" || currentTab.id === "deployment-manager" ? "yaml" : currentTab.id === "arm" ? "json" : "hcl"}
-            theme="vs-dark"
-            value={getCode()}
-            options={{ readOnly: true, minimap: { enabled: false }, fontSize: 12, lineNumbers: "on", scrollBeyondLastLine: false, wordWrap: "on" }}
-          />
-        </Box>
-        {iacError && (
-          <Box sx={{ px: 2, py: 1, bgcolor: "rgba(239,68,68,0.1)", borderBottom: 1, borderColor: "#27272a" }}>
-            <Typography variant="caption" sx={{ color: "#ef4444" }}>
-              {iacError}
+    <Box sx={{
+      position: "fixed", inset: 0, zIndex: 1300,
+      bgcolor: "rgba(10,10,11,0.92)", backdropFilter: "blur(16px)",
+      display: "flex",
+    }}>
+      {/* Close button */}
+      <Box
+        onClick={closeExport}
+        sx={{
+          position: "absolute", top: 16, right: 16, zIndex: 10,
+          width: 36, height: 36, borderRadius: "8px",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#8B8B8F", cursor: "pointer",
+          transition: "all 0.15s",
+          "&:hover": { bgcolor: "#252528", color: "#EDEDEF" },
+          "&:focus-visible": { outline: "2px solid #6366F1", outlineOffset: 2 },
+        }}
+        tabIndex={0}
+        role="button"
+        aria-label="Close export dialog"
+      >
+        <X size={20} />
+      </Box>
+
+      {/* Left sidebar */}
+      <Box sx={{
+        width: 200, flexShrink: 0, borderRight: "1px solid #2A2A2E",
+        display: "flex", flexDirection: "column", pt: 6, px: 1,
+      }}>
+        <Typography variant="caption" sx={{
+          color: "#8B8B8F", textTransform: "uppercase", letterSpacing: "0.08em",
+          fontWeight: 600, fontSize: "0.5rem", mb: 1.5, px: 1,
+        }}>
+          Providers
+        </Typography>
+        {TABS.map((tab, i) => (
+          <Box
+            key={tab.id}
+            onClick={() => handleTabClick(i)}
+            sx={{
+              px: 1.25, py: 1, borderRadius: "6px", cursor: "pointer",
+              mb: 0.25, transition: "all 0.12s",
+              bgcolor: i === tabIndex ? "#252528" : "transparent",
+              "&:hover": { bgcolor: i === tabIndex ? "#252528" : "#1E1E20" },
+              "&:focus-visible": { outline: "2px solid #6366F1", outlineOffset: 2 },
+            }}
+            tabIndex={0}
+            role="button"
+            onClickCapture={() => handleTabClick(i)}
+          >
+            <Typography variant="caption" sx={{
+              color: i === tabIndex ? "#EDEDEF" : "#8B8B8F",
+              fontWeight: i === tabIndex ? 600 : 400,
+              fontSize: "0.65rem", display: "block",
+            }}>
+              {tab.label}
+            </Typography>
+            <Typography variant="caption" sx={{
+              color: "#555558", fontSize: "0.5rem", display: "block", mt: 0.15,
+            }}>
+              {tab.sublabel}
             </Typography>
           </Box>
+        ))}
+      </Box>
+
+      {/* Main content */}
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {/* Header */}
+        <Box sx={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          px: 2.5, py: 1.5, borderBottom: "1px solid #2A2A2E", flexShrink: 0,
+        }}>
+          <Box>
+            <Typography variant="caption" sx={{ color: "#EDEDEF", fontWeight: 600, fontSize: "0.75rem" }}>
+              Export Infrastructure as Code
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#555558", fontSize: "0.55rem", display: "block", mt: 0.15 }}>
+              {currentTab.label} — {currentTab.sublabel}
+            </Typography>
+          </Box>
+          <Button
+            onClick={handleCopy}
+            variant="contained"
+            sx={{
+              fontSize: "0.65rem", fontWeight: 600, px: 2, py: 0.75,
+              bgcolor: copied ? "#22C55E" : "#6366F1",
+              color: "#fff",
+              "&:hover": { bgcolor: copied ? "#16A34A" : "#4F46E5" },
+              "&:focus-visible": { outline: "2px solid #6366F1", outlineOffset: 2 },
+              "&:active": { transform: "scale(0.98)" },
+              transition: "all 0.12s",
+              textTransform: "none", borderRadius: "6px",
+            }}
+          >
+            {copied ? "Copied!" : "Copy Code"}
+          </Button>
+        </Box>
+
+        {/* Editor */}
+        <motion.div
+          key={currentTab.id}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.12 }}
+          style={{ flex: 1, minHeight: 0 }}
+        >
+          <Editor
+            language={getLang(currentTab.id)}
+            theme="vs-dark"
+            value={code}
+            options={{
+              readOnly: true, minimap: { enabled: false },
+              fontSize: 13, lineNumbers: "on",
+              scrollBeyondLastLine: false, wordWrap: "on",
+              padding: { top: 12 },
+            }}
+          />
+        </motion.div>
+
+        {iacError && (
+          <Box sx={{ px: 2.5, py: 1, bgcolor: "rgba(239,68,68,0.1)", borderTop: "1px solid #2A2A2E" }}>
+            <Typography variant="caption" sx={{ color: "#ef4444", fontSize: "0.6rem" }}>{iacError}</Typography>
+          </Box>
         )}
-      </DialogContent>
-      <DialogActions sx={{ px: 2, py: 1, borderTop: 1, borderColor: "#27272a" }}>
-        <Button onClick={closeExport} size="small" sx={{ color: "#a1a1aa", textTransform: "none" }}>Close</Button>
-        <Button onClick={handleCopy} size="small" variant="contained" sx={{ bgcolor: "#22c55e", color: "#09090b", textTransform: "none", "&:hover": { bgcolor: "#16a34a" } }}>
-          {copied ? "Copied!" : "Copy to Clipboard"}
-        </Button>
-      </DialogActions>
-    </Dialog>
+      </Box>
+    </Box>
   );
 }

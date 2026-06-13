@@ -1,10 +1,9 @@
 import { memo, useCallback, useRef, useState, type ReactNode } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { motion } from "framer-motion";
-import { X, Skull, Flame, Check, CircleSlash, Globe, AlertTriangle, Circle } from "lucide-react";
+import { Skull, Globe, AlertTriangle, Circle } from "lucide-react";
 import { NODE_REGISTRY } from "../../utils/nodeRegistry";
 import { useChaosStore } from "../../store/chaosStore";
-import { useSecurityStore } from "../../store/securityStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useDeployStore } from "../../store/deploymentStore";
 import { useFinOpsStore } from "../../store/finopsStore";
@@ -12,7 +11,7 @@ import { useArchitectureStore } from "../../store/architectureStore";
 import { NODE_COMPAT } from "../../store/exportStore";
 import type { CanvasNode } from "../../types/canvas";
 import type { BadgeType } from "../../store/architectureStore";
-import { Box, Stack, Typography, LinearProgress, Chip, Badge } from "@mui/material";
+import { Box, Typography, Chip } from "@mui/material";
 
 export type BaseNodeData = CanvasNode["data"];
 
@@ -32,13 +31,9 @@ const DEFAULT_W = 220;
 const DEFAULT_H = 120;
 
 const handleStyle: React.CSSProperties = {
-  opacity: 0,
-  transition: "opacity 0.2s",
-  width: 12,
-  height: 12,
-  borderWidth: 2,
-  borderColor: "#71717a",
-  background: "#18181b",
+  opacity: 0, transition: "opacity 0.2s",
+  width: 10, height: 10,
+  borderWidth: 2, borderColor: "#3E3E44", background: "#141415",
   zIndex: 20,
 };
 
@@ -49,36 +44,23 @@ function ResizeHandle({ nodeId }: { nodeId: string }) {
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+      e.preventDefault(); e.stopPropagation();
       setResizing(true);
-
       const node = useCanvasStore.getState().nodes.find((n) => n.id === nodeId);
       const rawW = node?.style?.width;
       const rawH = node?.style?.height;
       startRef.current = {
-        x: e.clientX,
-        y: e.clientY,
+        x: e.clientX, y: e.clientY,
         w: typeof rawW === "number" ? rawW : DEFAULT_W,
         h: typeof rawH === "number" ? rawH : DEFAULT_H,
       };
-
       const onMove = (ev: PointerEvent) => {
         const dw = ev.clientX - startRef.current.x;
         const dh = ev.clientY - startRef.current.y;
-        const newW = Math.max(MIN_W, startRef.current.w + dw);
-        const newH = Math.max(MIN_H, startRef.current.h + dh);
-        resizeNode(nodeId, Math.round(newW), Math.round(newH));
+        resizeNode(nodeId, Math.max(MIN_W, startRef.current.w + dw), Math.max(MIN_H, startRef.current.h + dh));
       };
-
-      const onUp = () => {
-        setResizing(false);
-        document.removeEventListener("pointermove", onMove);
-        document.removeEventListener("pointerup", onUp);
-      };
-
-      document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup", onUp);
+      const onUp = () => { setResizing(false); document.removeEventListener("pointermove", onMove); document.removeEventListener("pointerup", onUp); };
+      document.addEventListener("pointermove", onMove); document.addEventListener("pointerup", onUp);
     },
     [nodeId, resizeNode],
   );
@@ -86,20 +68,31 @@ function ResizeHandle({ nodeId }: { nodeId: string }) {
   return (
     <Box
       onPointerDown={onPointerDown}
-      sx={{
-        position: "absolute", bottom: 0, right: 0, zIndex: 30,
-        cursor: "nwse-resize", opacity: 0, transition: "opacity 0.2s",
-        "&:hover": { opacity: 1 },
-        touchAction: "none",
-      }}
+      sx={{ position: "absolute", bottom: 0, right: 0, zIndex: 30, cursor: "nwse-resize", opacity: 0, transition: "opacity 0.2s", "&:hover": { opacity: 1 }, touchAction: "none" }}
       style={resizing ? { opacity: 1 } : undefined}
     >
-      <svg width="14" height="14" viewBox="0 0 14 14" style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}>
-        <path d="M14 0v14H0l4-4h6V4l4-4z" fill="rgba(96,165,250,0.6)" stroke="rgba(96,165,250,0.9)" strokeWidth="0.5" />
+      <svg width="12" height="12" viewBox="0 0 12 12">
+        <path d="M12 0v12H0l4-4h4V4l4-4z" fill="rgba(99,102,241,0.4)" stroke="rgba(99,102,241,0.6)" strokeWidth="0.5" />
       </svg>
     </Box>
   );
 }
+
+const MiniBar = ({ value, label, color }: { value: number; label: string; color: string }) => (
+  <Box sx={{ flex: 1, minWidth: 0 }}>
+    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.15 }}>
+      <Typography variant="caption" sx={{ fontSize: "0.45rem", color: "#8B8B8F", fontWeight: 500 }}>{label}</Typography>
+      <Typography variant="caption" sx={{ fontSize: "0.45rem", fontFamily: '"JetBrains Mono", monospace', color }}>{Math.round(value)}%</Typography>
+    </Box>
+    <Box sx={{ height: 3, bgcolor: "#2A2A2E", borderRadius: 2, overflow: "hidden" }}>
+      <Box sx={{ height: "100%", borderRadius: 2, bgcolor: color, width: `${Math.min(Math.max(value, 0), 100)}%` }} />
+    </Box>
+  </Box>
+);
+
+const NODE_STYLE = { borderRadius: "8px", bgcolor: "background.paper", border: "1px solid", borderColor: "divider" };
+const SELECTED_STYLE = { border: "1px solid", borderColor: "primary.main", boxShadow: "0 0 8px rgba(99,102,241,0.3)" };
+const FAILED_STYLE = { bgcolor: "rgba(239,68,68,0.08)", border: "1px solid", borderColor: "error.main" };
 
 function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps) {
   const nodeType = data?.nodeType;
@@ -107,7 +100,7 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
 
   if (!meta) {
     return (
-      <Box sx={{ bgcolor: "rgba(127,29,29,0.4)", border: 1, borderColor: "rgba(239,68,68,0.3)", borderRadius: 1, px: 1, py: 0.5, fontSize: "10px", color: "#ef4444" }}>
+      <Box sx={{ bgcolor: "rgba(127,29,29,0.3)", borderRadius: "8px", px: 1, py: 0.5, fontSize: "10px", color: "error.main", border: "1px solid", borderColor: "error.main" }}>
         Unknown
       </Box>
     );
@@ -131,36 +124,34 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
   const isCanaryFailing = isCanary && errorRate > 0.3;
   const bgBorderColor = deployStrategy === "blue_green" && bgActiveGroup === "green" ? "#22C55E" : deployStrategy === "blue_green" && bgActiveGroup === "blue" ? "#3B82F6" : null;
   const hasChaos = useChaosStore((s) => s.activeNodeIds.includes(nodeId));
-  const isSecurityHighlighted = useSecurityStore((s) => s.highlightedNodeIds.includes(nodeId));
-  const isTrustZone = useSecurityStore((s) => s.trustZoneNodeIds.includes(nodeId));
   const isFastBurn = useCanvasStore((s) => s.fastBurnNodeIds.includes(nodeId));
   const exportMode = useCanvasStore((s) => s.exportMode);
   const compatStatus = NODE_COMPAT[nodeType] ?? "skipped";
   const nodeCost = useFinOpsStore((s) => s.nodeCosts.find((c) => c.nodeId === id));
-  const nodeBadges = useArchitectureStore((s) => s.nodeBadges[nodeId] ?? []);
+  const nodeBadgesRaw = useArchitectureStore((s) => s.nodeBadges[nodeId]);
+  const nodeBadges = nodeBadgesRaw ?? [];
   const nw = useCanvasStore((s) => {
-    const n = s.nodes.find((n) => n.id === nodeId);
-    const raw = n?.style?.width;
-    return typeof raw === "number" ? raw : undefined;
+    const n = s.nodes.find((n) => n.id === nodeId); const raw = n?.style?.width; return typeof raw === "number" ? raw : undefined;
   });
   const nh = useCanvasStore((s) => {
-    const n = s.nodes.find((n) => n.id === nodeId);
-    const raw = n?.style?.height;
-    return typeof raw === "number" ? raw : undefined;
+    const n = s.nodes.find((n) => n.id === nodeId); const raw = n?.style?.height; return typeof raw === "number" ? raw : undefined;
   });
-  const dimStyle = nw || nh ? { width: nw ?? DEFAULT_W, height: nh ?? DEFAULT_H } : undefined;
+  const dimStyle = nw || nh ? { width: nw ?? DEFAULT_W, height: nh ?? undefined } : undefined;
 
-  const nodeColor = bgBorderColor ?? (isFailed ? "#EF4444" : hasChaos ? "#F97316" : isSecurityHighlighted ? "#EF4444" : isTrustZone ? "#14B8A6" : selected ? "#22c55e" : meta.color);
-  const shadowColor = isTrustZone ? "rgba(20,184,166,0.4)" : isFailed ? "rgba(239,68,68,0.4)" : hasChaos ? "rgba(249,115,22,0.5)" : isSecurityHighlighted ? "rgba(239,68,68,0.5)" : selected ? "rgba(34,197,94,0.4)" : hovered ? `${meta.color}40` : "rgba(0,0,0,0)";
-  const shadowIntensity = selected || isFailed || hasChaos || isSecurityHighlighted || isTrustZone ? "14px" : hovered ? "10px" : "0px";
+  const nodeStyle = isFailed
+    ? { ...NODE_STYLE, ...FAILED_STYLE }
+    : selected
+    ? { ...NODE_STYLE, ...SELECTED_STYLE }
+    : bgBorderColor
+    ? { ...NODE_STYLE, border: `1px solid ${bgBorderColor}` }
+    : NODE_STYLE;
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ scale: 1.02 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-      style={{ position: "relative", overflow: "hidden", ...dimStyle }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
+      style={{ position: "relative", ...dimStyle }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -170,220 +161,142 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
       <Handle type="source" position={Position.Bottom} id="bottom" isConnectable={isConnectable} style={{ ...handleStyle, opacity: hovered ? 1 : 0 }} />
 
       {isFastBurn && !isFailed && (
-        <Box
-          sx={{
-            position: "absolute", inset: 0, zIndex: 12, pointerEvents: "none", borderRadius: 1,
-            background: "radial-gradient(circle at 50% 50%, transparent 40%, rgba(239,68,68,0.35) 100%)",
-            animation: "pulse-red 1.5s ease-in-out infinite",
-          }}
-        />
-      )}
-      {isTrustZone && selected && hovered && (
-        <Box sx={{ position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", zIndex: 25, pointerEvents: "none" }}>
-          <Typography variant="caption" sx={{ fontSize: 8, fontWeight: 600, bgcolor: "#14B8A6", color: "#fff", px: 0.75, py: 0.25, borderRadius: "4px", fontFamily: "monospace", letterSpacing: "0.05em" }}>
-            Trusted
-          </Typography>
-        </Box>
-      )}
-      {isFailed && (
-        <Box sx={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-          <Chip size="small" color="error" label="FAILED" icon={<X size={12} />} />
-        </Box>
-      )}
-      {hasChaos && !isFailed && (
-        <Box sx={{ position: "absolute", top: -8, right: -8, zIndex: 20 }} title="Chaos active">
-          <Skull size={16} style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))", color: "#fb923c" }} />
-        </Box>
-      )}
-      {isBottleneck && !isFailed && (
-        <Box sx={{ position: "absolute", top: -8, left: -8, zIndex: 20 }} title="Bottleneck detected">
-          <Flame size={16} style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))", color: "#fb923c" }} />
-        </Box>
-      )}
-      {exportMode && (
-        <Box
-          sx={{
-            position: "absolute", top: -8, left: -8, zIndex: 20, width: 20, height: 20,
-            borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 10, fontWeight: 700, border: 2, boxShadow: 2,
-            bgcolor: compatStatus === "supported" ? "rgba(0,128,0,0.3)" : "rgba(128,0,0,0.3)",
-            borderColor: compatStatus === "supported" ? "rgba(34,197,94,0.5)" : "rgba(239,68,68,0.5)",
-          }}
-          title={compatStatus === "supported" ? "IaC Supported" : "IaC Skipped (no mapping)"}
-        >
-          {compatStatus === "supported" ? <Check size={12} style={{ color: "#22c55e" }} /> : <CircleSlash size={12} style={{ color: "#ef4444" }} />}
-        </Box>
-      )}
-      {nodeCost && (
-        <Box
-          sx={{
-            position: "absolute", bottom: -4, right: -4, zIndex: 20,
-            bgcolor: "rgba(0,128,0,0.5)", fontSize: 9, fontFamily: "monospace",
-            px: 0.75, py: 0.25, borderRadius: "999px", border: 1, borderColor: "rgba(34,197,94,0.4)",
-            boxShadow: 2, backdropFilter: "blur(4px)", color: "#22c55e",
-          }}
-        >
-          ${nodeCost.monthlyCost.toFixed(0)}/mo
-        </Box>
+        <Box sx={{ position: "absolute", inset: 0, zIndex: 12, pointerEvents: "none", borderRadius: "8px",
+          background: "radial-gradient(circle at 50% 50%, transparent 40%, rgba(239,68,68,0.25) 100%)",
+          animation: "pulse-red 1.5s ease-in-out infinite",
+        }} />
       )}
 
+      {/* Badges overlay */}
       {nodeBadges.length > 0 && (
-        <Box sx={{ position: "absolute", top: -10, right: -10, zIndex: 20, display: "flex", gap: 0.25 }}>
+        <Box sx={{ position: "absolute", top: -8, right: -8, zIndex: 20, display: "flex", gap: 0.25 }}>
           {nodeBadges.map((badge) => {
             const bmeta = BADGE_META[badge];
             return (
-              <Box
-                key={badge}
-                title={bmeta?.label ?? badge}
-                sx={{
-                  width: 18, height: 18, borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 10, lineHeight: 1,
-                  bgcolor: bmeta?.bg ?? "rgba(0,0,0,0.6)",
-                  border: 1, borderColor: bmeta?.border ?? "rgba(255,255,255,0.15)",
-                  boxShadow: `0 0 6px ${bmeta?.glow ?? "rgba(255,255,255,0.1)"}`,
-                  backdropFilter: "blur(4px)",
+              <Box key={badge} title={bmeta?.label ?? badge}
+                sx={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, lineHeight: 1,
+                  bgcolor: bmeta?.bg ?? "rgba(0,0,0,0.6)", border: 1, borderColor: bmeta?.border ?? "rgba(255,255,255,0.15)",
+                  boxShadow: `0 0 6px ${bmeta?.glow ?? "rgba(255,255,255,0.1)"}`, backdropFilter: "blur(4px)",
                 }}
-              >
-                {bmeta?.icon ?? "?"}
-              </Box>
+              >{bmeta?.icon ?? "?"}</Box>
             );
           })}
         </Box>
       )}
 
-        <Box
-          sx={{
-            p: 1.5, bgcolor: "#18181b", border: 1, borderColor: nodeColor,
-            borderRadius: 1, minWidth: 150, textAlign: "center",
-            opacity: isFailed ? 0.6 : 1,
-            boxShadow: `0 0 ${shadowIntensity} ${shadowColor}${hovered && !selected && !isFailed && !hasChaos && !isSecurityHighlighted ? ", 0 4px 12px rgba(0,0,0,0.3)" : ""}`,
-            transition: "box-shadow 0.2s",
-            animation: selected && !isFailed ? "pulse-green 1.5s ease-in-out infinite" : undefined,
-          }}
-        >
-        <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
-          <Box
-            sx={{ width: 28, height: 28, borderRadius: 1, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}
-            style={{ backgroundColor: `${meta.color}20` }}
-          >
-            <meta.icon size={16} />
+      {nodeCost && (
+        <Box sx={{ position: "absolute", bottom: -4, right: -4, zIndex: 20,
+          bgcolor: "rgba(0,128,0,0.5)", fontSize: 9, fontFamily: "monospace",
+          px: 0.75, py: 0.25, borderRadius: "999px", border: 1, borderColor: "rgba(34,197,94,0.4)",
+          boxShadow: 2, backdropFilter: "blur(4px)", color: "#22c55e",
+        }}>${nodeCost.monthlyCost.toFixed(0)}/mo</Box>
+      )}
+
+      {hasChaos && !isFailed && (
+        <Box sx={{ position: "absolute", top: -8, right: -8, zIndex: 20 }} title="Chaos active">
+          <Skull size={14} style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))", color: "#fb923c" }} />
+        </Box>
+      )}
+
+      {isBottleneck && !isFailed && (
+        <Box sx={{ position: "absolute", top: -8, left: -8, zIndex: 20 }} title="Bottleneck detected">
+          <AlertTriangle size={14} style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))", color: "#fb923c" }} />
+        </Box>
+      )}
+
+      {exportMode && (
+        <Box sx={{ position: "absolute", top: -8, left: -8, zIndex: 20, width: 18, height: 18, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, border: 2, boxShadow: 2,
+          bgcolor: compatStatus === "supported" ? "rgba(0,128,0,0.3)" : "rgba(128,0,0,0.3)",
+          borderColor: compatStatus === "supported" ? "rgba(34,197,94,0.5)" : "rgba(239,68,68,0.5)",
+        }}>
+          {compatStatus === "supported" ? "✓" : "⊘"}
+        </Box>
+      )}
+
+      <Box sx={{ ...nodeStyle, opacity: isFailed ? 0.7 : 1, transition: "border 0.15s, box-shadow 0.15s" }}>
+        {/* Header */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1.25, py: 1 }}>
+          <Box sx={{ width: 24, height: 24, borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 14 }}
+            style={{ backgroundColor: `${meta.color}18` }}>
+            <meta.icon size={14} color={meta.color} />
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="caption" noWrap sx={{ display: "block", lineHeight: 1.3, color: "#f4f4f5", fontSize: "0.8rem", fontWeight: "bold" }}>
-              {label}
+            <Typography variant="caption" noWrap sx={{ display: "block", lineHeight: 1.2, color: isFailed ? "error.main" : "text.primary", fontSize: "0.7rem", fontWeight: 600 }}>
+              {isFailed ? "FAILED" : label}
             </Typography>
-            <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", mt: 0.25 }}>
-              <Box sx={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, bgcolor: meta.color }} />
-              <Typography variant="caption" sx={{ fontSize: 9, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em", color: "#71717a" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.15 }}>
+              <Box sx={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, bgcolor: meta.color }} />
+              <Typography variant="caption" sx={{ fontSize: "0.45rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "text.secondary" }}>
                 {meta.category}
               </Typography>
-              {isPublic && (
-                <Typography variant="caption" sx={{ fontSize: 9, ml: "auto", color: "#60a5fa" }} title="Public facing">
-                  <Globe size={12} style={{ display: "inline", verticalAlign: "middle" }} /> Public
-                </Typography>
+              {isPublic && <Globe size={10} color="#60a5fa" />}
+            </Box>
+          </Box>
+        </Box>
+
+        {/* 1px divider */}
+        <Box sx={{ height: "1px", bgcolor: "#2A2A2E", mx: 1.25 }} />
+
+        {/* Body */}
+        <Box sx={{ px: 1.25, py: 0.75 }}>
+          {isFailed && (
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.75, py: 0.5 }}>
+              <Skull size={16} color="#EF4444" />
+              <Typography variant="caption" sx={{ fontSize: "0.6rem", color: "error.main", fontWeight: 600 }}>FAILED</Typography>
+            </Box>
+          )}
+
+          {children}
+
+          {(deployStrategy === "blue_green" || isCanary) && (
+            <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: 0.5 }}>
+              {deployStrategy === "blue_green" && bgActiveGroup && (
+                <Chip size="small" icon={<Circle size={7} style={{ fill: "currentColor" }} />}
+                  label={bgActiveGroup === "blue" ? "Blue" : "Green"}
+                  sx={{ height: 16, fontSize: "0.45rem",
+                    bgcolor: bgActiveGroup === "blue" ? "rgba(59,130,246,0.12)" : "rgba(34,197,94,0.12)",
+                    color: bgActiveGroup === "blue" ? "#60a5fa" : "#22c55e",
+                    border: 1, borderColor: bgActiveGroup === "blue" ? "rgba(59,130,246,0.2)" : "rgba(34,197,94,0.2)",
+                    "& .MuiChip-icon": { ml: 0.25 },
+                  }}
+                />
               )}
-            </Stack>
-          </Box>
-        </Stack>
-
-        {children && <Box sx={{ mb: 0.5 }}>{children}</Box>}
-
-        {(deployStrategy === "blue_green" || isCanary) && (
-          <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", mb: 0.75, px: 0.5 }}>
-            {deployStrategy === "blue_green" && bgActiveGroup && (
-              <Chip
-                size="small"
-                icon={<Circle size={8} style={{ fill: "currentColor" }} />}
-                label={bgActiveGroup === "blue" ? "Blue" : "Green"}
-                sx={{
-                  height: 18, fontSize: 9,
-                  bgcolor: bgActiveGroup === "blue" ? "rgba(59,130,246,0.15)" : "rgba(34,197,94,0.15)",
-                  color: bgActiveGroup === "blue" ? "#60a5fa" : "#22c55e",
-                  border: 1, borderColor: bgActiveGroup === "blue" ? "rgba(59,130,246,0.2)" : "rgba(34,197,94,0.2)",
-                  "& .MuiChip-icon": { ml: 0.5 },
-                }}
-              />
-            )}
-            {isCanary && (
-              <Badge
-                badgeContent={config.deployment.canaryVersion || "v2"}
-                color="secondary"
-                slotProps={{
-                  badge: {
-                    sx: {
-                      fontSize: 9, height: 18, minWidth: 18, px: 0.5,
-                      bgcolor: "rgba(168,85,247,0.15)", color: "#a78bfa",
-                      border: "1px solid rgba(168,85,247,0.2)", position: "static",
-                      transform: "none", borderRadius: "4px",
-                    },
-                  },
-                }}
-              >
-                <Box sx={{ display: "none" }} />
-              </Badge>
-            )}
-            {isCanaryFailing && (
-              <Chip
-                size="small"
-                icon={<AlertTriangle size={10} />}
-                label="Failing"
-                color="error"
-                sx={{ height: 18, fontSize: 9, animation: "chaos-flash 1.5s ease-in-out infinite" }}
-              />
-            )}
-          </Stack>
-        )}
-
-        {deployStrategy === "canary" && totalRPS > 0 && (
-          <Box sx={{ mb: 0.75, px: 0.5 }}>
-            <Box sx={{ height: 8, bgcolor: "#27272a", borderRadius: "999px", overflow: "hidden", display: "flex", border: 1, borderColor: "#3f3f4680" }}>
-              <Box sx={{ height: "100%", bgcolor: "#3B82F6", transition: "width 0.5s" }} style={{ width: `${stablePct}%` }} title={`Stable: ${stablePct}%`} />
-              <Box sx={{ height: "100%", bgcolor: "#A855F7", transition: "width 0.5s" }} style={{ width: `${canaryPct}%` }} title={`Canary: ${canaryPct}%`} />
+              {isCanary && (
+                <Chip size="small" label={config.deployment.canaryVersion || "v2"}
+                  sx={{ height: 16, fontSize: "0.45rem", bgcolor: "rgba(168,85,247,0.12)", color: "#a78bfa", border: "1px solid rgba(168,85,247,0.2)" }}
+                />
+              )}
+              {isCanaryFailing && (
+                <Chip size="small" icon={<AlertTriangle size={9} />} label="Failing" color="error"
+                  sx={{ height: 16, fontSize: "0.45rem", animation: "chaos-flash 1.5s ease-in-out infinite" }}
+                />
+              )}
             </Box>
-          </Box>
-        )}
+          )}
 
-        {metrics && (
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", px: 1, py: 0.75, borderTop: 1, borderColor: "#3f3f4670", bgcolor: "rgba(0,0,0,0.3)", borderRadius: "0 0 4px 4px", mx: -1.5, mb: -1.5, mt: 0.5 }}>
-            <Box sx={{ flex: 1 }} title={`CPU: ${Math.round(metrics.cpuPercent)}%`}>
-              <LinearProgress
-                variant="determinate"
-                value={Math.min(Math.max(metrics.cpuPercent, 0), 100)}
-                sx={{
-                  height: 6, borderRadius: "999px", bgcolor: "#3f3f46",
-                  "& .MuiLinearProgress-bar": {
-                    bgcolor: metrics.cpuPercent > 80 ? "#EF4444" : metrics.cpuPercent > 60 ? "#F97316" : "#3B82F6",
-                    borderRadius: "999px",
-                  },
-                }}
-              />
-              <Typography variant="caption" sx={{ fontSize: 8, fontFamily: "monospace", color: "#71717a", display: "block", mt: 0.25 }}>
-                CPU
-              </Typography>
+          {deployStrategy === "canary" && totalRPS > 0 && (
+            <Box sx={{ mb: 0.5 }}>
+              <Box sx={{ height: 6, bgcolor: "#1E1E20", borderRadius: "999px", overflow: "hidden", display: "flex" }}>
+                <Box sx={{ height: "100%", bgcolor: "#3B82F6", transition: "width 0.5s" }} style={{ width: `${stablePct}%` }} />
+                <Box sx={{ height: "100%", bgcolor: "#A855F7", transition: "width 0.5s" }} style={{ width: `${canaryPct}%` }} />
+              </Box>
             </Box>
-            <Box sx={{ flex: 1 }} title={`MEM: ${Math.round(metrics.memoryPercent)}%`}>
-              <LinearProgress
-                variant="determinate"
-                value={Math.min(Math.max(metrics.memoryPercent, 0), 100)}
-                sx={{
-                  height: 6, borderRadius: "999px", bgcolor: "#3f3f46",
-                  "& .MuiLinearProgress-bar": {
-                    bgcolor: metrics.memoryPercent > 80 ? "#EF4444" : metrics.memoryPercent > 60 ? "#F97316" : "#22C55E",
-                    borderRadius: "999px",
-                  },
-                }}
-              />
-              <Typography variant="caption" sx={{ fontSize: 8, fontFamily: "monospace", color: "#71717a", display: "block", mt: 0.25 }}>
-                MEM
-              </Typography>
+          )}
+
+          {/* Metrics */}
+          {metrics && !isFailed && (
+            <Box sx={{ display: "flex", gap: 0.75, pt: 0.5 }}>
+              <MiniBar value={metrics.cpuPercent} label="CPU" color="#A78BFA" />
+              <MiniBar value={metrics.memoryPercent} label="MEM" color="#38BDF8" />
+              <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-end", flexShrink: 0, minWidth: 36 }}>
+                <Typography variant="caption" sx={{ fontSize: "0.5rem", fontFamily: '"JetBrains Mono", monospace', fontWeight: 500, color: "#34D399", lineHeight: 1 }}>
+                  {metrics.currentRPS.toLocaleString()}
+                </Typography>
+                <Typography variant="caption" sx={{ fontSize: "0.4rem", color: "text.secondary", lineHeight: 1 }}>RPS</Typography>
+              </Box>
             </Box>
-            <Typography variant="caption" sx={{ fontSize: 9, fontFamily: "monospace", fontWeight: 500, color: "#a1a1aa", ml: "auto !important", flexShrink: 0 }}>
-              {metrics.currentRPS.toLocaleString()}
-              <Typography variant="caption" component="span" sx={{ color: "#52525b", fontSize: 9 }}> RPS</Typography>
-            </Typography>
-          </Stack>
-        )}
+          )}
+        </Box>
 
         <ResizeHandle nodeId={nodeId} />
       </Box>

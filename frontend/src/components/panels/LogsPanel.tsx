@@ -3,8 +3,7 @@ import api from "../../utils/api";
 import { useSimulationStore } from "../../store/simulationStore";
 import { useObservabilityStore, type SimLogEntry } from "../../store/observabilityStore";
 import {
-  Box, Typography, TextField, Table, TableHead, TableBody, TableRow, TableCell,
-  IconButton, Select, MenuItem, FormControl, Tooltip,
+  Box, Typography, TextField, IconButton, Select, MenuItem, FormControl, Tooltip,
 } from "@mui/material";
 import { RefreshCw } from "lucide-react";
 
@@ -24,6 +23,10 @@ function levelWeight(level: string): number {
   return level === "CRITICAL" ? 700 : level === "ERROR" ? 600 : 400;
 }
 
+function isError(level: string): boolean {
+  return level === "ERROR" || level === "CRITICAL";
+}
+
 export default function LogsPanel() {
   const runId = useSimulationStore((s) => s.runId);
   const isRunning = useSimulationStore((s) => s.isRunning);
@@ -38,12 +41,8 @@ export default function LogsPanel() {
   const [page, setPage] = useState(1);
   const perPage = 50;
 
-  // When correlationTraceId changes, set the filter and switch to logs tab
   useEffect(() => {
-    if (correlationTraceId) {
-      setTraceId(correlationTraceId);
-      setPage(1);
-    }
+    if (correlationTraceId) { setTraceId(correlationTraceId); setPage(1); }
   }, [correlationTraceId]);
 
   const fetchLogs = useCallback(async () => {
@@ -72,91 +71,87 @@ export default function LogsPanel() {
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1.5, py: 1, borderBottom: 1, borderColor: "#27272a", flexShrink: 0 }}>
+      {/* Filter bar */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1.5, py: 0.75, borderBottom: "1px solid", borderColor: "divider", flexShrink: 0 }}>
         <TextField
           size="small" placeholder="service" value={service}
           onChange={(e) => { setService(e.target.value); setPage(1); }}
-          sx={{ "& .MuiInputBase-root": { fontSize: "0.65rem", height: 28, color: "#a1a1aa", bgcolor: "#18181b" }, "& .MuiOutlinedInput-notchedOutline": { borderColor: "#3f3f46" } }}
+          sx={{ "& .MuiInputBase-root": { fontSize: "0.6rem", height: 26, color: "text.secondary", bgcolor: "background.default" }, "& .MuiOutlinedInput-notchedOutline": { borderColor: "divider" } }}
         />
-        <FormControl size="small" sx={{ minWidth: 72 }}>
+        <FormControl size="small" sx={{ minWidth: 64 }}>
           <Select
             value={level} displayEmpty onChange={(e) => { setLevel(e.target.value); setPage(1); }}
-            sx={{ fontSize: "0.65rem", height: 28, color: "#a1a1aa", bgcolor: "#18181b", "& .MuiOutlinedInput-notchedOutline": { borderColor: "#3f3f46" } }}
+            sx={{ fontSize: "0.6rem", height: 26, color: "text.secondary", bgcolor: "background.default", "& .MuiOutlinedInput-notchedOutline": { borderColor: "divider" } }}
           >
-            <MenuItem value="" sx={{ fontSize: "0.65rem" }}>level</MenuItem>
+            <MenuItem value="" sx={{ fontSize: "0.6rem" }}>level</MenuItem>
             {LEVELS.filter(Boolean).map((l) => (
-              <MenuItem key={l} value={l} sx={{ fontSize: "0.65rem", color: levelColor(l), fontWeight: levelWeight(l) }}>{l}</MenuItem>
+              <MenuItem key={l} value={l} sx={{ fontSize: "0.6rem", color: levelColor(l), fontWeight: levelWeight(l) }}>{l}</MenuItem>
             ))}
           </Select>
         </FormControl>
         <TextField
           size="small" placeholder="traceId" value={traceId}
           onChange={(e) => { setTraceId(e.target.value); setPage(1); }}
-          sx={{ "& .MuiInputBase-root": { fontSize: "0.65rem", height: 28, color: "#a1a1aa", bgcolor: "#18181b" }, "& .MuiOutlinedInput-notchedOutline": { borderColor: "#3f3f46" }, flex: 1 }}
+          sx={{ "& .MuiInputBase-root": { fontSize: "0.6rem", height: 26, color: "text.secondary", bgcolor: "background.default" }, "& .MuiOutlinedInput-notchedOutline": { borderColor: "divider" }, flex: 1 }}
         />
         <Tooltip title="Refresh" arrow>
-          <IconButton size="small" onClick={fetchLogs} sx={{ color: "#71717a" }}>
-            <RefreshCw size={14} />
+          <IconButton size="small" onClick={fetchLogs} sx={{ color: "text.secondary" }}>
+            <RefreshCw size={13} />
           </IconButton>
         </Tooltip>
-        <Typography variant="caption" sx={{ fontSize: "0.55rem", color: "#52525b", whiteSpace: "nowrap" }}>
-          {logTotal} results
-        </Typography>
+        <Typography variant="caption" sx={{ fontSize: "0.5rem", color: "text.placeholder", whiteSpace: "nowrap" }}>{logTotal} results</Typography>
       </Box>
 
-      <Box sx={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-        <Table size="small" sx={{ "& .MuiTableCell-root": { borderColor: "#27272a" } }}>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ py: 0.5, px: 0.75, fontSize: "0.55rem", fontWeight: 500, color: "#71717a", width: 44 }}>Level</TableCell>
-              <TableCell sx={{ py: 0.5, px: 0.75, fontSize: "0.55rem", fontWeight: 500, color: "#71717a", width: 80 }}>Time</TableCell>
-              <TableCell sx={{ py: 0.5, px: 0.75, fontSize: "0.55rem", fontWeight: 500, color: "#71717a", width: 90 }}>Service</TableCell>
-              <TableCell sx={{ py: 0.5, px: 0.75, fontSize: "0.55rem", fontWeight: 500, color: "#71717a" }}>Message</TableCell>
-              <TableCell sx={{ py: 0.5, px: 0.75, fontSize: "0.55rem", fontWeight: 500, color: "#71717a", width: 60, textAlign: "right" }}>Duration</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
+      {/* Log table */}
+      <Box sx={{ flex: 1, overflowY: "auto", minHeight: 0, fontFamily: '"JetBrains Mono", monospace' }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.55rem" }}>
+          <thead>
+            <tr style={{ color: "#8B8B8F", borderBottom: "1px solid #2A2A2E" }}>
+              <th style={{ textAlign: "left", padding: "3px 8px", fontWeight: 500, width: 44 }}>Level</th>
+              <th style={{ textAlign: "left", padding: "3px 8px", fontWeight: 500, width: 72 }}>Time</th>
+              <th style={{ textAlign: "left", padding: "3px 8px", fontWeight: 500, width: 80 }}>Service</th>
+              <th style={{ textAlign: "left", padding: "3px 8px", fontWeight: 500 }}>Message</th>
+              <th style={{ textAlign: "right", padding: "3px 8px", fontWeight: 500, width: 52 }}>Dur</th>
+            </tr>
+          </thead>
+          <tbody>
             {logs.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} sx={{ textAlign: "center", py: 4, fontSize: "0.6rem", color: "#52525b", border: "none" }}>
+              <tr>
+                <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "#555558", fontFamily: '"Inter", sans-serif', fontSize: "0.6rem" }}>
                   {isRunning ? "Waiting for logs…" : "Start a simulation to see logs"}
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             ) : (
-              logs.map((log, i) => (
-                <TableRow key={`${log.spanId}-${i}`} hover sx={{ "&:hover": { bgcolor: "#27272a" } }}>
-                  <TableCell sx={{ py: 0.5, px: 0.75, border: "none", fontSize: "0.6rem", fontFamily: "monospace", fontWeight: levelWeight(log.level), color: levelColor(log.level) }}>
-                    {log.level}
-                  </TableCell>
-                  <TableCell sx={{ py: 0.5, px: 0.75, border: "none", fontSize: "0.55rem", fontFamily: "monospace", color: "#71717a" }}>
-                    {new Date(log.timestamp).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                  </TableCell>
-                  <TableCell sx={{ py: 0.5, px: 0.75, border: "none", fontSize: "0.6rem", color: "#22d3ee", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {log.service}
-                  </TableCell>
-                  <TableCell sx={{ py: 0.5, px: 0.75, border: "none", fontSize: "0.6rem", fontFamily: "monospace", color: "#a1a1aa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {log.message}
-                  </TableCell>
-                  <TableCell sx={{ py: 0.5, px: 0.75, border: "none", fontSize: "0.55rem", fontFamily: "monospace", color: "#71717a", textAlign: "right" }}>
-                    {log.durationMs > 0 ? `${Math.round(log.durationMs)}ms` : "—"}
-                  </TableCell>
-                </TableRow>
-              ))
+              logs.map((log, i) => {
+                const err = isError(log.level);
+                return (
+                  <tr
+                    key={`${log.spanId}-${i}`}
+                    style={{
+                      backgroundColor: i % 2 === 0 ? "#0A0A0B" : "#1E1E20",
+                      borderLeft: err ? "2px solid #EF4444" : "2px solid transparent",
+                    }}
+                  >
+                    <td style={{ padding: "2px 8px", fontWeight: levelWeight(log.level), color: levelColor(log.level) }}>{log.level}</td>
+                    <td style={{ padding: "2px 8px", color: "#8B8B8F" }}>
+                      {new Date(log.timestamp).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                    </td>
+                    <td style={{ padding: "2px 8px", color: "#22d3ee", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.service}</td>
+                    <td style={{ padding: "2px 8px", color: err ? "#EF4444" : "#a1a1aa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.message}</td>
+                    <td style={{ padding: "2px 8px", color: "#8B8B8F", textAlign: "right" }}>{log.durationMs > 0 ? `${Math.round(log.durationMs)}ms` : "—"}</td>
+                  </tr>
+                );
+              })
             )}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </Box>
 
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, py: 0.75, borderTop: 1, borderColor: "#27272a", flexShrink: 0 }}>
-        <IconButton size="small" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} sx={{ color: "#71717a", fontSize: "0.7rem" }}>
-          ‹
-        </IconButton>
-        <Typography variant="caption" sx={{ fontSize: "0.55rem", color: "#71717a" }}>
-          Page {page} of {totalPages}
-        </Typography>
-        <IconButton size="small" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} sx={{ color: "#71717a", fontSize: "0.7rem" }}>
-          ›
-        </IconButton>
+      {/* Pagination */}
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, py: 0.5, borderTop: "1px solid", borderColor: "divider", flexShrink: 0 }}>
+        <IconButton size="small" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} sx={{ color: "text.secondary", fontSize: "0.65rem" }}>‹</IconButton>
+        <Typography variant="caption" sx={{ fontSize: "0.5rem", color: "text.placeholder" }}>Page {page} of {totalPages}</Typography>
+        <IconButton size="small" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} sx={{ color: "text.secondary", fontSize: "0.65rem" }}>›</IconButton>
       </Box>
     </Box>
   );
