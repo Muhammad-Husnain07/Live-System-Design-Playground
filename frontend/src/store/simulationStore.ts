@@ -71,6 +71,7 @@ interface SimulationState {
   setRunId: (id: string | null) => void;
   setConnectionStatus: (status: SimulationState["connectionStatus"]) => void;
   setElapsed: (elapsed: number) => void;
+  appendTicks: (newTicks: TickData[]) => void;
   onTick: (tick: TickData) => void;
   reset: () => void;
 }
@@ -99,7 +100,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
   setElapsed: (elapsed) => set({ elapsed }),
 
-  appendTicks: (newTicks) => {
+  appendTicks: (newTicks: TickData[]) => {
     const { ticks } = get();
     set({ ticks: [...ticks, ...newTicks].slice(-5000), latestTick: newTicks[newTicks.length - 1] });
   },
