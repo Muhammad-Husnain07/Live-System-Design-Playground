@@ -90,13 +90,13 @@ func TestCleanArchitectureZeroViolations(t *testing.T) {
 			{ID: "db", NodeType: "PostgreSQLDB", Label: "Database",
 				Security: SecurityConfig{IsPublicFacing: false, RequiresTLS: true, AllowedInbound: []string{"10.0.1.0/24"}}},
 			{ID: "cache", NodeType: "Redis", Label: "Cache",
-				Security: SecurityConfig{IsPublicFacing: false, RequiresTLS: false, AllowedInbound: []string{"10.0.1.0/24"}}},
+				Security: SecurityConfig{IsPublicFacing: false, RequiresTLS: true, AllowedInbound: []string{"10.0.1.0/24"}}},
 		},
 		Edges: []Edge{
-			{ID: "e1", Source: "waf", Target: "web", RequiresTLS: true},
-			{ID: "e2", Source: "web", Target: "app", RequiresTLS: true},
-			{ID: "e3", Source: "app", Target: "db", RequiresTLS: true},
-			{ID: "e4", Source: "app", Target: "cache", RequiresTLS: false},
+			{ID: "e1", Source: "waf", Target: "web", RequiresTLS: true, AuthRequired: false},
+			{ID: "e2", Source: "web", Target: "app", RequiresTLS: true, AuthRequired: true},
+			{ID: "e3", Source: "app", Target: "db", RequiresTLS: true, AuthRequired: true},
+			{ID: "e4", Source: "app", Target: "cache", RequiresTLS: true, AuthRequired: true},
 		},
 	}
 	auditor := NewSecurityAuditor(graph)

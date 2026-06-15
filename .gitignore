@@ -35,6 +35,7 @@ docker-data/
 # Go
 *.test
 *.out
+.go_deps_ok
 
 # Misc
 .cache/
