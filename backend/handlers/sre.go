@@ -32,7 +32,7 @@ func (h *SREHandler) MaturityAudit(c *fiber.Ctx) error {
 
 	// Load project canvas from DB
 	var canvasRaw []byte
-	if err := h.DB.QueryRow(`SELECT canvas FROM projects WHERE id = $1`, req.ProjectID).Scan(&canvasRaw); err != nil {
+	if err := h.DB.QueryRow(`SELECT canvas_data FROM projects WHERE id = $1`, req.ProjectID).Scan(&canvasRaw); err != nil {
 		if err == sql.ErrNoRows {
 			return c.Status(404).JSON(fiber.Map{"error": "project not found"})
 		}
