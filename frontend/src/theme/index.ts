@@ -6,6 +6,9 @@ declare module "@mui/material/styles" {
     elevated: string;
     hover: string;
   }
+  interface TypeText {
+    placeholder: string;
+  }
   interface Palette {
     borderColor: Palette["primary"];
   }
@@ -44,6 +47,7 @@ const theme = createTheme({
     text: {
       primary: text.primary,
       secondary: text.secondary,
+      placeholder: text.placeholder,
     },
   },
   shape: {
@@ -51,8 +55,6 @@ const theme = createTheme({
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    fontFamilyMonospace:
-      '"JetBrains Mono", "SFMono-Regular", "Consolas", monospace',
     fontWeightRegular: 500,
     fontWeightMedium: 600,
     fontWeightBold: 700,
@@ -95,8 +97,10 @@ const theme = createTheme({
       defaultProps: {
         variant: "outlined",
         size: "small",
-        InputLabelProps: {
-          shrink: true,
+        slotProps: {
+          inputLabel: {
+            shrink: true,
+          },
         },
       },
       styleOverrides: {
@@ -122,9 +126,6 @@ const theme = createTheme({
       },
     },
     MuiTabs: {
-      defaultProps: {
-        disableRipple: true,
-      },
       styleOverrides: {
         root: {
           textTransform: "none",

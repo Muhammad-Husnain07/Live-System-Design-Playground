@@ -91,7 +91,7 @@ function ViolationRow({
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
               flex: 1,
-              color: '#f4f4f5',
+              color: 'text.primary',
             }}
           >
             {violation.type.replace(/_/g, " ")}
@@ -99,7 +99,7 @@ function ViolationRow({
           {isZeroTrust && (
             <Typography
               variant="caption"
-              sx={{ fontSize: '7px', fontWeight: 500, px: '4px', py: '1px', borderRadius: '4px', bgcolor: 'rgba(20,184,166,0.15)', color: '#14B8A6', fontFamily: 'monospace', flexShrink: 0 }}
+              sx={{ fontSize: '7px', fontWeight: 500, px: '4px', py: '1px', borderRadius: '4px', bgcolor: 'rgba(20,184,166,0.15)',             color: 'success.main', fontFamily: 'monospace', flexShrink: 0 }}
             >
               ZTA
             </Typography>
@@ -114,7 +114,7 @@ function ViolationRow({
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
-            color: '#a1a1aa',
+            color: 'text.secondary',
             textAlign: 'left',
             width: '100%',
           }}
@@ -128,7 +128,7 @@ function ViolationRow({
           >
             {sourceLabel}
           </Typography>
-          <Typography variant="caption" sx={{ fontSize: '9px', color: '#52525b' }}>
+          <Typography variant="caption" sx={{ fontSize: '9px', color: 'text.placeholder' }}>
             &rarr;
           </Typography>
           <Typography
@@ -322,7 +322,7 @@ export default function SecurityPanel() {
               py: '2px',
               borderRadius: '9999px',
               fontFamily: 'monospace',
-              color: '#ef4444',
+              color: 'error.main',
             }}
           >
             {violations.length}
@@ -330,7 +330,7 @@ export default function SecurityPanel() {
         )}
       </Box>
 
-      <Box sx={{ px: '12px', py: '8px', borderBottom: '1px solid', borderColor: '#3f3f46', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <Box sx={{ px: '12px', py: '8px', borderBottom: '1px solid',         borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <Button
           onClick={handleAudit}
           disabled={auditing}
@@ -341,12 +341,12 @@ export default function SecurityPanel() {
             fontWeight: 500,
             borderRadius: '4px',
             bgcolor: 'rgba(59,130,246,0.2)',
-            color: '#60a5fa',
+            color: 'primary.main',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '6px',
-            '&:hover': { bgcolor: 'rgba(59,130,246,0.3)' },
+            '&:hover': { bgcolor: 'rgba(99,102,241,0.3)' },
             '&.Mui-disabled': { opacity: 0.3, cursor: 'not-allowed' },
           }}
         >
@@ -358,8 +358,9 @@ export default function SecurityPanel() {
                   display: 'inline-block',
                   width: '12px',
                   height: '12px',
-                  border: '2px solid rgba(96,165,250,0.3)',
-                  borderTopColor: '#60a5fa',
+                  border: '2px solid',
+                  borderColor: 'rgba(99,102,241,0.3)',
+                  borderTopColor: 'primary.main',
                   borderRadius: '50%',
                   animation: 'spin 1s linear infinite',
                   '@keyframes spin': {
@@ -428,7 +429,7 @@ export default function SecurityPanel() {
                 borderRadius: '4px',
                 minWidth: 0,
                 bgcolor: 'rgba(239,68,68,0.1)',
-                color: '#ef4444',
+                color: 'error.main',
                 '&:hover': { bgcolor: 'rgba(239,68,68,0.2)' },
               }}
               title="Clear trust zone highlights"
@@ -440,9 +441,9 @@ export default function SecurityPanel() {
       </Box>
 
       {trustZoneNodeIds.length > 0 && (
-        <Box sx={{ px: '12px', py: '4px', borderBottom: '1px solid', borderColor: '#3f3f46', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#14B8A6' }} />
-          <Typography variant="caption" sx={{ fontSize: '8px', color: '#14B8A6', fontFamily: 'monospace' }}>
+        <Box sx={{ px: '12px', py: '4px', borderBottom: '1px solid',         borderColor: 'divider', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'success.main' }} />
+          <Typography variant="caption" sx={{ fontSize: '8px', color: 'success.main', fontFamily: 'monospace' }}>
             Trust Zone: {trustZoneNodeIds.length} nodes secured by mTLS
           </Typography>
         </Box>
@@ -451,10 +452,10 @@ export default function SecurityPanel() {
       {ztaViolations.length > 0 && (
         <Box sx={{ px: '12px', py: '6px', borderBottom: '1px solid', borderColor: '#3f3f46' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', mb: '6px' }}>
-            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#14B8A6' }} />
+            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'success.main' }} />
             <Typography
               variant="caption"
-              sx={{ fontSize: '9px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#14B8A6' }}
+              sx={{ fontSize: '9px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'success.main' }}
             >
               Zero Trust ({ztaViolations.length})
             </Typography>
@@ -478,9 +479,9 @@ export default function SecurityPanel() {
         {violations.length === 0 && !auditing && !ztaScanning && (
           <Box sx={{ px: '12px', py: '32px', textAlign: 'center' }}>
             <Box sx={{ width: 48, height: 48, mx: "auto", mb: 1.5, borderRadius: "50%", bgcolor: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Shield size={20} style={{ color: "#60a5fa" }} />
+              <Shield size={20} style={{ color: "#6366F1" }} />
             </Box>
-            <Typography variant="caption" sx={{ color: "#a1a1aa", fontSize: "0.7rem", display: "block", mb: 0.5, fontWeight: 500 }}>
+            <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.7rem", display: "block", mb: 0.5, fontWeight: 500 }}>
               Run a security audit
             </Typography>
             <Typography variant="caption" sx={{ color: "#52525b", fontSize: "0.6rem", display: "block", mb: 2, lineHeight: 1.4, px: 2 }}>
@@ -501,7 +502,7 @@ export default function SecurityPanel() {
         )}
         {auditing && violations.length === 0 && (
           <Box sx={{ px: '12px', py: '32px', textAlign: 'center' }}>
-            <Typography variant="caption" sx={{ color: "#52525b", fontSize: "0.6rem" }}>Scanning architecture...</Typography>
+            <Typography variant="caption" sx={{ color: "text.placeholder", fontSize: "0.6rem" }}>Scanning architecture...</Typography>
           </Box>
         )}
 
@@ -527,10 +528,10 @@ export default function SecurityPanel() {
         {warnings.filter((v) => !ZTA_TYPES.has(v.type)).length > 0 && (
           <Box sx={{ px: '12px', py: '8px', borderTop: 1, borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', mb: '8px' }}>
-              <Box sx={{ width: '6px', height: '6px', borderRadius: '50%', bgcolor: '#fb923c' }} />
+              <Box sx={{ width: '6px', height: '6px', borderRadius: '50%', bgcolor: 'warning.main' }} />
               <Typography
                 variant="caption"
-                sx={{ fontSize: '9px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fb923c' }}
+                sx={{ fontSize: '9px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em',               color: 'warning.main' }}
               >
                 Warnings ({warnings.filter((v) => !ZTA_TYPES.has(v.type)).length})
               </Typography>

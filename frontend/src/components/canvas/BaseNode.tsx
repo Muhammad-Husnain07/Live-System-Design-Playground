@@ -127,9 +127,12 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
   const isFastBurn = useCanvasStore((s) => s.fastBurnNodeIds.includes(nodeId));
   const exportMode = useCanvasStore((s) => s.exportMode);
   const compatStatus = NODE_COMPAT[nodeType] ?? "skipped";
-  const nodeCost = useFinOpsStore((s) => s.nodeCosts.find((c) => c.nodeId === id));
-  const nodeBadgesRaw = useArchitectureStore((s) => s.nodeBadges[nodeId]);
-  const nodeBadges = nodeBadgesRaw ?? [];
+  const nodeCostMonthly = useFinOpsStore((s) => {
+    const entry = s.nodeCosts.find((c) => c.nodeId === id);
+    return entry?.monthlyCost ?? 0;
+  });
+  const finOpsEntry = nodeCostMonthly > 0 ? { monthlyCost: nodeCostMonthly } as const : null;
+  const nodeBadges = useArchitectureStore((s) => s.nodeBadges[nodeId]) ?? [];
   const nw = useCanvasStore((s) => {
     const n = s.nodes.find((n) => n.id === nodeId); const raw = n?.style?.width; return typeof raw === "number" ? raw : undefined;
   });
@@ -184,12 +187,12 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
         </Box>
       )}
 
-      {nodeCost && (
+      {finOpsEntry && (
         <Box sx={{ position: "absolute", bottom: -4, right: -4, zIndex: 20,
           bgcolor: "rgba(0,128,0,0.5)", fontSize: 9, fontFamily: "monospace",
           px: 0.75, py: 0.25, borderRadius: "999px", border: 1, borderColor: "rgba(34,197,94,0.4)",
           boxShadow: 2, backdropFilter: "blur(4px)", color: "#22c55e",
-        }}>${nodeCost.monthlyCost.toFixed(0)}/mo</Box>
+        }}>${finOpsEntry.monthlyCost.toFixed(0)}/mo</Box>
       )}
 
       {hasChaos && !isFailed && (

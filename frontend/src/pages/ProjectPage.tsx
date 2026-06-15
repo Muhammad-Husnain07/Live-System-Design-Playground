@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState, useMemo, type DragEvent } from "react";
+import { memo, useEffect, useCallback, useRef, useState, useMemo, type DragEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ReactFlow, {
   Background, BackgroundVariant,
@@ -228,7 +228,7 @@ function ScoreReportModal({ report, onClose }: { report: { cost: number; reliabi
   );
 }
 
-function ProjectCanvas({ id: projectId }: { id: string }) {
+const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: string }) {
   const navigate = useNavigate();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
@@ -732,17 +732,17 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
 
   if (isLoading && !currentProject) {
     return (
-      <Box sx={{ height: "100vh", bgcolor: "#09090b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Box sx={{ height: "100vh", bgcolor: "background.default", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, width: 320 }}>
-          <Box sx={{ bgcolor: "#18181b", border: "1px solid", borderColor: "#27272a", borderRadius: "8px", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "70%", height: 16, "@keyframes pulse": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
-            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "90%", height: 10, "@keyframes pulse2": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: "pulse2 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
-            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "60%", height: 10, "@keyframes pulse3": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: "pulse3 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
+          <Box sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: "8px", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box sx={{ bgcolor: "background.elevated", borderRadius: "4px", width: "70%", height: 16 }} />
+            <Box sx={{ bgcolor: "background.elevated", borderRadius: "4px", width: "90%", height: 10 }} />
+            <Box sx={{ bgcolor: "background.elevated", borderRadius: "4px", width: "60%", height: 10 }} />
           </Box>
-          <Box sx={{ bgcolor: "#18181b", border: "1px solid", borderColor: "#27272a", borderRadius: "8px", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "50%", height: 16, "@keyframes pulse4": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: "pulse4 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
-            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "80%", height: 10, "@keyframes pulse5": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: "pulse5 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
-            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "70%", height: 10, "@keyframes pulse6": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: "pulse6 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
+          <Box sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: "8px", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box sx={{ bgcolor: "background.elevated", borderRadius: "4px", width: "50%", height: 16 }} />
+            <Box sx={{ bgcolor: "background.elevated", borderRadius: "4px", width: "80%", height: 10 }} />
+            <Box sx={{ bgcolor: "background.elevated", borderRadius: "4px", width: "70%", height: 10 }} />
           </Box>
         </Box>
       </Box>
@@ -751,10 +751,10 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
 
   if (error && !currentProject) {
     return (
-      <Box sx={{ height: "100vh", bgcolor: "#09090b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Box sx={{ height: "100vh", bgcolor: "background.default", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Box sx={{ textAlign: "center" }}>
-          <Typography sx={{ fontSize: "14px", mb: 0.5, color: "#ef4444" }}>{error}</Typography>
-          <Button onClick={() => navigate("/dashboard")} sx={{ fontSize: "14px", color: "#60a5fa", textTransform: "none", minWidth: "unset", p: 0, "&:hover": { bgcolor: "transparent", opacity: 0.8 } }}>
+          <Typography sx={{ fontSize: "14px", mb: 0.5, color: "error.main" }}>{error}</Typography>
+          <Button onClick={() => navigate("/dashboard")} sx={{ fontSize: "14px", color: "primary.main", textTransform: "none", minWidth: "unset", p: 0, "&:hover": { bgcolor: "transparent", opacity: 0.8 } }}>
             Back to Dashboard
           </Button>
         </Box>
@@ -1002,7 +1002,7 @@ function ProjectCanvas({ id: projectId }: { id: string }) {
       />
     </Box>
   );
-}
+});
 
 export default function ProjectPage() {
   const { id } = useParams<{ id: string }>();

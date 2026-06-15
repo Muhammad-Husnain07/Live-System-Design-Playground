@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Separator } from "react-resizable-panels";
+import { useTheme } from "@mui/material";
 
 export default function ResizeHandle({ direction = "horizontal" }: { direction?: "horizontal" | "vertical" }) {
+  const theme = useTheme();
   const [hovered, setHovered] = useState(false);
   const isHorizontal = direction === "horizontal";
   return (
@@ -25,7 +27,7 @@ export default function ResizeHandle({ direction = "horizontal" }: { direction?:
           [isHorizontal ? "width" : "height"]: 2,
           [isHorizontal ? "height" : "width"]: "100%",
           borderRadius: 1,
-          backgroundColor: hovered ? "#6366F1" : "#2A2A2E",
+          backgroundColor: hovered ? theme.palette.primary.main : theme.palette.divider,
           transition: "background-color 0.15s ease",
           pointerEvents: "none",
         }}
