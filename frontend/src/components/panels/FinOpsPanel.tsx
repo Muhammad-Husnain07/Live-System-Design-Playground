@@ -3,7 +3,6 @@ import { ChevronUp, ChevronDown, DollarSign } from "lucide-react";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useFinOpsStore, type CostReport, type CostCategory } from "../../store/finopsStore";
 import { useToastStore } from "../../store/toastStore";
-import EmptyState from "../ui/EmptyState";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,

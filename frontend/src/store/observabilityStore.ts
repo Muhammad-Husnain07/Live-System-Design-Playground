@@ -18,10 +18,6 @@ export interface SimLogEntry {
   durationMs: number; nodeId: string;
 }
 
-interface LogFilters {
-  service: string; level: string; traceId: string;
-}
-
 interface ObservabilityStore {
   traces: TraceData[];
   selectedTrace: TraceData | null;

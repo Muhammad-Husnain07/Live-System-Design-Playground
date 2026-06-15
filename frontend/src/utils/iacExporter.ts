@@ -154,7 +154,7 @@ function genTerraformNode(nt: NodeType, cfg: NodeConfig, label: string, name: st
   return "";
 }
 
-function genTerraformGCPNode(nt: NodeType, cfg: NodeConfig, label: string, name: string): string {
+function genTerraformGCPNode(nt: NodeType, _cfg: NodeConfig, label: string, name: string): string {
   if (nt === "LoadBalancer" || nt === "APIGateway") {
     return [
       `resource "google_compute_forwarding_rule" "${name}" {`,
@@ -305,7 +305,7 @@ function genTerraformGCPNode(nt: NodeType, cfg: NodeConfig, label: string, name:
   return "";
 }
 
-function genTerraformAzureNode(nt: NodeType, cfg: NodeConfig, label: string, name: string): string {
+function genTerraformAzureNode(nt: NodeType, _cfg: NodeConfig, _label: string, name: string): string {
   if (nt === "LoadBalancer" || nt === "APIGateway") {
     return [
       `resource "azurerm_lb" "${name}" {`,
@@ -545,7 +545,7 @@ function genDeploymentManagerNode(nt: NodeType, _cfg: NodeConfig, label: string,
   return lines;
 }
 
-function genArmResource(nt: NodeType, _cfg: NodeConfig, label: string, name: string, idx: number): Record<string, any> | null {
+function genArmResource(nt: NodeType, _cfg: NodeConfig, label: string, name: string, _idx: number): Record<string, any> | null {
   const baseResource: Record<string, any> = {
     apiVersion: "2023-01-01",
     dependsOn: [],

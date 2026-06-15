@@ -104,8 +104,6 @@ const categories = [
 const externalTypes = new Set(["ExternalClient", "ThirdPartyAPI", "MobileClient", "WebBrowser"]);
 const serverlessTypes = new Set(["ServerlessFunction", "APIGateway", "MessageQueue", "EventBus"]);
 const dbTypes = new Set(["PostgreSQLDB", "MySQLDB", "MongoDB", "Redis", "Elasticsearch"]);
-const storageTypes = new Set(["PostgreSQLDB", "MySQLDB", "MongoDB", "Redis", "Elasticsearch", "CDN", "WebServer", "AppServer", "Microservice"]);
-
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }

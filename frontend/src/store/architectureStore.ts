@@ -30,10 +30,6 @@ function getNodeConfig(n: Node): Record<string, any> {
   return (n.data as any)?.config ?? {};
 }
 
-function hasNodeType(nodes: Node[], type: string): boolean {
-  return nodes.some((n) => getNodeType(n) === type);
-}
-
 function nodeHasEdgeToType(nodeId: string, edges: Edge[], targetType: string, nodes: Node[]): boolean {
   const targetIds = nodes.filter((n) => getNodeType(n) === targetType).map((n) => n.id);
   return edges.some(

@@ -27,7 +27,7 @@ interface SLOStore {
   clearSLOData: () => void;
 }
 
-export const useSLOStore = create<SLOStore>((set, get) => ({
+export const useSLOStore = create<SLOStore>((set) => ({
   sloReport: null,
   loading: false,
   alertedBudgetExhausted: [],

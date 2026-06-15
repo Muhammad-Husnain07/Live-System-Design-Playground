@@ -2,7 +2,7 @@ import {
   Scale, DoorOpen, Globe, Settings, Puzzle, Database, Leaf, Circle, Search,
   Satellite, Shield, Box, Square, Inbox, Bus, Megaphone, Container, Zap,
   ClipboardList, Wrench, Link, Smartphone, Monitor,
-  DatabaseSearch, BrainCircuit, Cpu, Radio, CloudLightning, Sparkles, Cloud,
+  DatabaseSearch, BrainCircuit, Radio, CloudLightning, Sparkles,
 } from "lucide-react";
 import { NodeCategory } from "../types/canvas";
 import type { NodeType, NodeMetadata } from "../types/canvas";
