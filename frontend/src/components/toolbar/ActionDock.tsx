@@ -2,8 +2,9 @@ import { memo } from "react";
 import { motion } from "framer-motion";
 import { Skull, ShieldCheck, DollarSign, Download } from "lucide-react";
 import { Box, Tooltip } from "@mui/material";
+import { spatialTokens } from "../../theme/spatialTokens";
 
-export type PanelId = "chaos" | "security" | "finops" | "export" | null;
+export type PanelId = "chaos" | "security" | "finops" | "export" | "deploy" | null;
 
 interface ActionDockProps {
   activePanel: PanelId;
@@ -20,20 +21,16 @@ const ITEMS: { id: PanelId; icon: typeof Skull; label: string; color: string }[]
 export default memo(function ActionDock({ activePanel, onPanelChange }: ActionDockProps) {
   return (
     <Box
+      className="floating-island"
       sx={{
         position: "fixed",
         bottom: 24,
         left: "50%",
         transform: "translateX(-50%)",
-        zIndex: 75,
+        zIndex: spatialTokens.z.actionDock,
         display: "flex",
         alignItems: "center",
         gap: 0.75,
-        background: "rgba(5,5,7,0.7)",
-        backdropFilter: "blur(20px) saturate(180%)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        borderRadius: "16px",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
         padding: "6px 10px",
         pointerEvents: "auto",
       }}
@@ -56,20 +53,20 @@ export default memo(function ActionDock({ activePanel, onPanelChange }: ActionDo
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
-                color: isActive ? color : "rgba(255,255,255,0.4)",
+                color: isActive ? color : spatialTokens.text.dim,
                 outline: "none",
                 transition: "background 0.15s ease, border-color 0.15s ease",
               }}
               onMouseEnter={(e) => {
                 if (!isActive) {
                   e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                  e.currentTarget.style.color = "rgba(255,255,255,0.7)";
+                  e.currentTarget.style.color = spatialTokens.text.secondary;
                 }
               }}
               onMouseLeave={(e) => {
                 if (!isActive) {
                   e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "rgba(255,255,255,0.4)";
+                  e.currentTarget.style.color = spatialTokens.text.dim;
                 }
               }}
             >

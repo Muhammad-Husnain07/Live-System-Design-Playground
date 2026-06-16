@@ -8,6 +8,7 @@ import { getReactFlowType } from "../canvas/nodeTypes";
 import { DEFAULT_SIM, DEFAULT_METRICS } from "../../utils/enterpriseTemplates";
 import type { NodeType } from "../../types/canvas";
 import type { Node } from "reactflow";
+import { spatialTokens } from "../../theme/spatialTokens";
 
 interface ComponentSpawnerProps {
   reactFlowInstance?: any;
@@ -114,7 +115,7 @@ export default memo(function ComponentSpawner({ reactFlowInstance }: ComponentSp
           position: "fixed",
           bottom: 24,
           left: 24,
-          zIndex: 80,
+          zIndex: spatialTokens.z.topToolbar,
           width: 44,
           height: 44,
           borderRadius: "50%",
@@ -125,6 +126,7 @@ export default memo(function ComponentSpawner({ reactFlowInstance }: ComponentSp
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
+          pointerEvents: "auto",
           color: "#6366F1",
           boxShadow: "0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.15)",
           outline: "none",
@@ -154,7 +156,7 @@ export default memo(function ComponentSpawner({ reactFlowInstance }: ComponentSp
               bottom: 80,
               left: "50%",
               transform: "translateX(-50%)",
-              zIndex: 90,
+              zIndex: spatialTokens.z.floatingPanels,
               width: 360,
               maxHeight: 420,
               background: "rgba(20,20,24,0.92)",

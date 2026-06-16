@@ -6,6 +6,7 @@ import { useAuthStore } from "../../store/authStore";
 import {
   Box, Typography, Menu, MenuItem, Avatar, AvatarGroup, Tooltip,
 } from "@mui/material";
+import { spatialTokens } from "../../theme/spatialTokens";
 
 interface StatusBarProps {
   saving: boolean;
@@ -52,7 +53,7 @@ export default function StatusBar({ saving, collabConnected, remoteUsers }: Stat
         position: "fixed",
         bottom: 24,
         right: 24,
-        zIndex: 80,
+        zIndex: spatialTokens.z.topToolbar,
         background: "rgba(5,5,7,0.75)",
         backdropFilter: "blur(20px) saturate(180%)",
         border: "1px solid rgba(255,255,255,0.06)",

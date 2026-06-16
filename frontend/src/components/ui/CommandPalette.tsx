@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { CommandAction, CommandCategory } from "../../utils/commandActions";
+import { spatialTokens } from "../../theme/spatialTokens";
 
 const CATEGORY_ICONS: Record<CommandCategory, LucideIcon> = {
   Nodes: Plus,
@@ -104,7 +105,7 @@ export default function CommandPalette({ open, onClose, actions, onExecute }: Co
             transform: "translateX(-50%)",
             width: "90vw",
             maxWidth: 520,
-            zIndex: 250,
+            zIndex: spatialTokens.z.modals,
             background: "rgba(10,10,11,0.94)",
             backdropFilter: "blur(28px) saturate(180%)",
             border: "1px solid rgba(255,255,255,0.07)",
@@ -217,7 +218,7 @@ export default function CommandPalette({ open, onClose, actions, onExecute }: Co
           transition={{ type: "spring", stiffness: 300, damping: 20 }}
           onClick={onClose}
           style={{
-            position: "fixed", inset: 0, zIndex: 249,
+            position: "fixed", inset: 0, zIndex: spatialTokens.z.modals - 1,
             background: "rgba(0,0,0,0.45)",
             pointerEvents: "auto",
           }}

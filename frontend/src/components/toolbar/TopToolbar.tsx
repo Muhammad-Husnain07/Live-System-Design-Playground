@@ -6,6 +6,7 @@ import { useCanvasStore } from "../../store/canvasStore";
 import { useProjectStore } from "../../store/projectStore";
 import { useExportStore } from "../../store/exportStore";
 import { useSimulationStore } from "../../store/simulationStore";
+import { spatialTokens } from "../../theme/spatialTokens";
 import ImportModal from "../panels/ImportModal";
 import GlobalMapDialog from "../map/GlobalMap";
 import {
@@ -87,7 +88,6 @@ export default function TopToolbar({
   const runId = useSimulationStore((s) => s.runId);
   const [overflowAnchorEl, setOverflowAnchorEl] = useState<HTMLElement | null>(null);
 
-  /* ── Global stats ── */
   const totalRPS = useMemo(() =>
     nodes.reduce((sum, n) => sum + (n.data?.metrics?.currentRPS ?? 0), 0),
   [nodes]);
@@ -107,27 +107,21 @@ export default function TopToolbar({
         top: 16,
         left: "50%",
         transform: "translateX(-50%)",
-        zIndex: 80,
+        zIndex: spatialTokens.z.topToolbar,
         height: 48,
         display: "flex",
         alignItems: "center",
         gap: 1,
         px: 1.5,
-        background: "rgba(5,5,7,0.75)",
-        backdropFilter: "blur(20px) saturate(180%)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        borderRadius: "12px",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
         pointerEvents: "auto",
         userSelect: "none",
         minWidth: 520,
         maxWidth: "calc(100vw - 48px)",
       }}
     >
-      {/* ── Left: Back + Project Name ── */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0, flex: "0 1 auto" }}>
         <Tooltip title="Back to Dashboard" arrow>
-          <IconButton size="small" onClick={() => navigate("/dashboard")} sx={{ color: "rgba(255,255,255,0.4)", p: 0.5, "&:hover": { color: "rgba(255,255,255,0.7)" } }}>
+          <IconButton size="small" onClick={() => navigate("/dashboard")} sx={{ color: spatialTokens.text.secondary, p: 0.5, "&:hover": { color: spatialTokens.text.primary } }}>
             <ArrowLeft size={16} />
           </IconButton>
         </Tooltip>
@@ -143,11 +137,11 @@ export default function TopToolbar({
               if (e.key === "Escape") setEditingName(false);
             }}
             sx={{
-              color: "#EDEDEF", fontSize: "0.75rem", fontWeight: 600, lineHeight: 1.3,
+              color: spatialTokens.text.primary, fontSize: "0.75rem", fontWeight: 600, lineHeight: 1.3,
               bgcolor: "rgba(255,255,255,0.06)", borderRadius: "4px", px: 0.75, py: 0.15,
               "& .MuiInputBase-input": { p: 0 },
               width: 160,
-              fontFamily: '"Inter", sans-serif',
+              fontFamily: spatialTokens.font.ui,
             }}
           />
         ) : (
@@ -158,9 +152,9 @@ export default function TopToolbar({
           >
             <Typography
               sx={{
-                fontSize: "0.75rem", fontWeight: 600, color: "#EDEDEF",
+                fontSize: "0.75rem", fontWeight: 600, color: spatialTokens.text.primary,
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                maxWidth: 160, lineHeight: 1.3, fontFamily: '"Inter", sans-serif',
+                maxWidth: 160, lineHeight: 1.3, fontFamily: spatialTokens.font.ui,
               }}
             >
               {currentProject?.name || "Project"}
@@ -168,9 +162,9 @@ export default function TopToolbar({
             {currentProject?.role && (
               <Typography
                 sx={{
-                  fontSize: "0.5rem", color: "rgba(255,255,255,0.3)",
+                  fontSize: "0.5rem", color: spatialTokens.text.dim,
                   bgcolor: "rgba(255,255,255,0.05)", px: 0.5, py: 0.15, borderRadius: "3px",
-                  fontWeight: 500, fontFamily: '"Inter", sans-serif', lineHeight: 1.3,
+                  fontWeight: 500, fontFamily: spatialTokens.font.ui, lineHeight: 1.3,
                 }}
               >
                 {currentProject.role}
@@ -180,7 +174,6 @@ export default function TopToolbar({
         )}
       </Box>
 
-      {/* ── Center: Transport Pill ── */}
       <Box
         sx={{
           display: "flex",
@@ -199,7 +192,7 @@ export default function TopToolbar({
             size="small"
             onClick={() => (isSimRunning ? onStop() : onStart())}
             sx={{
-              color: isSimRunning ? "#EF4444" : "#22C55E", p: 0.35,
+              color: isSimRunning ? spatialTokens.accent.error : spatialTokens.accent.success, p: 0.35,
               bgcolor: isSimRunning ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.15)",
               "&:hover": { bgcolor: isSimRunning ? "rgba(239,68,68,0.25)" : "rgba(34,197,94,0.25)" },
               width: 22, height: 22,
@@ -211,8 +204,8 @@ export default function TopToolbar({
 
         <Typography
           sx={{
-            fontFamily: '"JetBrains Mono", monospace',
-            color: "rgba(255,255,255,0.5)",
+            fontFamily: spatialTokens.font.mono,
+            color: spatialTokens.text.secondary,
             fontSize: "0.65rem",
             minWidth: 52,
             textAlign: "center",
@@ -234,10 +227,10 @@ export default function TopToolbar({
                 borderRadius: "4px",
                 fontSize: "0.55rem",
                 fontWeight: 600,
-                color: simSpeed === s ? "#6366F1" : "rgba(255,255,255,0.3)",
+                color: simSpeed === s ? spatialTokens.accent.primary : spatialTokens.text.dim,
                 bgcolor: simSpeed === s ? "rgba(99,102,241,0.15)" : "transparent",
                 lineHeight: 1.5,
-                fontFamily: '"Inter", sans-serif',
+                fontFamily: spatialTokens.font.ui,
                 "&:hover": {
                   bgcolor: simSpeed === s ? "rgba(99,102,241,0.22)" : "rgba(255,255,255,0.04)",
                 },
@@ -249,7 +242,6 @@ export default function TopToolbar({
         </Box>
       </Box>
 
-      {/* ── Right: Stats + Overflow ── */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: "0 1 auto", ml: "auto" }}>
         <Box
           sx={{
@@ -263,30 +255,29 @@ export default function TopToolbar({
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Typography sx={{ fontSize: "0.55rem", color: "rgba(255,255,255,0.35)", fontFamily: '"Inter", sans-serif', fontWeight: 500 }}>
+            <Typography sx={{ fontSize: "0.55rem", color: spatialTokens.text.dim, fontFamily: spatialTokens.font.ui, fontWeight: 500 }}>
               RPS
             </Typography>
-            <Typography sx={{ fontSize: "0.7rem", fontWeight: 600, color: "#34D399", fontFamily: '"JetBrains Mono", monospace', fontVariantNumeric: "tabular-nums" }}>
+            <Typography sx={{ fontSize: "0.7rem", fontWeight: 600, color: spatialTokens.metrics.rps, fontFamily: spatialTokens.font.mono, fontVariantNumeric: "tabular-nums" }}>
               {totalRPS.toLocaleString()}
             </Typography>
           </Box>
-          <Typography sx={{ fontSize: "0.5rem", color: "rgba(255,255,255,0.15)", fontFamily: '"Inter", sans-serif' }}>|</Typography>
+          <Typography sx={{ fontSize: "0.5rem", color: spatialTokens.text.dim }}>|</Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Typography sx={{ fontSize: "0.55rem", color: "rgba(255,255,255,0.35)", fontFamily: '"Inter", sans-serif', fontWeight: 500 }}>
+            <Typography sx={{ fontSize: "0.55rem", color: spatialTokens.text.dim, fontFamily: spatialTokens.font.ui, fontWeight: 500 }}>
               ERR
             </Typography>
-            <Typography sx={{ fontSize: "0.7rem", fontWeight: 600, color: errorPercent > 5 ? "#EF4444" : "#F59E0B", fontFamily: '"JetBrains Mono", monospace', fontVariantNumeric: "tabular-nums" }}>
+            <Typography sx={{ fontSize: "0.7rem", fontWeight: 600, color: errorPercent > 5 ? spatialTokens.accent.error : spatialTokens.accent.warning, fontFamily: spatialTokens.font.mono, fontVariantNumeric: "tabular-nums" }}>
               {errorPercent.toFixed(1)}%
             </Typography>
           </Box>
         </Box>
 
-        {/* Overflow menu */}
         <Tooltip title="More actions" arrow>
           <IconButton
             size="small"
             onClick={(e) => setOverflowAnchorEl(e.currentTarget)}
-            sx={{ color: "rgba(255,255,255,0.3)", p: 0.4, "&:hover": { color: "rgba(255,255,255,0.6)" } }}
+            sx={{ color: spatialTokens.text.secondary, p: 0.4, "&:hover": { color: spatialTokens.text.primary } }}
           >
             <MoreHorizontal size={14} />
           </IconButton>
@@ -301,41 +292,41 @@ export default function TopToolbar({
             paper: {
               sx: {
                 bgcolor: "rgba(20,20,24,0.92)", backdropFilter: "blur(16px)",
-                border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                border: spatialTokens.border.island, borderRadius: "8px",
+                boxShadow: spatialTokens.shadow.elevation,
               },
             },
           }}
         >
           <MenuItem onClick={() => { setOverflowAnchorEl(null); onToggleMaturityPanel(); }} dense>
-            <ShieldCheck size={13} style={{ marginRight: 8, color: showMaturityPanel ? "#22C55E" : "rgba(255,255,255,0.4)" }} />
-            <Typography sx={{ fontSize: "0.7rem", color: showMaturityPanel ? "#22C55E" : "rgba(255,255,255,0.7)" }}>Maturity</Typography>
+            <ShieldCheck size={13} style={{ marginRight: 8, color: showMaturityPanel ? spatialTokens.accent.success : spatialTokens.text.secondary }} />
+            <Typography sx={{ fontSize: "0.7rem", color: showMaturityPanel ? spatialTokens.accent.success : spatialTokens.text.secondary }}>Maturity</Typography>
           </MenuItem>
           <MenuItem onClick={() => { setOverflowAnchorEl(null); onToggleInsightsPanel(); }} dense>
-            <Lightbulb size={13} style={{ marginRight: 8, color: showInsightsPanel ? "#F59E0B" : "rgba(255,255,255,0.4)" }} />
-            <Typography sx={{ fontSize: "0.7rem", color: showInsightsPanel ? "#F59E0B" : "rgba(255,255,255,0.7)" }}>Insights</Typography>
+            <Lightbulb size={13} style={{ marginRight: 8, color: showInsightsPanel ? spatialTokens.accent.warning : spatialTokens.text.secondary }} />
+            <Typography sx={{ fontSize: "0.7rem", color: showInsightsPanel ? spatialTokens.accent.warning : spatialTokens.text.secondary }}>Insights</Typography>
           </MenuItem>
           <MenuItem onClick={() => { setOverflowAnchorEl(null); onToggleFinOpsModal(); }} dense>
-            <DollarSign size={13} style={{ marginRight: 8, color: showFinOpsModal ? "#22C55E" : "rgba(255,255,255,0.4)" }} />
-            <Typography sx={{ fontSize: "0.7rem", color: showFinOpsModal ? "#22C55E" : "rgba(255,255,255,0.7)" }}>Cost</Typography>
+            <DollarSign size={13} style={{ marginRight: 8, color: showFinOpsModal ? spatialTokens.accent.success : spatialTokens.text.secondary }} />
+            <Typography sx={{ fontSize: "0.7rem", color: showFinOpsModal ? spatialTokens.accent.success : spatialTokens.text.secondary }}>Cost</Typography>
           </MenuItem>
           <Divider sx={{ borderColor: "rgba(255,255,255,0.06)" }} />
           <MenuItem onClick={() => { setOverflowAnchorEl(null); setShowGlobalMap(true); }} dense>
-            <Globe size={13} style={{ marginRight: 8, color: "rgba(255,255,255,0.4)" }} />
-            <Typography sx={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.7)" }}>Global Map</Typography>
+            <Globe size={13} style={{ marginRight: 8, color: spatialTokens.text.secondary }} />
+            <Typography sx={{ fontSize: "0.7rem", color: spatialTokens.text.secondary }}>Global Map</Typography>
           </MenuItem>
           <MenuItem onClick={() => { setOverflowAnchorEl(null); setShowImport(true); }} dense>
-            <FileText size={13} style={{ marginRight: 8, color: "rgba(255,255,255,0.4)" }} />
-            <Typography sx={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.7)" }}>Import IaC</Typography>
+            <FileText size={13} style={{ marginRight: 8, color: spatialTokens.text.secondary }} />
+            <Typography sx={{ fontSize: "0.7rem", color: spatialTokens.text.secondary }}>Import IaC</Typography>
           </MenuItem>
           <Divider sx={{ borderColor: "rgba(255,255,255,0.06)" }} />
           <MenuItem onClick={() => { setOverflowAnchorEl(null); openExport(); }} dense>
-            <Download size={13} style={{ marginRight: 8, color: "rgba(255,255,255,0.4)" }} />
-            <Typography sx={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.7)" }}>Export</Typography>
+            <Download size={13} style={{ marginRight: 8, color: spatialTokens.text.secondary }} />
+            <Typography sx={{ fontSize: "0.7rem", color: spatialTokens.text.secondary }}>Export</Typography>
           </MenuItem>
           <MenuItem onClick={() => { setOverflowAnchorEl(null); openExport(); }} dense>
-            <Camera size={13} style={{ marginRight: 8, color: "rgba(255,255,255,0.4)" }} />
-            <Typography sx={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.7)" }}>PNG Snapshot</Typography>
+            <Camera size={13} style={{ marginRight: 8, color: spatialTokens.text.secondary }} />
+            <Typography sx={{ fontSize: "0.7rem", color: spatialTokens.text.secondary }}>PNG Snapshot</Typography>
           </MenuItem>
         </Menu>
       </Box>

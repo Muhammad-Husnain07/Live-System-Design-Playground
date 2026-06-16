@@ -8,6 +8,7 @@ import { useChaosStore } from "../../store/chaosStore";
 import api from "../../utils/api";
 import { Box, Typography } from "@mui/material";
 import { Terminal } from "lucide-react";
+import { spatialTokens } from "../../theme/spatialTokens";
 
 const LEVEL_WEIGHT: Record<string, number> = { CRITICAL: 700, ERROR: 600, WARN: 500, INFO: 400 };
 const LEVEL_COLOR: Record<string, string> = { CRITICAL: "#ef4444", ERROR: "#ef4444", WARN: "#f97316", INFO: "#a1a1aa" };
@@ -231,7 +232,7 @@ export default memo(function QuakeTerminal({ open, onClose }: { open: boolean; o
             left: 0,
             right: 0,
             height: "40vh",
-            zIndex: 200,
+            zIndex: spatialTokens.z.modals,
             background: "rgba(5,5,7,0.94)",
             backdropFilter: "blur(24px) saturate(180%)",
             borderBottom: "1px solid rgba(255,255,255,0.06)",

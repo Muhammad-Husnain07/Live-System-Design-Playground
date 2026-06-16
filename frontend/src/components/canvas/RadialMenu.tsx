@@ -5,6 +5,7 @@ import { Box, Typography } from "@mui/material";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useChaosStore } from "../../store/chaosStore";
 import { useDeployStore } from "../../store/deploymentStore";
+import { spatialTokens } from "../../theme/spatialTokens";
 
 interface RadialMenuProps {
   nodeId: string | null;
@@ -23,14 +24,14 @@ const R = 68;
 const MENU_SIZE = R * 2 + 40;
 
 const containerVariants = {
-  hidden: { opacity: 0, scale: 0.7 },
-  visible: { opacity: 1, scale: 1, transition: { staggerChildren: 0.04, delayChildren: 0.04 } },
-  exit: { opacity: 0, scale: 0.7, transition: { type: "spring" as const, stiffness: 300, damping: 20 } },
+  hidden: { opacity: 0, scale: 0 },
+  visible: { opacity: 1, scale: 1, transition: { staggerChildren: 0.05, delayChildren: 0.03 } },
+  exit: { opacity: 0, scale: 0, transition: spatialTokens.animation.spring },
 };
 
 const sliceVariants = {
-  hidden: { opacity: 0, scale: 0.4, y: 8 },
-  visible: { opacity: 1, scale: 1, y: 0 },
+  hidden: { opacity: 0, scale: 0 },
+  visible: { opacity: 1, scale: 1, transition: spatialTokens.animation.spring },
 };
 
 export default memo(function RadialMenu({ nodeId, position, onClose }: RadialMenuProps) {
@@ -74,7 +75,6 @@ export default memo(function RadialMenu({ nodeId, position, onClose }: RadialMen
       {nodeId && position && (
         <motion.div
           key="radial-menu"
-          className="floating-island"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -85,19 +85,19 @@ export default memo(function RadialMenu({ nodeId, position, onClose }: RadialMen
             top: position.y - MENU_SIZE / 2,
             width: MENU_SIZE,
             height: MENU_SIZE,
-            zIndex: 100,
+            zIndex: spatialTokens.z.radialMenu,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "rgba(20,20,24,0.85)",
+            background: spatialTokens.bg.island,
             backdropFilter: "blur(16px) saturate(180%)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            WebkitBackdropFilter: "blur(16px) saturate(180%)",
+            border: spatialTokens.border.island,
             borderRadius: "50%",
-            boxShadow: "0 8px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05)",
+            boxShadow: spatialTokens.shadow.elevation,
             pointerEvents: "auto",
           }}
         >
-          {/* Center dot */}
           <Box
             sx={{
               position: "absolute",
@@ -162,7 +162,7 @@ export default memo(function RadialMenu({ nodeId, position, onClose }: RadialMen
                     textTransform: "uppercase",
                     letterSpacing: "0.04em",
                     userSelect: "none",
-                    fontFamily: '"Inter", sans-serif',
+                    fontFamily: spatialTokens.font.ui,
                   }}
                 >
                   {slice.label}

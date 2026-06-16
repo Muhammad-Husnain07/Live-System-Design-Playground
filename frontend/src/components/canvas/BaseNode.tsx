@@ -9,6 +9,7 @@ import { useDeployStore } from "../../store/deploymentStore";
 import { useFinOpsStore } from "../../store/finopsStore";
 import { useArchitectureStore } from "../../store/architectureStore";
 import { NODE_COMPAT } from "../../store/exportStore";
+import { spatialTokens } from "../../theme/spatialTokens";
 import type { CanvasNode } from "../../types/canvas";
 import type { BadgeType } from "../../store/architectureStore";
 import { Box, Typography, Chip } from "@mui/material";
@@ -78,7 +79,23 @@ function ResizeHandle({ nodeId }: { nodeId: string }) {
   );
 }
 
-function GlowingBar({ value, color }: { value: number; color: string }) {
+function DiegeticArc({ value, color, size = 36 }: { value: number; color: string; size?: number }) {
+  const center = size / 2;
+  const r = (size - 6) / 2;
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference - (Math.min(Math.max(value, 0), 100) / 100) * circumference;
+  return (
+    <svg width={size} height={size} style={{ position: "absolute", top: -4, left: -4, pointerEvents: "none", transform: "rotate(-90deg)" }}>
+      <circle cx={center} cy={center} r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="3" />
+      <circle cx={center} cy={center} r={r} fill="none" stroke={color} strokeWidth="3"
+        strokeDasharray={`${circumference} ${circumference}`}
+        strokeDashoffset={offset} strokeLinecap="round"
+        style={{ filter: `drop-shadow(0 0 4px ${color})` }} />
+    </svg>
+  );
+}
+
+function DiegeticBar({ value, color }: { value: number; color: string }) {
   const pct = Math.min(Math.max(value, 0), 100);
   return (
     <Box sx={{ height: 3, borderRadius: "999px", background: "rgba(255,255,255,0.06)", overflow: "hidden", flex: 1 }}>
@@ -93,7 +110,7 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
 
   if (!meta) {
     return (
-      <Box sx={{ bgcolor: "rgba(127,29,29,0.3)", borderRadius: "16px", px: 1.5, py: 1, fontSize: "10px", color: "error.main", border: "1px solid", borderColor: "error.main" }}>
+      <Box sx={{ bgcolor: "rgba(127,29,29,0.3)", borderRadius: "16px", px: 1.5, py: 1, fontSize: "10px", color: spatialTokens.accent.error, border: spatialTokens.border.error }}>
         Unknown
       </Box>
     );
@@ -117,7 +134,7 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
   const stablePct = totalRPS > 0 ? Math.round(((totalRPS - canaryRPS) / totalRPS) * 100) : 100;
   const canaryPct = 100 - stablePct;
   const isCanaryFailing = isCanary && errorRate > 0.3;
-  const bgBorderColor = deployStrategy === "blue_green" && bgActiveGroup === "green" ? "#22C55E" : deployStrategy === "blue_green" && bgActiveGroup === "blue" ? "#3B82F6" : null;
+  const bgBorderColor = deployStrategy === "blue_green" && bgActiveGroup === "green" ? spatialTokens.accent.success : deployStrategy === "blue_green" && bgActiveGroup === "blue" ? "#3B82F6" : null;
   const hasChaos = useChaosStore((s) => s.activeNodeIds.includes(nodeId));
   const isFastBurn = useCanvasStore((s) => s.fastBurnNodeIds.includes(nodeId));
   const exportMode = useCanvasStore((s) => s.exportMode);
@@ -146,14 +163,11 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
     prevDeployKey.current = key;
   }, [deployStrategy, bgActiveGroup, isCanary]);
 
-  const failedShadow = "0 0 15px rgba(239, 68, 68, 0.6)";
-  const selectedGlow = "0 0 12px rgba(99, 102, 241, 0.4)";
-
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: pulseScale }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      transition={spatialTokens.animation.spring as any}
       style={{ position: "relative", ...dimStyle }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -188,9 +202,9 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
 
       {finOpsEntry && (
         <Box sx={{ position: "absolute", bottom: -4, right: -4, zIndex: 20,
-          bgcolor: "rgba(0,128,0,0.5)", fontSize: 9, fontFamily: "monospace",
+          bgcolor: "rgba(0,128,0,0.5)", fontSize: 9, fontFamily: spatialTokens.font.mono,
           px: 0.75, py: 0.25, borderRadius: "999px", border: 1, borderColor: "rgba(34,197,94,0.4)",
-          boxShadow: 2, backdropFilter: "blur(4px)", color: "#22c55e",
+          boxShadow: 2, backdropFilter: "blur(4px)", color: spatialTokens.accent.success,
         }}>${finOpsEntry.monthlyCost.toFixed(0)}/mo</Box>
       )}
 
@@ -202,7 +216,9 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
 
       {isBottleneck && !isFailed && (
         <Box sx={{ position: "absolute", top: -8, left: -8, zIndex: 20 }} title="Bottleneck detected">
-          <AlertTriangle size={14} style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))", color: "#fb923c" }} />
+          <Box sx={{ animation: "pulse-orange 1.4s ease-in-out infinite", display: "flex" }}>
+            <AlertTriangle size={14} style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))", color: "#fb923c" }} />
+          </Box>
         </Box>
       )}
 
@@ -215,39 +231,33 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
         </Box>
       )}
 
-      {/* Main pill node */}
       <Box sx={{
         borderRadius: "16px",
-        bgcolor: "rgba(20, 20, 24, 0.80)",
-        backdropFilter: "blur(16px)",
+        bgcolor: isFailed ? spatialTokens.bg.island : spatialTokens.bg.island,
+        backdropFilter: "blur(16px) saturate(180%)",
+        WebkitBackdropFilter: "blur(16px) saturate(180%)",
         border: "1px solid",
-        borderColor: isFailed ? "rgba(239,68,68,0.6)" : selected ? "rgba(99,102,241,0.5)" : bgBorderColor ? bgBorderColor : "rgba(255,255,255,0.08)",
-        boxShadow: isFailed ? failedShadow : selected ? selectedGlow : "0 4px 12px rgba(0, 0, 0, 0.5)",
+        borderColor: isFailed ? spatialTokens.accent.error : selected ? spatialTokens.accent.primary : bgBorderColor ? bgBorderColor : "rgba(255,255,255,0.08)",
+        boxShadow: isFailed ? spatialTokens.shadow.error : selected ? spatialTokens.shadow.glow : "0 4px 12px rgba(0, 0, 0, 0.5)",
         opacity: isFailed ? 0.85 : 1,
         transition: "border-color 0.2s, box-shadow 0.2s",
         overflow: "hidden",
       }}>
-        {/* Header */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1.5, py: 1.25 }}>
           <Box sx={{ width: 28, height: 28, borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative" }}
             style={{ backgroundColor: `${meta.color}18` }}>
             <meta.icon size={16} color={meta.color} />
             {metrics && !isFailed && (
-              <svg width="36" height="36" style={{ position: "absolute", top: -4, left: -4, pointerEvents: "none", transform: "rotate(-90deg)" }}>
-                <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="2" />
-                <circle cx="18" cy="18" r="16" fill="none" stroke={meta.color} strokeWidth="2"
-                  strokeDasharray={`${Math.min(metrics.cpuPercent, 100) / 100 * 100.53} 100.53`}
-                  strokeLinecap="round" style={{ filter: `drop-shadow(0 0 3px ${meta.color})` }} />
-              </svg>
+              <DiegeticArc value={metrics.cpuPercent} color={meta.color} />
             )}
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="caption" noWrap sx={{ display: "block", lineHeight: 1.3, color: isFailed ? "error.main" : "#EDEDEF", fontSize: "0.7rem", fontWeight: 600 }}>
+            <Typography variant="caption" noWrap sx={{ display: "block", lineHeight: 1.3, color: isFailed ? spatialTokens.accent.error : spatialTokens.text.primary, fontSize: "0.7rem", fontWeight: 600 }}>
               {isFailed ? "FAILED" : label}
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.15 }}>
               <Box sx={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, bgcolor: meta.color, boxShadow: `0 0 4px ${meta.color}` }} />
-              <Typography variant="caption" sx={{ fontSize: "0.45rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8B8B8F" }}>
+              <Typography variant="caption" sx={{ fontSize: "0.45rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: spatialTokens.text.secondary }}>
                 {meta.category}
               </Typography>
               {isPublic && <Globe size={10} color="#60a5fa" />}
@@ -257,12 +267,11 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
 
         <Box sx={{ height: "1px", bgcolor: "rgba(255,255,255,0.06)", mx: 1.5 }} />
 
-        {/* Body */}
         <Box sx={{ px: 1.5, py: 1 }}>
           {isFailed && (
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.75, py: 0.5 }}>
-              <Skull size={16} color="#EF4444" />
-              <Typography variant="caption" sx={{ fontSize: "0.6rem", color: "error.main", fontWeight: 600 }}>FAILED</Typography>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.75, py: 0.5, boxShadow: "inset 0 0 20px rgba(239,68,68,0.15)", borderRadius: "8px" }}>
+              <Skull size={16} color={spatialTokens.accent.error} />
+              <Typography variant="caption" sx={{ fontSize: "0.6rem", color: spatialTokens.accent.error, fontWeight: 600 }}>CRITICAL FAILURE</Typography>
             </Box>
           )}
 
@@ -275,7 +284,7 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
                   label={bgActiveGroup === "blue" ? "Blue" : "Green"}
                   sx={{ height: 16, fontSize: "0.45rem",
                     bgcolor: bgActiveGroup === "blue" ? "rgba(59,130,246,0.12)" : "rgba(34,197,94,0.12)",
-                    color: bgActiveGroup === "blue" ? "#60a5fa" : "#22c55e",
+                    color: bgActiveGroup === "blue" ? "#60a5fa" : spatialTokens.accent.success,
                     border: 1, borderColor: bgActiveGroup === "blue" ? "rgba(59,130,246,0.2)" : "rgba(34,197,94,0.2)",
                     "& .MuiChip-icon": { ml: 0.25 },
                   }}
@@ -283,7 +292,7 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
               )}
               {isCanary && (
                 <Chip size="small" label={config.deployment.canaryVersion || "v2"}
-                  sx={{ height: 16, fontSize: "0.45rem", bgcolor: "rgba(168,85,247,0.12)", color: "#a78bfa", border: "1px solid rgba(168,85,247,0.2)" }}
+                  sx={{ height: 16, fontSize: "0.45rem", bgcolor: "rgba(168,85,247,0.12)", color: spatialTokens.accent.purple, border: "1px solid rgba(168,85,247,0.2)" }}
                 />
               )}
               {isCanaryFailing && (
@@ -298,27 +307,33 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
             <Box sx={{ mb: 0.5 }}>
               <Box sx={{ height: 6, bgcolor: "rgba(255,255,255,0.06)", borderRadius: "999px", overflow: "hidden", display: "flex" }}>
                 <Box sx={{ height: "100%", bgcolor: "#3B82F6", transition: "width 0.5s" }} style={{ width: `${stablePct}%` }} />
-                <Box sx={{ height: "100%", bgcolor: "#A855F7", transition: "width 0.5s" }} style={{ width: `${canaryPct}%` }} />
+                <Box sx={{ height: "100%", bgcolor: spatialTokens.accent.purple, transition: "width 0.5s" }} style={{ width: `${canaryPct}%` }} />
               </Box>
             </Box>
           )}
 
-          {/* Diegetic metrics — glowing bars in footer */}
           {metrics && !isFailed && (
             <Box sx={{ display: "flex", gap: 1, pt: 0.5, alignItems: "center" }}>
               <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 0.5 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Typography variant="caption" sx={{ fontSize: "0.4rem", color: "#8B8B8F", fontWeight: 500, width: 22 }}>CPU</Typography>
-                  <GlowingBar value={metrics.cpuPercent} color="#A78BFA" />
+                  <Typography variant="caption" sx={{ fontSize: "0.4rem", color: spatialTokens.text.secondary, fontWeight: 500, width: 22 }}>CPU</Typography>
+                  <DiegeticBar value={metrics.cpuPercent} color={spatialTokens.metrics.cpu} />
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Typography variant="caption" sx={{ fontSize: "0.4rem", color: "#8B8B8F", fontWeight: 500, width: 22 }}>MEM</Typography>
-                  <GlowingBar value={metrics.memoryPercent} color="#38BDF8" />
+                  <Typography variant="caption" sx={{ fontSize: "0.4rem", color: spatialTokens.text.secondary, fontWeight: 500, width: 22 }}>MEM</Typography>
+                  <DiegeticBar value={metrics.memoryPercent} color={spatialTokens.metrics.memory} />
                 </Box>
               </Box>
-              <Typography variant="caption" sx={{ fontSize: "0.55rem", fontFamily: '"JetBrains Mono", monospace', fontWeight: 600, color: "#34D399", lineHeight: 1, flexShrink: 0, textAlign: "right", ml: 1 }}>
-                {metrics.currentRPS.toLocaleString()} <Typography component="span" sx={{ fontSize: "0.4rem", fontFamily: "inherit", color: "#8B8B8F", fontWeight: 400 }}>RPS</Typography>
-              </Typography>
+              <Box sx={{ textAlign: "right", flexShrink: 0, ml: 1 }}>
+                <Typography variant="caption" sx={{ fontSize: "0.55rem", fontFamily: spatialTokens.font.mono, fontWeight: 600, color: spatialTokens.metrics.rps, lineHeight: 1, display: "block" }}>
+                  {metrics.currentRPS.toLocaleString()} <Typography component="span" sx={{ fontSize: "0.4rem", fontFamily: "inherit", color: spatialTokens.text.secondary, fontWeight: 400 }}>RPS</Typography>
+                </Typography>
+                {metrics.queueDepth > 0 && (
+                  <Typography variant="caption" sx={{ fontSize: "0.45rem", fontFamily: spatialTokens.font.mono, fontWeight: 500, color: metrics.queueDepth > 100 ? spatialTokens.accent.error : spatialTokens.text.secondary, lineHeight: 1.4, display: "block" }}>
+                    Q: {metrics.queueDepth}
+                  </Typography>
+                )}
+              </Box>
             </Box>
           )}
         </Box>
