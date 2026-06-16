@@ -15,10 +15,51 @@ body {
   background-color: #050507;
   color: #EDEDEF;
   line-height: 1.5;
+  overflow: hidden;
 }
 
 #root {
   min-height: 100vh;
+  overflow: hidden;
+}
+
+/* ===== Floating Island Utility ===== */
+.floating-island {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0);
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+*:hover::-webkit-scrollbar-thumb,
+*:focus::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+*:hover, *:focus {
+  scrollbar-color: rgba(99, 102, 241, 0.5) transparent;
 }
 
 /* ===== ReactFlow canvas overrides ===== */
@@ -26,7 +67,6 @@ body {
   background: #050507;
 }
 
-/* Kill ReactFlow's baked-in white node backgrounds */
 .react-flow__node-default,
 .react-flow__node-input,
 .react-flow__node-output,
@@ -72,25 +112,40 @@ body {
 }
 
 .react-flow__controls {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: flex !important;
+  flex-direction: column-reverse !important;
+  gap: 4px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .react-flow__controls-button {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  background: rgba(20, 20, 24, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #8B8B8F !important;
   font-size: 14px !important;
-  transition: background 0.15s ease;
+  backdrop-filter: blur(8px) !important;
+  transition: all 0.15s ease !important;
+}
+
+.react-flow__controls-button:hover {
+  background: rgba(30, 30, 36, 0.9) !important;
+  color: #EDEDEF !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
 }
 
 .react-flow__minimap {
-  border-radius: 8px !important;
+  border-radius: 10px !important;
   overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
 }
 
 .react-flow__handle {
@@ -107,20 +162,23 @@ body {
 }
 
 .react-flow__selection {
-  background: rgba(59, 130, 246, 0.08) !important;
-  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  background: rgba(99, 102, 241, 0.08) !important;
+  border: 1px solid rgba(99, 102, 241, 0.3) !important;
 }
 
 /* ===== Animations ===== */
 @keyframes edge-dash {
-  to {
-    stroke-dashoffset: -12;
-  }
+  to { stroke-dashoffset: -12; }
 }
 
 @keyframes pulse-red {
   0%, 100% { box-shadow: 0 0 8px rgba(239,68,68,0.3); }
   50% { box-shadow: 0 0 20px rgba(239,68,68,0.6); }
+}
+
+@keyframes pulse-orange {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
 }
 
 .animate-pulse-red {
@@ -145,23 +203,22 @@ body {
   animation: chaos-flash 0.5s ease-in-out infinite;
 }
 
-@keyframes security-pulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(239,68,68,0.3); }
-  50% { box-shadow: 0 0 20px rgba(239,68,68,0.7); }
+@keyframes edge-flow {
+  to { stroke-dashoffset: -18; }
 }
 
-.animate-security-pulse {
-  animation: security-pulse 1.2s ease-in-out infinite;
+@keyframes edge-saturated-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
 }
 
-@keyframes pulse-green {
-  0%, 100% { box-shadow: 0 0 8px rgba(34,197,94,0.3); }
-  50% { box-shadow: 0 0 18px rgba(34,197,94,0.7); }
+.edge-saturated-pulse {
+  animation: edge-saturated-pulse 0.8s ease-in-out infinite;
 }
 
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+@keyframes laser-beam {
+  0% { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
 }
 
 @keyframes metric-flash {
@@ -170,22 +227,12 @@ body {
   100% { color: #f4f4f5; }
 }
 
-@keyframes edge-flow {
-  to { stroke-dashoffset: -18; }
-}
-
-@keyframes pulse-red {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-}
-
 /* ===== Focus ring ===== */
 *:focus-visible {
   outline: 2px solid #6366F1 !important;
   outline-offset: 2px !important;
 }
 
-/* Override for MUI elements that already have focus styles */
 .MuiButtonBase-root:focus-visible,
 .MuiIconButton-root:focus-visible,
 .MuiInputBase-root:focus-visible {
@@ -193,22 +240,6 @@ body {
   outline-offset: 2px !important;
 }
 
-/* Remove default browser focus for mouse users */
 *:focus:not(:focus-visible) {
   outline: none !important;
-}
-
-/* ===== react-flow__selection overrides ===== */
-.react-flow__selection {
-  background: rgba(99, 102, 241, 0.1) !important;
-  border: 1px solid #6366F1 !important;
-}
-
-/* ===== Saturated edge pulse ===== */
-@keyframes edge-saturated-pulse {
-  0%, 100% { opacity: 0.7; }
-  50% { opacity: 1; }
-}
-.edge-saturated-pulse {
-  animation: edge-saturated-pulse 0.8s ease-in-out infinite;
 }
