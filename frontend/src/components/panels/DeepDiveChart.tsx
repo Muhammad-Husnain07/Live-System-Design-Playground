@@ -7,7 +7,9 @@ import {
   ResponsiveContainer, Area, AreaChart, CartesianGrid,
 } from "recharts";
 import { useCanvasStore } from "../../store/canvasStore";
+import { useSimulationStore } from "../../store/simulationStore";
 import { NODE_REGISTRY } from "../../utils/nodeRegistry";
+import { spatialTokens } from "../../theme/spatialTokens";
 import type { NodeType } from "../../types/canvas";
 
 interface DeepDiveChartProps {
@@ -39,6 +41,7 @@ export default memo(function DeepDiveChart({ nodeId, onClose }: DeepDiveChartPro
   const node = nodes.find((n) => n.id === nodeId);
   const nodeType = node?.data?.nodeType as NodeType | undefined;
   const meta = nodeType ? NODE_REGISTRY[nodeType] : undefined;
+  const isRunning = useSimulationStore((s) => s.isRunning);
 
   const data = useMemo(() => generateTimeSeries(node?.data?.metrics), [node?.data?.metrics]);
 
@@ -47,21 +50,21 @@ export default memo(function DeepDiveChart({ nodeId, onClose }: DeepDiveChartPro
       {nodeId && node && meta && (
         <motion.div
           key="deep-dive"
-          className="floating-island"
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          transition={spatialTokens.animation.spring as any}
           style={{
             position: "fixed",
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            zIndex: 110,
+            zIndex: spatialTokens.z.modals,
             width: 560,
             maxHeight: "80vh",
             background: "rgba(5,5,7,0.92)",
             backdropFilter: "blur(24px) saturate(180%)",
+            WebkitBackdropFilter: "blur(24px) saturate(180%)",
             border: `1px solid ${meta.color}30`,
             borderRadius: "16px",
             boxShadow: `0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04), 0 0 40px ${meta.color}15`,
@@ -69,82 +72,40 @@ export default memo(function DeepDiveChart({ nodeId, onClose }: DeepDiveChartPro
             overflow: "hidden",
           }}
         >
-          {/* Header */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1.5,
-              px: 2,
-              py: 1.25,
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <Box
-              sx={{
-                width: 10, height: 10, borderRadius: "50%",
-                bgcolor: meta.color,
-                boxShadow: `0 0 8px ${meta.color}60`,
-                flexShrink: 0,
-              }}
-            />
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.25, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: meta.color, boxShadow: `0 0 8px ${meta.color}60`, flexShrink: 0 }} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography sx={{ fontSize: "0.8rem", fontWeight: 600, color: "#EDEDEF", fontFamily: '"Inter", sans-serif' }}>
+              <Typography sx={{ fontSize: "0.8rem", fontWeight: 600, color: spatialTokens.text.primary, fontFamily: spatialTokens.font.ui }}>
                 {node.data?.label ?? meta.label}
               </Typography>
-              <Typography sx={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.35)", fontFamily: '"JetBrains Mono", monospace' }}>
+              <Typography sx={{ fontSize: "0.6rem", color: spatialTokens.text.secondary, fontFamily: spatialTokens.font.mono }}>
                 {nodeType} · {node.data?.config?.region ?? "us-east-1"}
               </Typography>
             </Box>
-            <Box
-              onClick={onClose}
-              sx={{
-                cursor: "pointer", color: "rgba(255,255,255,0.3)", display: "flex", p: 0.35,
-                borderRadius: "4px", "&:hover": { color: "rgba(255,255,255,0.6)", bgcolor: "rgba(255,255,255,0.06)" },
-              }}
-            >
+            <Box onClick={onClose} sx={{ cursor: "pointer", color: spatialTokens.text.dim, display: "flex", p: 0.35, borderRadius: "4px", "&:hover": { color: spatialTokens.text.primary, bgcolor: "rgba(255,255,255,0.06)" } }}>
               <X size={14} />
             </Box>
           </Box>
 
-          {/* Charts */}
           <Box sx={{ px: 2, py: 1.5, display: "flex", flexDirection: "column", gap: 2, overflow: "auto" }}>
-            <ChartSection
-              title="Throughput (RPS)"
-              icon={<Zap size={12} />}
-              color="#34D399"
-              data={data}
-              dataKey="rps"
-              unit=" req/s"
-              gradientId="rps-grad"
-            />
-            <ChartSection
-              title="P99 Latency"
-              icon={<Clock size={12} />}
-              color="#60A5FA"
-              data={data}
-              dataKey="p99"
-              unit=" ms"
-              gradientId="lat-grad"
-            />
-            <ChartSection
-              title="CPU Utilization"
-              icon={<Activity size={12} />}
-              color="#F59E0B"
-              data={data}
-              dataKey="cpu"
-              unit="%"
-              gradientId="cpu-grad"
-            />
-            <ChartSection
-              title="Error Rate"
-              icon={<AlertTriangle size={12} />}
-              color="#EF4444"
-              data={data}
-              dataKey="errors"
-              unit=" err/s"
-              gradientId="err-grad"
-            />
+            {isRunning ? (
+              <>
+                <ChartSection title="Throughput (RPS)" icon={<Zap size={12} />} color={spatialTokens.metrics.rps} data={data} dataKey="rps" unit=" req/s" gradientId="rps-grad" />
+                <ChartSection title="P99 Latency" icon={<Clock size={12} />} color={spatialTokens.metrics.latency} data={data} dataKey="p99" unit=" ms" gradientId="lat-grad" />
+                <ChartSection title="CPU Utilization" icon={<Activity size={12} />} color={spatialTokens.metrics.cpu} data={data} dataKey="cpu" unit="%" gradientId="cpu-grad" />
+                <ChartSection title="Error Rate" icon={<AlertTriangle size={12} />} color={spatialTokens.metrics.error} data={data} dataKey="errors" unit=" err/s" gradientId="err-grad" />
+              </>
+            ) : (
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", py: 6, gap: 1.5 }}>
+                <Activity size={32} style={{ color: spatialTokens.text.dim }} />
+                <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: spatialTokens.text.primary, fontFamily: spatialTokens.font.ui, textAlign: "center" }}>
+                  Start simulation to view metrics
+                </Typography>
+                <Typography sx={{ fontSize: "0.6rem", color: spatialTokens.text.secondary, fontFamily: spatialTokens.font.ui, textAlign: "center", maxWidth: 280 }}>
+                  Run a simulation to see real-time throughput, latency, CPU, and error rate charts for this node.
+                </Typography>
+              </Box>
+            )}
           </Box>
         </motion.div>
       )}
@@ -152,28 +113,20 @@ export default memo(function DeepDiveChart({ nodeId, onClose }: DeepDiveChartPro
   );
 });
 
-function ChartSection({
-  title, icon, color, data, dataKey, unit, gradientId,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  color: string;
-  data: any[];
-  dataKey: string;
-  unit: string;
-  gradientId: string;
+function ChartSection({ title, icon, color, data, dataKey, unit, gradientId }: {
+  title: string; icon: React.ReactNode; color: string; data: any[]; dataKey: string; unit: string; gradientId: string;
 }) {
   const lastVal = data[data.length - 1]?.[dataKey] ?? 0;
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.75 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-          <Box sx={{ color: "rgba(255,255,255,0.35)", display: "flex" }}>{icon}</Box>
-          <Typography sx={{ fontSize: "0.6rem", fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: '"Inter", sans-serif' }}>
+          <Box sx={{ color: spatialTokens.text.dim, display: "flex" }}>{icon}</Box>
+          <Typography sx={{ fontSize: "0.6rem", fontWeight: 600, color: spatialTokens.text.secondary, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: spatialTokens.font.ui }}>
             {title}
           </Typography>
         </Box>
-        <Typography sx={{ fontSize: "0.85rem", fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color, textShadow: `0 0 12px ${color}40` }}>
+        <Typography sx={{ fontSize: "0.85rem", fontWeight: 700, fontFamily: spatialTokens.font.mono, color, textShadow: `0 0 12px ${color}40` }}>
           {typeof lastVal === "number" ? lastVal.toLocaleString() : lastVal}{unit}
         </Typography>
       </Box>
@@ -192,7 +145,7 @@ function ChartSection({
             <RechartTooltip
               contentStyle={{
                 background: "rgba(5,5,7,0.9)", border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: "6px", fontSize: "0.6rem", color: "#EDEDEF",
+                borderRadius: "6px", fontSize: "0.6rem", color: spatialTokens.text.primary,
                 boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
               }}
               formatter={(value: any) => [`${Number(value).toLocaleString()}${unit}`, title]}
