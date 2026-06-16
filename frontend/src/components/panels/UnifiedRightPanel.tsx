@@ -125,7 +125,7 @@ export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRigh
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
             style={{ height: "100%" }}
           >
             {renderContent()}

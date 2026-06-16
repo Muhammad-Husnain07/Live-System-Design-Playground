@@ -35,10 +35,12 @@ interface ChaosState {
   activeEvents: ChaosEventData[];
   activeNodeIds: string[];
   showChaosPanel: boolean;
+  lastChaosInjectionAt: number;
   setActiveEvents: (events: ChaosEventData[]) => void;
   addActiveEvent: (event: ChaosEventData) => void;
   removeActiveEvent: (id: string) => void;
   setShowChaosPanel: (show: boolean) => void;
+  setLastChaosInjectionAt: (ts: number) => void;
   reset: () => void;
 }
 
@@ -46,6 +48,7 @@ export const useChaosStore = create<ChaosState>((set) => ({
   activeEvents: [],
   activeNodeIds: [],
   showChaosPanel: false,
+  lastChaosInjectionAt: 0,
   setActiveEvents: (events) => set({ activeEvents: events, activeNodeIds: [...new Set(events.map((e) => e.nodeId))] }),
   addActiveEvent: (event) =>
     set((s) => ({
@@ -58,5 +61,6 @@ export const useChaosStore = create<ChaosState>((set) => ({
       return { activeEvents: filtered, activeNodeIds: [...new Set(filtered.map((e) => e.nodeId))] };
     }),
   setShowChaosPanel: (show) => set({ showChaosPanel: show }),
-  reset: () => set({ activeEvents: [], activeNodeIds: [], showChaosPanel: false }),
+  setLastChaosInjectionAt: (ts) => set({ lastChaosInjectionAt: ts }),
+  reset: () => set({ activeEvents: [], activeNodeIds: [], showChaosPanel: false, lastChaosInjectionAt: 0 }),
 }));

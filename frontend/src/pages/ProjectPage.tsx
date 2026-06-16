@@ -15,46 +15,47 @@ import ReactFlow, {
   ReactFlowProvider,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Sword, Trophy, Frown } from "lucide-react";
+import { Sword } from "lucide-react";
 import { useProjectStore } from "../store/projectStore";
 import { useCanvasStore } from "../store/canvasStore";
 import { useShallow } from "zustand/react/shallow";
 import { nodeTypes, edgeTypes, getReactFlowType } from "../components/canvas/nodeTypes";
 import { NODE_REGISTRY } from "../utils/nodeRegistry";
-import NodePanel from "../components/sidebar/NodePanel";
-import UnifiedRightPanel from "../components/panels/UnifiedRightPanel";
-import DrillPanel from "../components/panels/DrillPanel";
 import TopToolbar from "../components/toolbar/TopToolbar";
 import ToastContainer from "../components/ui/Toast";
 import { useSimulation } from "../hooks/useSimulation";
 import { useCollaboration, CURSOR_COLORS } from "../hooks/useCollaboration";
-import { useChaosStore } from "../store/chaosStore";
-import { useDeployStore } from "../store/deploymentStore";
-import { useSecurityStore } from "../store/securityStore";
-import { useFinOpsStore } from "../store/finopsStore";
 import { useChallengeStore } from "../store/challengeStore";
+import { useDeployStore } from "../store/deploymentStore";
+import { useExportStore } from "../store/exportStore";
 import { useSimulationStore } from "../store/simulationStore";
 import { useAuthStore } from "../store/authStore";
-import { useExportStore } from "../store/exportStore";
 import MaturityModal from "../components/panels/MaturityModal";
 import ArchitectureInsightsPanel from "../components/panels/ArchitectureInsightsPanel";
 import ExportModal from "../components/panels/ExportModal";
 import FinOpsModal from "../components/panels/FinOpsModal";
-import BottomDrawer from "../components/panels/BottomDrawer";
+import ChaosPanel from "../components/panels/ChaosPanel";
+import SecurityPanel from "../components/panels/SecurityPanel";
+import FloatingFeaturePanel from "../components/panels/FloatingFeaturePanel";
+import ActionDock, { type PanelId } from "../components/toolbar/ActionDock";
 import CommandPalette from "../components/ui/CommandPalette";
 import {
   SIMULATION_ACTIONS, PANEL_ACTIONS, HISTORY_ACTIONS, EXPORT_ACTIONS,
   type CommandAction,
 } from "../utils/commandActions";
-import { CHAOS_TYPES } from "../store/chaosStore";
+import { useChaosStore, CHAOS_TYPES } from "../store/chaosStore";
 import { useToastStore } from "../store/toastStore";
 import api from "../utils/api";
 import { ENTERPRISE_TEMPLATES, DEFAULT_SIM, DEFAULT_METRICS } from "../utils/enterpriseTemplates";
 import type { NodeType } from "../types/canvas";
+import RadialMenu from "../components/canvas/RadialMenu";
+import FloatingInspector from "../components/panels/FloatingInspector";
+import ComponentSpawner from "../components/canvas/ComponentSpawner";
+import HeatmapOverlay from "../components/canvas/HeatmapOverlay";
+import DeepDiveChart from "../components/panels/DeepDiveChart";
+import StatusBar from "../components/toolbar/StatusBar";
+import QuakeTerminal from "../components/ui/QuakeTerminal";
 import { Box, Typography, Button } from "@mui/material";
-import { Group, Panel as ResizablePanel } from "react-resizable-panels";
-import ResizeHandle from "../components/layout/ResizeHandle";
-import ActivityBar from "../components/layout/ActivityBar";
 
 const VPC_COLORS = [
   "rgba(59,130,246,0.08)", "rgba(16,185,129,0.08)", "rgba(245,158,11,0.08)",
@@ -98,8 +99,7 @@ function VpcBoundaries({ nodes }: { nodes: Node[] }) {
           stroke={r.color.replace("0.08", "0.25")}
           strokeWidth={1.5}
           strokeDasharray="6 4"
-          rx={12}
-          ry={12}
+          rx={12} ry={12}
           pointerEvents="none"
         />
       ))}
@@ -152,7 +152,7 @@ function ChallengeTimerBar({ challenge, onSubmit, submitting }: { challenge: Non
   const timeStr = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 
   return (
-    <Box sx={{ height: 40, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, borderBottom: "1px solid", borderColor: isUrgent ? "rgba(239,68,68,0.3)" : "#27272a", bgcolor: isUrgent ? "rgba(239,68,68,0.1)" : "#18181b" }}>
+    <Box sx={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", zIndex: 60, height: 36, display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, borderRadius: "8px", backdropFilter: "blur(12px)", border: "1px solid", borderColor: isUrgent ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.08)", bgcolor: isUrgent ? "rgba(239,68,68,0.12)" : "rgba(5,5,7,0.7)", gap: 1.5, minWidth: 300, pointerEvents: "auto" }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
         <Typography sx={{ fontSize: "10px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em", color: "#71717a", display: "flex", alignItems: "center", gap: 0.5 }}>
           <Sword size={16} /> {challenge.title}
@@ -197,8 +197,8 @@ function ScoreReportModal({ report, onClose }: { report: { cost: number; reliabi
     <Box sx={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} onClick={onClose}>
       <Box sx={{ bgcolor: "#18181b", border: "1px solid", borderColor: "#3f3f46", borderRadius: "12px", p: 3, width: 320, boxShadow: 24 }} onClick={(e) => e.stopPropagation()}>
         <Box sx={{ textAlign: "center", mb: 2 }}>
-          <Typography component="span" sx={{ fontSize: "30px", lineHeight: 1.2 }}>{report.passed ? <Trophy size={16} /> : <Frown size={16} />}</Typography>
-          <Typography sx={{ fontSize: "18px", fontWeight: 700, mt: 1, color: report.passed ? "#22c55e" : "#ef4444" }}>
+          <Box sx={{ fontSize: "30px", lineHeight: 1.2, mb: 1 }}>{report.passed ? "&#10003;" : "&#10007;"}</Box>
+          <Typography sx={{ fontSize: "18px", fontWeight: 700, color: report.passed ? "#22c55e" : "#ef4444" }}>
             {report.passed ? "Challenge Passed!" : "Challenge Failed"}
           </Typography>
           <Typography sx={{ fontSize: "11px", mt: 0.25, color: "#71717a" }}>
@@ -246,31 +246,35 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
   const edgesRef = useRef(edges);
   useEffect(() => { edgesRef.current = edges; }, [edges]);
 
+  const [activePanel, setActivePanel] = useState<PanelId>(null);
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [chaosFlash, setChaosFlash] = useState(false);
+  const lastChaosInjectionAt = useChaosStore((s) => s.lastChaosInjectionAt);
+
+  useEffect(() => {
+    if (lastChaosInjectionAt > 0) {
+      setChaosFlash(true);
+      const t = setTimeout(() => setChaosFlash(false), 350);
+      return () => clearTimeout(t);
+    }
+  }, [lastChaosInjectionAt]);
+
   const [saving, setSaving] = useState(false);
-  const showExportModal = useExportStore((s) => s.showModal);
   const setExportMode = useCanvasStore((s) => s.setExportMode);
 
   useEffect(() => {
-    setExportMode(showExportModal);
-  }, [showExportModal, setExportMode]);
+    setExportMode(activePanel === "export");
+  }, [activePanel, setExportMode]);
 
-  const [showSimPanel, setShowSimPanel] = useState(false);
-  const showChaosPanel = useChaosStore((s) => s.showChaosPanel);
-  const setShowChaosPanel = useChaosStore((s) => s.setShowChaosPanel);
-  const showDeployPanel = useDeployStore((s) => s.showDeployPanel);
-  const setShowDeployPanel = useDeployStore((s) => s.setShowDeployPanel);
-  const showSecurityPanel = useSecurityStore((s) => s.showSecurityPanel);
-  const setShowSecurityPanel = useSecurityStore((s) => s.setShowSecurityPanel);
 
-  const [showDrillPanel, setShowDrillPanel] = useState(false);
   const [showMaturityPanel, setShowMaturityPanel] = useState(false);
-  const [showFinOpsModal, setShowFinOpsModal] = useState(false);
   const onToggleMaturityPanel = useCallback(() => setShowMaturityPanel((v) => !v), []);
   const [showInsightsPanel, setShowInsightsPanel] = useState(false);
   const onToggleInsightsPanel = useCallback(() => setShowInsightsPanel((v) => !v), []);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const [activeSidebar, setActiveSidebar] = useState<"components" | "templates" | "search" | null>("components");
+  const [contextMenu, setContextMenu] = useState<{ nodeId: string; x: number; y: number } | null>(null);
+  const [deepDiveNodeId, setDeepDiveNodeId] = useState<string | null>(null);
   const reactFlowRef = useRef<any>(null);
   useEffect(() => { reactFlowRef.current = reactFlowInstance; }, [reactFlowInstance]);
   const activeChallenge = useChallengeStore((s) => s.activeChallenge);
@@ -419,9 +423,21 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
     [selectEdge, setActiveRightTab],
   );
 
+  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+    event.preventDefault();
+    setContextMenu({ nodeId: node.id, x: event.clientX, y: event.clientY });
+  }, []);
+
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  const onNodeDoubleClick = useCallback((_: any, node: Node) => {
+    setDeepDiveNodeId(node.id);
+  }, []);
+
   const onPaneClick = useCallback(() => {
     selectNode(null);
     selectEdge(null);
+    setContextMenu(null);
   }, [selectNode, selectEdge]);
 
   const onNodeDragStop = useCallback(() => {
@@ -543,7 +559,7 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
 
       if (actionId === "start-simulation") {
         simStart();
-        toast({ type: "info", title: "Simulation starting…", duration: 2000 });
+        toast({ type: "info", title: "Simulation starting\u2026", duration: 2000 });
         return;
       }
       if (actionId === "stop-simulation") {
@@ -573,6 +589,7 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
           durationSeconds: 30,
         }).then(() => {
           toast({ type: "success", title: `${label} injected`, duration: 2500 });
+          useChaosStore.getState().setLastChaosInjectionAt(Date.now());
         }).catch(() => {
           toast({ type: "error", title: `Failed to inject ${label}`, duration: 3000 });
         });
@@ -580,10 +597,9 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
       }
 
       if (actionId === "toggle-chaos") {
-        const v = !useChaosStore.getState().showChaosPanel;
-        useChaosStore.getState().setShowChaosPanel(v);
+        setActivePanel((prev) => prev === "chaos" ? null : "chaos");
         cs().setActiveRightTab("simulate");
-        toast({ type: "info", title: v ? "Chaos panel opened" : "Chaos panel closed", duration: 2000 });
+        toast({ type: "info", title: "Chaos panel toggled", duration: 2000 });
         return;
       }
       if (actionId === "toggle-deploy") {
@@ -594,38 +610,31 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
         return;
       }
       if (actionId === "toggle-security") {
-        const v = !useSecurityStore.getState().showSecurityPanel;
-        useSecurityStore.getState().setShowSecurityPanel(v);
+        setActivePanel((prev) => prev === "security" ? null : "security");
         cs().setActiveRightTab("security");
-        toast({ type: "info", title: v ? "Security panel opened" : "Security panel closed", duration: 2000 });
+        toast({ type: "info", title: "Security panel toggled", duration: 2000 });
         return;
       }
       if (actionId === "toggle-finops") {
-        const v = !useFinOpsStore.getState().showPanel;
-        useFinOpsStore.getState().setShowPanel(v);
+        setActivePanel((prev) => prev === "finops" ? null : "finops");
         cs().setActiveRightTab("finops");
-        toast({ type: "info", title: v ? "FinOps panel opened" : "FinOps panel closed", duration: 2000 });
-        return;
-      }
-      if (actionId === "toggle-drill") {
-        setShowDrillPanel((v) => !v);
-        toast({ type: "info", title: `Drill panel ${!showDrillPanel ? "opened" : "closed"}`, duration: 2000 });
+        toast({ type: "info", title: "FinOps panel toggled", duration: 2000 });
         return;
       }
       if (actionId === "open-export") {
-        useExportStore.getState().openExport();
-        toast({ type: "info", title: "Export modal opened", duration: 2000 });
+        setActivePanel("export");
+        toast({ type: "info", title: "Export panel opened", duration: 2000 });
         return;
       }
 
       if (actionId === "undo") {
         cs().undo();
-        toast({ type: "info", title: "↩️ Undo", duration: 1500 });
+        toast({ type: "info", title: "Undo", duration: 1500 });
         return;
       }
       if (actionId === "redo") {
         cs().redo();
-        toast({ type: "info", title: "↪️ Redo", duration: 1500 });
+        toast({ type: "info", title: "Redo", duration: 1500 });
         return;
       }
 
@@ -651,7 +660,7 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
         return;
       }
     },
-    [simStart, simStop, scheduleAutoSave, debouncedSync, showDrillPanel],
+    [simStart, simStop, scheduleAutoSave, debouncedSync, setActivePanel],
   );
 
   const allTemplates = ENTERPRISE_TEMPLATES;
@@ -690,6 +699,11 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
         doAutoSave();
         return;
       }
+      if (event.key === "`" || event.key === "~" || (isCtrl && event.key === " ")) {
+        event.preventDefault();
+        setTerminalOpen((v) => !v);
+        return;
+      }
       if (isCtrl && event.key === "k") {
         event.preventDefault();
         setPaletteOpen(true);
@@ -710,12 +724,16 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
         return;
       }
       if (event.key === "Escape") {
+        if (terminalOpen) {
+          setTerminalOpen(false);
+          return;
+        }
         selectNode(null);
         selectEdge(null);
         return;
       }
     },
-    [undo, redo, doAutoSave, simStart, simStop, selectNode, selectEdge, pushUndoState, removeNode, removeEdge],
+    [undo, redo, doAutoSave, simStart, simStop, selectNode, selectEdge, pushUndoState, removeNode, removeEdge, terminalOpen],
   );
 
   useEffect(() => {
@@ -732,17 +750,17 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
 
   if (isLoading && !currentProject) {
     return (
-      <Box sx={{ height: "100vh", bgcolor: "background.default", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Box sx={{ height: "100vh", bgcolor: "#050507", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, width: 320 }}>
-          <Box sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: "8px", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <Box sx={{ bgcolor: "background.elevated", borderRadius: "4px", width: "70%", height: 16 }} />
-            <Box sx={{ bgcolor: "background.elevated", borderRadius: "4px", width: "90%", height: 10 }} />
-            <Box sx={{ bgcolor: "background.elevated", borderRadius: "4px", width: "60%", height: 10 }} />
+          <Box sx={{ bgcolor: "rgba(20,20,24,0.8)", border: "1px solid", borderColor: "#3f3f46", borderRadius: "12px", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "70%", height: 16 }} />
+            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "90%", height: 10 }} />
+            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "60%", height: 10 }} />
           </Box>
-          <Box sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: "8px", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <Box sx={{ bgcolor: "background.elevated", borderRadius: "4px", width: "50%", height: 16 }} />
-            <Box sx={{ bgcolor: "background.elevated", borderRadius: "4px", width: "80%", height: 10 }} />
-            <Box sx={{ bgcolor: "background.elevated", borderRadius: "4px", width: "70%", height: 10 }} />
+          <Box sx={{ bgcolor: "rgba(20,20,24,0.8)", border: "1px solid", borderColor: "#3f3f46", borderRadius: "12px", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "50%", height: 16 }} />
+            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "80%", height: 10 }} />
+            <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "70%", height: 10 }} />
           </Box>
         </Box>
       </Box>
@@ -751,7 +769,7 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
 
   if (error && !currentProject) {
     return (
-      <Box sx={{ height: "100vh", bgcolor: "background.default", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Box sx={{ height: "100vh", bgcolor: "#050507", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Box sx={{ textAlign: "center" }}>
           <Typography sx={{ fontSize: "14px", mb: 0.5, color: "error.main" }}>{error}</Typography>
           <Button onClick={() => navigate("/dashboard")} sx={{ fontSize: "14px", color: "primary.main", textTransform: "none", minWidth: "unset", p: 0, "&:hover": { bgcolor: "transparent", opacity: 0.8 } }}>
@@ -763,34 +781,154 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
   }
 
   return (
-    <Box sx={{ height: "100vh", bgcolor: "background.default", display: "flex", flexDirection: "column", overflow: "hidden", color: "text.primary" }}>
-      {/* Row 1: Top Command Bar — fixed 44px */}
+    <Box sx={{ height: "100vh", bgcolor: "#050507", overflow: "hidden", color: "#EDEDEF", position: "relative" }}>
+      {/* Fullscreen canvas fills entire viewport */}
+      <Box ref={reactFlowWrapper} sx={{ width: "100%", height: "100vh", position: "relative", cursor: isDraggingOver ? "crosshair" : undefined,
+        "& .react-flow": isDraggingOver ? { boxShadow: "inset 0 0 60px rgba(34,197,94,0.08)", transition: "box-shadow 0.15s" } : {},
+        "& .react-flow__selection": { background: "rgba(99,102,241,0.1)", border: "1px solid #6366F1" },
+      }} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} onMouseMove={handleMouseMove}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onInit={setReactFlowInstance}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
+          onNodeDoubleClick={onNodeDoubleClick}
+          onNodeContextMenu={onNodeContextMenu}
+          onPaneClick={onPaneClick}
+          onNodeDragStop={onNodeDragStop}
+          isValidConnection={isValidConnection}
+          fitView
+          panOnScroll
+          elevateNodesOnSelect
+          nodeExtent={canvasExtent}
+          translateExtent={canvasExtent}
+          onlyRenderVisibleElements
+          snapToGrid
+          snapGrid={[16, 16]}
+          onNodesDelete={(deleted) => {
+            deleted.forEach((n) => removeNode(n.id));
+            scheduleAutoSave();
+            debouncedSync();
+          }}
+          onEdgesDelete={(deleted) => {
+            deleted.forEach((e) => removeEdge(e.id));
+            scheduleAutoSave();
+            debouncedSync();
+          }}
+        >
+          <Background variant={BackgroundVariant.Dots} gap={40} size={1.5} color="rgba(255,255,255,0.05)" />
+          <VpcBoundaries nodes={nodes} />
+          <HeatmapOverlay nodes={nodes} />
+
+          {/* Radial vignette overlay */}
+          <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1,
+            background: "radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(5,5,7,0.6) 100%)",
+          }} />
+
+          <Box sx={{
+            "& .react-flow__controls": {
+              background: "transparent !important", border: "none !important", boxShadow: "none !important",
+              display: "flex !important", flexDirection: "column-reverse !important",
+            },
+            "& .react-flow__controls-button": {
+              background: "#27272a !important", border: "1px solid #3f3f46 !important",
+              boxShadow: "none !important",
+              "&:hover": { background: "#3f3f46 !important" },
+            },
+          }}>
+            <Controls />
+          </Box>
+          <MiniMap
+            style={{
+              background: "#050507",
+              border: "1px solid #3f3f46",
+              borderRadius: "8px",
+              overflow: "hidden",
+            }}
+            nodeColor={(n) => {
+              const nt = (n.data as any)?.nodeType;
+              const meta = nt ? (NODE_REGISTRY as any)[nt] : null;
+              return meta?.color ?? "#27272a";
+            }}
+            maskColor="rgba(5,5,7,0.8)"
+            nodeStrokeWidth={2}
+          />
+          <Panel position="bottom-left">
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "10px", fontFamily: '"JetBrains Mono", monospace', bgcolor: "rgba(5,5,7,0.8)", backdropFilter: "blur(4px)", px: "10px", py: "4px", borderRadius: "4px", border: "1px solid", borderColor: "#27272a", pointerEvents: "auto", color: "#52525b" }}>
+              <Typography component="span" sx={{ fontSize: "inherit", fontFamily: "inherit" }}>Nodes: {nodes.length}</Typography>
+              <Typography component="span" sx={{ fontSize: "inherit", color: "#3f3f46" }}>|</Typography>
+              <Typography component="span" sx={{ fontSize: "inherit", fontFamily: "inherit" }}>Edges: {edges.length}</Typography>
+            </Box>
+          </Panel>
+        </ReactFlow>
+
+        {collabConnected && remoteCursors.map((c) => (
+          <Box key={c.clientId} sx={{ position: "absolute", pointerEvents: "none", zIndex: 50, left: c.x, top: c.y }}>
+            <svg width="20" height="24" viewBox="0 0 20 24" fill="none">
+              <path d="M2 2L15 20L10.5 13.5L18 11L2 2Z" fill={c.color} stroke="white" strokeWidth="1.5" />
+            </svg>
+            <Typography component="span" sx={{ position: "absolute", left: 16, top: 0, fontSize: "10px", fontWeight: 500, whiteSpace: "nowrap", px: "6px", py: "2px", borderRadius: "4px", bgcolor: c.color, color: "#fff" }}>
+              {c.name}
+            </Typography>
+          </Box>
+        ))}
+
+        {nodes.length === 0 && !isLoading && (
+          <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Box sx={{ textAlign: "center", maxWidth: 420, zIndex: 10 }}>
+              <Box sx={{ width: 64, height: 64, mx: "auto", mb: 2, borderRadius: "50%", bgcolor: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Typography component="span" sx={{ fontSize: "24px", lineHeight: 1, color: "#22c55e" }}>&#9678;</Typography>
+              </Box>
+              <Typography variant="h5" sx={{ fontSize: "18px", fontWeight: 600, color: "#f4f4f5", mb: 0.5 }}>
+                Start Designing Your System
+              </Typography>
+              <Typography variant="body1" sx={{ fontSize: "12px", color: "#71717a", mb: 2.5, lineHeight: 1.5 }}>
+                Press <Box component="span" sx={{ fontFamily: '"JetBrains Mono", monospace', bgcolor: "rgba(255,255,255,0.06)", px: 0.6, py: 0.15, borderRadius: "3px", fontSize: "0.6rem" }}>+</Box> or <Box component="span" sx={{ fontFamily: '"JetBrains Mono", monospace', bgcolor: "rgba(255,255,255,0.06)", px: 0.6, py: 0.15, borderRadius: "3px", fontSize: "0.6rem" }}>Ctrl+K</Box> to add components, or start with a template
+              </Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1, pointerEvents: "auto" }}>
+                {allTemplates.map((tpl) => (
+                  <Button
+                    key={tpl.id}
+                    onClick={() => applyTemplate(tpl.id)}
+                    variant="outlined"
+                    sx={{
+                      textTransform: "none", justifyContent: "flex-start", gap: 1.5, px: 2, py: 1,
+                      borderColor: "#3f3f46", color: "#d4d4d8", fontSize: "0.75rem", fontWeight: 500,
+                      "&:hover": { borderColor: "#22c55e", bgcolor: "rgba(34,197,94,0.08)", color: "#22c55e" },
+                    }}
+                  >
+                    <Box component="span" sx={{ fontSize: "16px", lineHeight: 1, display: "inline-flex" }}><tpl.icon size={16} /></Box>
+                    <Box sx={{ textAlign: "left" }}>
+                      <Typography sx={{ fontSize: "0.75rem", fontWeight: 500, color: "inherit" }}>{tpl.label}</Typography>
+                      <Typography sx={{ fontSize: "0.6rem", color: "#71717a", mt: 0.25 }}>{tpl.desc}</Typography>
+                    </Box>
+                  </Button>
+                ))}
+              </Box>
+            </Box>
+          </Box>
+        )}
+      </Box>
+
+      {/* Floating HUD — overlays canvas */}
       <TopToolbar
         projectId={projectId}
-        saving={saving}
         onStart={simStart}
         onStop={simStop}
-        showSimPanel={showSimPanel}
-        onToggleSimPanel={() => { setActiveRightTab("simulate"); setShowSimPanel((v) => !v); }}
-        showChaosPanel={showChaosPanel}
-        onToggleChaosPanel={() => { setActiveRightTab("simulate"); setShowChaosPanel(!showChaosPanel); }}
-        showDeployPanel={showDeployPanel}
-        onToggleDeployPanel={() => { setActiveRightTab("deploy"); setShowDeployPanel(!showDeployPanel); }}
-        showSecurityPanel={showSecurityPanel}
-        onToggleSecurityPanel={() => { setActiveRightTab("security"); setShowSecurityPanel(!showSecurityPanel); }}
-        showFinOpsModal={showFinOpsModal}
-        onToggleFinOpsModal={() => setShowFinOpsModal((v) => !v)}
-        showDrillPanel={showDrillPanel}
-        onToggleDrillPanel={() => setShowDrillPanel(!showDrillPanel)}
         showMaturityPanel={showMaturityPanel}
         onToggleMaturityPanel={onToggleMaturityPanel}
         showInsightsPanel={showInsightsPanel}
         onToggleInsightsPanel={onToggleInsightsPanel}
-        collabConnected={collabConnected}
-        remoteUsers={remoteUsers}
+        showFinOpsModal={activePanel === "finops"}
+        onToggleFinOpsModal={() => setActivePanel((prev) => prev === "finops" ? null : "finops")}
       />
 
-      {/* Conditional bars */}
       {activeChallenge && (
         <ChallengeTimerBar
           challenge={activeChallenge}
@@ -800,183 +938,46 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
       )}
 
       {wsStatus === "disconnected" && useSimulationStore.getState().isRunning && (
-        <Box sx={{ height: 32, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(249,115,22,0.1)", borderBottom: "1px solid rgba(249,115,22,0.3)", gap: 1 }}>
-          <Box component="span" sx={{ "@keyframes spin": { to: { transform: "rotate(360deg)" } }, animation: "spin 1s linear infinite", height: 12, width: 12, border: "1px solid", borderColor: "#fb923c", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block" }} />
-          <Typography sx={{ fontSize: "10px", fontWeight: 500, color: "#fb923c" }}>Connection lost. Reconnecting...</Typography>
+        <Box sx={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", zIndex: 60, height: 28, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(249,115,22,0.12)", borderRadius: "6px", px: 2, backdropFilter: "blur(8px)", border: "1px solid rgba(249,115,22,0.2)", gap: 1 }}>
+          <Box component="span" sx={{ "@keyframes spin": { to: { transform: "rotate(360deg)" } }, animation: "spin 1s linear infinite", height: 10, width: 10, border: "1.5px solid", borderColor: "#fb923c", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block" }} />
+          <Typography sx={{ fontSize: "9px", fontWeight: 500, color: "#fb923c", fontFamily: '"Inter", sans-serif' }}>Connection lost. Reconnecting...</Typography>
         </Box>
       )}
       {wsStatus === "error" && !useSimulationStore.getState().isRunning && (
-        <Box sx={{ height: 32, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(239,68,68,0.1)", borderBottom: "1px solid rgba(239,68,68,0.3)" }}>
-          <Typography sx={{ fontSize: "10px", fontWeight: 500, color: "#ef4444" }}>WebSocket connection failed</Typography>
+        <Box sx={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", zIndex: 60, height: 28, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(239,68,68,0.12)", borderRadius: "6px", px: 2, backdropFilter: "blur(8px)", border: "1px solid rgba(239,68,68,0.2)" }}>
+          <Typography sx={{ fontSize: "9px", fontWeight: 500, color: "#ef4444", fontFamily: '"Inter", sans-serif' }}>WebSocket connection failed</Typography>
         </Box>
       )}
 
       {scoreReport && (
-        <ScoreReportModal
-          report={scoreReport}
-          onClose={clearActiveChallenge}
-        />
+        <ScoreReportModal report={scoreReport} onClose={clearActiveChallenge} />
       )}
 
-      {/* Rows 2-3: Resizable IDE layout */}
-      <Box sx={{ flex: 1, minHeight: 0 }}>
-        <Group orientation="vertical" style={{ height: "100%" }}>
-          {/* Main horizontal area */}
-          <ResizablePanel defaultSize="80%" minSize="30%">
-            <Box sx={{ display: "flex", height: "100%", minHeight: 0 }}>
-              {/* Activity Bar — fixed 48px icon strip */}
-              <ActivityBar activeView={activeSidebar} onViewChange={setActiveSidebar} />
-              {/* Sidebar | Canvas | Inspector */}
-              <Group orientation="horizontal" style={{ flex: 1, minWidth: 0 }}>
-                <ResizablePanel defaultSize="20%" minSize="15%" maxSize="40%" collapsible collapsedSize={0}>
-                  {activeSidebar ? <NodePanel view={activeSidebar} onApplyTemplate={applyTemplate} /> : null}
-                </ResizablePanel>
-                <ResizeHandle direction="horizontal" />
-                <ResizablePanel>
-                  <Box ref={reactFlowWrapper} sx={{ width: "100%", height: "100%", position: "relative", cursor: isDraggingOver ? "crosshair" : undefined, "& .react-flow": isDraggingOver ? { boxShadow: "inset 0 0 60px rgba(34,197,94,0.08)", transition: "box-shadow 0.15s" } : {}, "& .react-flow__selection": { background: "rgba(99,102,241,0.1)", border: "1px solid #6366F1" } }} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} onMouseMove={handleMouseMove}>
-                    <ReactFlow
-                      nodes={nodes}
-                      edges={edges}
-                      onNodesChange={onNodesChange}
-                      onEdgesChange={onEdgesChange}
-                      onConnect={onConnect}
-                      onInit={setReactFlowInstance}
-                      nodeTypes={nodeTypes}
-                      edgeTypes={edgeTypes}
-                      onNodeClick={onNodeClick}
-                      onEdgeClick={onEdgeClick}
-                      onPaneClick={onPaneClick}
-                      onNodeDragStop={onNodeDragStop}
-                      isValidConnection={isValidConnection}
-                      fitView
-                      panOnScroll
-                      elevateNodesOnSelect
-                      nodeExtent={canvasExtent}
-                      translateExtent={canvasExtent}
-                      onlyRenderVisibleElements
-                      snapToGrid
-                      snapGrid={[16, 16]}
-                      onNodesDelete={(deleted) => {
-                        deleted.forEach((n) => removeNode(n.id));
-                        scheduleAutoSave();
-                        debouncedSync();
-                      }}
-                      onEdgesDelete={(deleted) => {
-                        deleted.forEach((e) => removeEdge(e.id));
-                        scheduleAutoSave();
-                        debouncedSync();
-                      }}
-                    >
-                      <VpcBoundaries nodes={nodes} />
-                      <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#1E1E20" />
-                      <Box sx={{
-                        "& .react-flow__controls": {
-                          background: "transparent !important",
-                          border: "none !important",
-                          boxShadow: "none !important",
-                          display: "flex !important",
-                          flexDirection: "column-reverse !important",
-                        },
-                        "& .react-flow__controls-button": {
-                          background: "#27272a !important",
-                          border: "1px solid #3f3f46 !important",
-                          boxShadow: "none !important",
-                          "&:hover": {
-                            background: "#3f3f46 !important",
-                          },
-                        },
-                      }}>
-                        <Controls />
-                      </Box>
-                      <MiniMap
-                        style={{
-                          background: "#09090b",
-                          border: "1px solid #3f3f46",
-                          borderRadius: "8px",
-                          overflow: "hidden",
-                        }}
-                        nodeColor={(n) => {
-                          const nt = (n.data as any)?.nodeType;
-                          const meta = nt ? (NODE_REGISTRY as any)[nt] : null;
-                          return meta?.color ?? "#27272a";
-                        }}
-                        maskColor="rgba(10,10,11,0.8)"
-                        nodeStrokeWidth={2}
-                      />
-                      <Panel position="bottom-left">
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "10px", fontFamily: '"ui-monospace", "SFMono-Regular", monospace', bgcolor: "rgba(9,9,11,0.8)", backdropFilter: "blur(4px)", px: "10px", py: "4px", borderRadius: "4px", border: "1px solid", borderColor: "#27272a", pointerEvents: "auto", color: "#52525b" }}>
-                          <Typography component="span" sx={{ fontSize: "inherit", fontFamily: "inherit" }}>Nodes: {nodes.length}</Typography>
-                          <Typography component="span" sx={{ fontSize: "inherit", color: "#3f3f46" }}>|</Typography>
-                          <Typography component="span" sx={{ fontSize: "inherit", fontFamily: "inherit" }}>Edges: {edges.length}</Typography>
-                        </Box>
-                      </Panel>
-                    </ReactFlow>
-                    {collabConnected && remoteCursors.map((c) => (
-                      <Box
-                        key={c.clientId}
-                        sx={{ position: "absolute", pointerEvents: "none", zIndex: 50, left: c.x, top: c.y }}
-                      >
-                        <svg width="20" height="24" viewBox="0 0 20 24" fill="none">
-                          <path d="M2 2L15 20L10.5 13.5L18 11L2 2Z" fill={c.color} stroke="white" strokeWidth="1.5" />
-                        </svg>
-                        <Typography
-                          component="span"
-                          sx={{ position: "absolute", left: 16, top: 0, fontSize: "10px", fontWeight: 500, whiteSpace: "nowrap", px: "6px", py: "2px", borderRadius: "4px", bgcolor: c.color, color: "#fff" }}
-                        >
-                          {c.name}
-                        </Typography>
-                      </Box>
-                    ))}
-                    {nodes.length === 0 && !isLoading && (
-                      <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Box sx={{ textAlign: "center", maxWidth: 420 }}>
-                          <Box sx={{ width: 64, height: 64, mx: "auto", mb: 2, borderRadius: "50%", bgcolor: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <Typography component="span" sx={{ fontSize: "24px", lineHeight: 1, color: "#22c55e" }}>&#9678;</Typography>
-                          </Box>
-                          <Typography variant="h5" sx={{ fontSize: "18px", fontWeight: 600, color: "#f4f4f5", mb: 0.5 }}>
-                            Start Designing Your System
-                          </Typography>
-                          <Typography variant="body1" sx={{ fontSize: "12px", color: "#71717a", mb: 2.5, lineHeight: 1.5 }}>
-                            Drag components from the left, or start with a template
-                          </Typography>
-                          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, pointerEvents: "auto" }}>
-                            {allTemplates.map((tpl) => (
-                              <Button
-                                key={tpl.id}
-                                onClick={() => applyTemplate(tpl.id)}
-                                variant="outlined"
-                                sx={{
-                                  textTransform: "none", justifyContent: "flex-start", gap: 1.5, px: 2, py: 1,
-                                  borderColor: "#3f3f46", color: "#d4d4d8", fontSize: "0.75rem", fontWeight: 500,
-                                  "&:hover": { borderColor: "#22c55e", bgcolor: "rgba(34,197,94,0.08)", color: "#22c55e" },
-                                }}
-                              >
-                                <Box component="span" sx={{ fontSize: "16px", lineHeight: 1, display: "inline-flex" }}><tpl.icon size={16} /></Box>
-                                <Box sx={{ textAlign: "left" }}>
-                                  <Typography sx={{ fontSize: "0.75rem", fontWeight: 500, color: "inherit" }}>{tpl.label}</Typography>
-                                  <Typography sx={{ fontSize: "0.6rem", color: "#71717a", mt: 0.25 }}>{tpl.desc}</Typography>
-                                </Box>
-                              </Button>
-                            ))}
-                          </Box>
-                        </Box>
-                      </Box>
-                    )}
-                  </Box>
-                </ResizablePanel>
-                <ResizeHandle direction="horizontal" />
-                <ResizablePanel defaultSize="25%" minSize="20%" maxSize="50%">
-                  {showDrillPanel ? <DrillPanel /> : <UnifiedRightPanel onSimStart={simStart} onSimStop={simStop} />}
-                </ResizablePanel>
-              </Group>
-            </Box>
-          </ResizablePanel>
-          <ResizeHandle direction="vertical" />
-          <ResizablePanel defaultSize="20%" minSize="4%" maxSize="50%">
-            <BottomDrawer />
-          </ResizablePanel>
-        </Group>
-      </Box>
+      {/* Floating StatusBar — bottom-right */}
+      <StatusBar
+        saving={saving}
+        collabConnected={collabConnected}
+        remoteUsers={remoteUsers}
+      />
+
+      {/* Radial context menu */}
+      <RadialMenu
+        nodeId={contextMenu?.nodeId ?? null}
+        position={contextMenu ? { x: contextMenu.x, y: contextMenu.y } : null}
+        onClose={closeContextMenu}
+      />
+
+      {/* Floating node inspector */}
+      <FloatingInspector />
+
+      {/* Component spawner */}
+      <ComponentSpawner reactFlowInstance={reactFlowInstance} />
+
+      {/* Deep-dive chart overlay */}
+      <DeepDiveChart
+        nodeId={deepDiveNodeId}
+        onClose={() => setDeepDiveNodeId(null)}
+      />
 
       {/* Overlays */}
       <CommandPalette
@@ -986,8 +987,44 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
         onExecute={handlePaletteExecute}
       />
       <ToastContainer />
-      <ExportModal />
-      {showFinOpsModal && <FinOpsModal onClose={() => setShowFinOpsModal(false)} />}
+      <ActionDock activePanel={activePanel} onPanelChange={setActivePanel} />
+
+      <FloatingFeaturePanel
+        open={activePanel === "chaos"}
+        onClose={() => setActivePanel(null)}
+        title="Chaos Engineering"
+        color="#F59E0B"
+      >
+        <ChaosPanel />
+      </FloatingFeaturePanel>
+
+      <FloatingFeaturePanel
+        open={activePanel === "security"}
+        onClose={() => setActivePanel(null)}
+        title="Security Analysis"
+        color="#3B82F6"
+      >
+        <SecurityPanel />
+      </FloatingFeaturePanel>
+
+      <FloatingFeaturePanel
+        open={activePanel === "finops"}
+        onClose={() => setActivePanel(null)}
+        title="Cost Estimation"
+        color="#22C55E"
+      >
+        <FinOpsModal onClose={() => setActivePanel(null)} embedded />
+      </FloatingFeaturePanel>
+
+      <FloatingFeaturePanel
+        open={activePanel === "export"}
+        onClose={() => setActivePanel(null)}
+        title="Export Infrastructure as Code"
+        color="#A855F7"
+      >
+        <ExportModal embedded />
+      </FloatingFeaturePanel>
+
       <MaturityModal
         projectId={projectId}
         open={showMaturityPanel}
@@ -1000,6 +1037,14 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
         open={showInsightsPanel}
         onClose={() => setShowInsightsPanel(false)}
       />
+
+      {/* Chaos flash overlay */}
+      {chaosFlash && (
+        <Box sx={{ position: "fixed", inset: 0, zIndex: 999, pointerEvents: "none", bgcolor: "rgba(239,68,68,0.05)", transition: "opacity 0.15s" }} />
+      )}
+
+      {/* Quake terminal */}
+      <QuakeTerminal open={terminalOpen} onClose={() => setTerminalOpen(false)} />
     </Box>
   );
 });

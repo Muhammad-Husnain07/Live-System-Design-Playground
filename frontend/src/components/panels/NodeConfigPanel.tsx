@@ -130,7 +130,7 @@ function NodeConfigContent({ node, onUpdate, simRunning, nodes, onUpdateLabel }:
   if (!cfg) return <Box sx={{ p: 2, color: "error.main", fontSize: "0.75rem" }}>Missing config</Box>;
 
   return (
-    <motion.div key="node" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.15 }}>
+    <motion.div key="node" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
       {/* Section 1 — Identity */}
       <Section title="Identity">
         <SmallField label="Label">
