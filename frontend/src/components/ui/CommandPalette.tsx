@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef, type ReactNode } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Dialog, TextField, List, ListItemButton, ListItemText, ListItemIcon,
-  Box, Typography, Divider,
+  Box, Typography,
 } from "@mui/material";
 import {
   Plus, Play, Bomb, PanelRight, Undo2, FileDown, CornerDownLeft, ArrowUp, ArrowDown,
@@ -29,7 +29,7 @@ export default function CommandPalette({ open, onClose, actions, onExecute }: Co
   const [query, setQuery] = useState("");
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLUListElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -83,101 +83,147 @@ export default function CommandPalette({ open, onClose, actions, onExecute }: Co
     [onExecute, onClose],
   );
 
+  const selectedRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    selectedRef.current?.scrollIntoView({ block: "nearest" });
+  }, [selectedIdx]);
+
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-      slotProps={{
-        backdrop: { sx: { bgcolor: "rgba(0,0,0,0.5)" } },
-        paper: {
-          sx: {
-            bgcolor: "background.paper", border: "1px solid", borderColor: "divider",
-            borderRadius: 0, boxShadow: "0 16px 48px rgba(0,0,0,0.4)",
-            overflow: "hidden", mt: "-15vh",
-          },
-        },
-      }}
-    >
-      <TextField
-        inputRef={inputRef}
-        placeholder="Type a command…"
-        value={query}
-        onChange={(e) => { setQuery(e.target.value); setSelectedIdx(0); }}
-        onKeyDown={handleKeyDown}
-        variant="standard"
-        fullWidth
-        sx={{
-          px: 2.5, py: 2,
-          "& .MuiInput-root:before, & .MuiInput-root:after": { display: "none" },
-          "& input": {
-            fontSize: "1rem", color: "text.primary", fontFamily: '"Inter", sans-serif',
-            "&::placeholder": { color: "#555558", opacity: 1 },
-          },
-        }}
-      />
-      <Divider sx={{ borderColor: "divider" }} />
-      <Box sx={{ maxHeight: "50vh", overflow: "auto" }} ref={listRef}>
-        {grouped.groups.length === 0 ? (
-          <Typography variant="caption" sx={{ display: "block", textAlign: "center", py: 4, color: "text.secondary", fontSize: "0.7rem" }}>
-            No matching commands
-          </Typography>
-        ) : (
-          <List dense disablePadding>
-            {(() => {
-              let catIdx = -1;
-              return grouped.groups.map((action, i) => {
-                const isFirstInCat = i === 0 || grouped.groups[i - 1].category !== action.category;
-                if (isFirstInCat) catIdx++;
-                return (
-                  <Box key={action.id}>
-                    {isFirstInCat && (
-                      <Typography
-                        variant="caption"
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          key="command-palette"
+          initial={{ opacity: 0, scale: 0.95, y: -8 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: -8 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          style={{
+            position: "fixed",
+            top: "25%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "90vw",
+            maxWidth: 520,
+            zIndex: 250,
+            background: "rgba(10,10,11,0.94)",
+            backdropFilter: "blur(28px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            borderRadius: "14px",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
+            overflow: "hidden",
+            pointerEvents: "auto",
+          }}
+        >
+          {/* Search input */}
+          <Box sx={{ px: 2, py: 1.75, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+            <Box
+              component="input"
+              ref={inputRef}
+              placeholder="Type a command…"
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setSelectedIdx(0); }}
+              onKeyDown={handleKeyDown}
+              sx={{
+                width: "100%", border: "none", outline: "none", bgcolor: "transparent",
+                fontSize: "0.9rem", fontFamily: '"Inter", sans-serif',
+                color: "#EDEDEF", caretColor: "#6366F1",
+                "&::placeholder": { color: "#555558", opacity: 1 },
+              }}
+            />
+          </Box>
+
+          {/* Results */}
+          <Box
+            ref={listRef}
+            sx={{ maxHeight: "50vh", overflow: "auto" }}
+          >
+            {grouped.groups.length === 0 ? (
+              <Typography sx={{ display: "block", textAlign: "center", py: 4, color: "#555558", fontSize: "0.7rem" }}>
+                No matching commands
+              </Typography>
+            ) : (
+              (() => {
+                let catIdx = -1;
+                return grouped.groups.map((action, i) => {
+                  const isFirstInCat = i === 0 || grouped.groups[i - 1].category !== action.category;
+                  if (isFirstInCat) catIdx++;
+                  const isSelected = i === selectedIdx;
+                  return (
+                    <Box key={action.id}>
+                      {isFirstInCat && (
+                        <Typography
+                          sx={{
+                            display: "block", px: 2, pt: catIdx === 0 ? 1 : 1.5, pb: 0.25,
+                            fontSize: "0.5rem", fontWeight: 600, color: "#555558",
+                            textTransform: "uppercase", letterSpacing: "0.08em",
+                          }}
+                        >
+                          {action.category}
+                        </Typography>
+                      )}
+                      <Box
+                        ref={isSelected ? selectedRef : undefined}
+                        onClick={() => handleClick(action)}
                         sx={{
-                          display: "block", px: 2, pt: catIdx === 0 ? 1 : 1.5, pb: 0.25,
-                          fontSize: "0.55rem", fontWeight: 600, color: "text.secondary",
-                          textTransform: "uppercase", letterSpacing: "0.08em",
+                          display: "flex", alignItems: "center", gap: 1.5,
+                          px: 2, py: 0.6, mx: 0.75, borderRadius: "6px",
+                          cursor: "pointer", userSelect: "none",
+                          bgcolor: isSelected ? "rgba(99,102,241,0.12)" : "transparent",
+                          border: isSelected ? "1px solid rgba(99,102,241,0.2)" : "1px solid transparent",
+                          transition: "background 0.1s, border-color 0.1s",
+                          "&:hover": { bgcolor: "rgba(99,102,241,0.08)" },
                         }}
                       >
-                        {action.category}
-                      </Typography>
-                    )}
-                    <ListItemButton
-                      selected={i === selectedIdx}
-                      onClick={() => handleClick(action)}
-                      sx={{
-                        px: 2, py: 0.5, mx: 0.5, borderRadius: "4px",
-                        "&.Mui-selected": { bgcolor: "rgba(99,102,241,0.12)" },
-                        "&.Mui-selected:hover": { bgcolor: "rgba(99,102,241,0.16)" },
-                        "&:hover": { bgcolor: "rgba(255,255,255,0.03)" },
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 24, mr: 1, color: "text.secondary", "& svg": { width: 14, height: 14 } }}>
-                        {(() => { const Icon = CATEGORY_ICONS[action.category]; return <Icon />; })()}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={action.label}
-                        slotProps={{
-                          primary: { sx: { fontSize: "0.75rem", fontWeight: 500, color: "text.primary" } },
-                        }}
-                      />
-                    </ListItemButton>
-                  </Box>
-                );
-              });
-            })()}
-          </List>
-        )}
-      </Box>
-      <Divider sx={{ borderColor: "divider" }} />
-      <Box sx={{ display: "flex", gap: 1.5, px: 2, py: 0.75, justifyContent: "flex-end" }}>
-        <KeyHint icon={<CornerDownLeft size={12} />} desc="select" />
-        <KeyHint icon={<><ArrowUp size={12} /><ArrowDown size={12} /></>} desc="navigate" />
-        <KeyHint label="Esc" desc="close" />
-      </Box>
-    </Dialog>
+                        <Box sx={{
+                          width: 20, height: 20, borderRadius: "4px",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          flexShrink: 0, color: "#8B8B8F",
+                          bgcolor: isSelected ? "rgba(99,102,241,0.15)" : "rgba(255,255,255,0.04)",
+                          "& svg": { width: 12, height: 12 },
+                        }}>
+                          {(() => { const Icon = CATEGORY_ICONS[action.category]; return <Icon />; })()}
+                        </Box>
+                        <Typography sx={{ flex: 1, fontSize: "0.72rem", fontWeight: 500, color: isSelected ? "#EDEDEF" : "#d4d4d8" }}>
+                          {action.label}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  );
+                });
+              })()
+            )}
+          </Box>
+
+          {/* Footer hints */}
+          <Box sx={{
+            display: "flex", gap: 1.5, px: 2, py: 0.75,
+            borderTop: "1px solid rgba(255,255,255,0.05)",
+            justifyContent: "flex-end",
+          }}>
+            <KeyHint icon={<CornerDownLeft size={11} />} desc="select" />
+            <KeyHint icon={<><ArrowUp size={11} /><ArrowDown size={11} /></>} desc="navigate" />
+            <KeyHint label="Esc" desc="close" />
+          </Box>
+        </motion.div>
+      )}
+
+      {/* Backdrop */}
+      {open && (
+        <motion.div
+          key="command-palette-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          onClick={onClose}
+          style={{
+            position: "fixed", inset: 0, zIndex: 249,
+            background: "rgba(0,0,0,0.45)",
+            pointerEvents: "auto",
+          }}
+        />
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -186,14 +232,14 @@ function KeyHint({ icon, label, desc }: { icon?: ReactNode; label?: string; desc
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
       <Box
         sx={{
-          fontSize: "0.55rem", color: "text.secondary",
-          bgcolor: "background.elevated", px: 0.4, py: 0.15, borderRadius: "2px", lineHeight: 1.3,
-          display: "flex", alignItems: "center", gap: 1,
+          fontSize: "0.5rem", color: "#8B8B8F",
+          bgcolor: "rgba(255,255,255,0.06)", px: 0.35, py: 0.15, borderRadius: "3px", lineHeight: 1.3,
+          display: "flex", alignItems: "center", gap: 0.5,
         }}
       >
         {icon ?? label}
       </Box>
-      <Typography variant="caption" sx={{ fontSize: "0.55rem", color: "text.secondary" }}>{desc}</Typography>
+      <Typography sx={{ fontSize: "0.5rem", color: "#8B8B8F" }}>{desc}</Typography>
     </Box>
   );
 }

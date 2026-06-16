@@ -29,7 +29,7 @@ function getLang(id: string): string {
   return "hcl";
 }
 
-export default function ExportModal() {
+export default function ExportModal({ embedded = false }: { embedded?: boolean }) {
   const showModal = useExportStore((s) => s.showModal);
   const closeExport = useExportStore((s) => s.closeExport);
   const [tabIndex, setTabIndex] = useState(0);
@@ -62,32 +62,37 @@ export default function ExportModal() {
     setIacError(null);
   };
 
-  if (!showModal) return null;
+  if (!embedded && !showModal) return null;
 
   return (
     <Box sx={{
-      position: "fixed", inset: 0, zIndex: 1300,
-      bgcolor: "rgba(10,10,11,0.92)", backdropFilter: "blur(16px)",
+      position: embedded ? "static" : ("fixed" as const),
+      height: embedded ? "100%" : undefined,
+      inset: embedded ? undefined : 0,
+      zIndex: embedded ? undefined : 1300,
+      bgcolor: embedded ? undefined : "rgba(10,10,11,0.92)",
+      backdropFilter: embedded ? undefined : "blur(16px)",
       display: "flex",
     }}>
-      {/* Close button */}
-      <Box
-        onClick={closeExport}
-        sx={{
-          position: "absolute", top: 16, right: 16, zIndex: 10,
-          width: 36, height: 36, borderRadius: "8px",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#8B8B8F", cursor: "pointer",
-          transition: "all 0.15s",
-          "&:hover": { bgcolor: "#252528", color: "#EDEDEF" },
-          "&:focus-visible": { outline: "2px solid #6366F1", outlineOffset: 2 },
-        }}
-        tabIndex={0}
-        role="button"
-        aria-label="Close export dialog"
-      >
-        <X size={20} />
-      </Box>
+      {!embedded && (
+        <Box
+          onClick={closeExport}
+          sx={{
+            position: "absolute", top: 16, right: 16, zIndex: 10,
+            width: 36, height: 36, borderRadius: "8px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#8B8B8F", cursor: "pointer",
+            transition: "all 0.15s",
+            "&:hover": { bgcolor: "#252528", color: "#EDEDEF" },
+            "&:focus-visible": { outline: "2px solid #6366F1", outlineOffset: 2 },
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label="Close export dialog"
+        >
+          <X size={20} />
+        </Box>
+      )}
 
       {/* Left sidebar */}
       <Box sx={{

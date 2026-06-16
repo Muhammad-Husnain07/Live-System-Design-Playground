@@ -71,7 +71,7 @@ function useFinOpsWorker() {
   return { calculate, loading, error, setError };
 }
 
-export default function FinOpsModal({ onClose }: { onClose: () => void }) {
+export default function FinOpsModal({ onClose, embedded = false }: { onClose: () => void; embedded?: boolean }) {
   const [monthlyUsers, setMonthlyUsers] = useState(1000);
   const { calculate, loading, error, setError } = useFinOpsWorker();
   const estimate = useFinOpsStore((s) => s.estimate);
@@ -84,28 +84,33 @@ export default function FinOpsModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Box sx={{
-      position: "fixed", inset: 0, zIndex: 1300,
-      bgcolor: "rgba(10,10,11,0.92)", backdropFilter: "blur(16px)",
+      position: embedded ? "static" : ("fixed" as const),
+      height: embedded ? "100%" : undefined,
+      inset: embedded ? undefined : 0,
+      zIndex: embedded ? undefined : 1300,
+      bgcolor: embedded ? undefined : "rgba(10,10,11,0.92)",
+      backdropFilter: embedded ? undefined : "blur(16px)",
       display: "flex",
     }}>
-      {/* Close button */}
-      <Box
-        onClick={onClose}
-        sx={{
-          position: "absolute", top: 16, right: 16, zIndex: 10,
-          width: 36, height: 36, borderRadius: "8px",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#8B8B8F", cursor: "pointer",
-          transition: "all 0.15s",
-          "&:hover": { bgcolor: "#252528", color: "#EDEDEF" },
-          "&:focus-visible": { outline: "2px solid #6366F1", outlineOffset: 2 },
-        }}
-        tabIndex={0}
-        role="button"
-        aria-label="Close cost estimation"
-      >
-        <X size={20} />
-      </Box>
+      {!embedded && (
+        <Box
+          onClick={onClose}
+          sx={{
+            position: "absolute", top: 16, right: 16, zIndex: 10,
+            width: 36, height: 36, borderRadius: "8px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#8B8B8F", cursor: "pointer",
+            transition: "all 0.15s",
+            "&:hover": { bgcolor: "#252528", color: "#EDEDEF" },
+            "&:focus-visible": { outline: "2px solid #6366F1", outlineOffset: 2 },
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label="Close cost estimation"
+        >
+          <X size={20} />
+        </Box>
+      )}
 
       {/* Left sidebar */}
       <Box sx={{

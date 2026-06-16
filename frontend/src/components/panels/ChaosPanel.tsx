@@ -37,6 +37,7 @@ function ChaosConfigPopover({
       });
       const event = resp.data.event as ChaosEventData;
       addActiveEvent(event);
+      useChaosStore.getState().setLastChaosInjectionAt(Date.now());
       addToast({
         type: "warning",
         title: `Chaos injected: ${definition.label}`,
