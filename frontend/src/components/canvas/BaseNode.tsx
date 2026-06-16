@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { motion } from "framer-motion";
 import { Skull, Globe, AlertTriangle, Circle } from "lucide-react";
@@ -33,7 +33,7 @@ const DEFAULT_H = 120;
 const handleStyle: React.CSSProperties = {
   opacity: 0, transition: "opacity 0.2s",
   width: 10, height: 10,
-  borderWidth: 2, borderColor: "#3E3E44", background: "#141415",
+  borderWidth: 2, borderColor: "rgba(99,102,241,0.4)", background: "rgba(20,20,24,0.9)",
   zIndex: 20,
 };
 
@@ -78,21 +78,14 @@ function ResizeHandle({ nodeId }: { nodeId: string }) {
   );
 }
 
-const MiniBar = ({ value, label, color }: { value: number; label: string; color: string }) => (
-  <Box sx={{ flex: 1, minWidth: 0 }}>
-    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.15 }}>
-      <Typography variant="caption" sx={{ fontSize: "0.45rem", color: "#8B8B8F", fontWeight: 500 }}>{label}</Typography>
-      <Typography variant="caption" sx={{ fontSize: "0.45rem", fontFamily: '"JetBrains Mono", monospace', color }}>{Math.round(value)}%</Typography>
+function GlowingBar({ value, color }: { value: number; color: string }) {
+  const pct = Math.min(Math.max(value, 0), 100);
+  return (
+    <Box sx={{ height: 3, borderRadius: "999px", background: "rgba(255,255,255,0.06)", overflow: "hidden", flex: 1 }}>
+      <Box sx={{ height: "100%", borderRadius: "999px", width: `${pct}%`, bgcolor: color, boxShadow: `0 0 6px ${color}` }} />
     </Box>
-    <Box sx={{ height: 3, bgcolor: "#2A2A2E", borderRadius: 2, overflow: "hidden" }}>
-      <Box sx={{ height: "100%", borderRadius: 2, bgcolor: color, width: `${Math.min(Math.max(value, 0), 100)}%` }} />
-    </Box>
-  </Box>
-);
-
-const NODE_STYLE = { borderRadius: "8px", bgcolor: "background.paper", border: "1px solid", borderColor: "divider" };
-const SELECTED_STYLE = { border: "1px solid", borderColor: "primary.main", boxShadow: "0 0 8px rgba(99,102,241,0.3)" };
-const FAILED_STYLE = { bgcolor: "rgba(239,68,68,0.08)", border: "1px solid", borderColor: "error.main" };
+  );
+}
 
 function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps) {
   const nodeType = data?.nodeType;
@@ -100,13 +93,15 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
 
   if (!meta) {
     return (
-      <Box sx={{ bgcolor: "rgba(127,29,29,0.3)", borderRadius: "8px", px: 1, py: 0.5, fontSize: "10px", color: "error.main", border: "1px solid", borderColor: "error.main" }}>
+      <Box sx={{ bgcolor: "rgba(127,29,29,0.3)", borderRadius: "16px", px: 1.5, py: 1, fontSize: "10px", color: "error.main", border: "1px solid", borderColor: "error.main" }}>
         Unknown
       </Box>
     );
   }
 
   const [hovered, setHovered] = useState(false);
+  const [pulseScale, setPulseScale] = useState(1);
+  const prevDeployKey = useRef("");
   const nodeId = id ?? "";
   const { config, label, metrics } = data;
   const isFailed = config?.isFailed ?? false;
@@ -141,19 +136,24 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
   });
   const dimStyle = nw || nh ? { width: nw ?? DEFAULT_W, height: nh ?? undefined } : undefined;
 
-  const nodeStyle = isFailed
-    ? { ...NODE_STYLE, ...FAILED_STYLE }
-    : selected
-    ? { ...NODE_STYLE, ...SELECTED_STYLE }
-    : bgBorderColor
-    ? { ...NODE_STYLE, border: `1px solid ${bgBorderColor}` }
-    : NODE_STYLE;
+  useEffect(() => {
+    const key = `${deployStrategy}-${bgActiveGroup}-${isCanary}`;
+    if (key !== prevDeployKey.current && prevDeployKey.current !== "") {
+      setPulseScale(1.05);
+      const t = setTimeout(() => setPulseScale(1), 300);
+      return () => clearTimeout(t);
+    }
+    prevDeployKey.current = key;
+  }, [deployStrategy, bgActiveGroup, isCanary]);
+
+  const failedShadow = "0 0 15px rgba(239, 68, 68, 0.6)";
+  const selectedGlow = "0 0 12px rgba(99, 102, 241, 0.4)";
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.15, ease: "easeOut" }}
+      animate={{ opacity: 1, scale: pulseScale }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
       style={{ position: "relative", ...dimStyle }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -164,13 +164,12 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
       <Handle type="source" position={Position.Bottom} id="bottom" isConnectable={isConnectable} style={{ ...handleStyle, opacity: hovered ? 1 : 0 }} />
 
       {isFastBurn && !isFailed && (
-        <Box sx={{ position: "absolute", inset: 0, zIndex: 12, pointerEvents: "none", borderRadius: "8px",
+        <Box sx={{ position: "absolute", inset: 0, zIndex: 12, pointerEvents: "none", borderRadius: "16px",
           background: "radial-gradient(circle at 50% 50%, transparent 40%, rgba(239,68,68,0.25) 100%)",
           animation: "pulse-red 1.5s ease-in-out infinite",
         }} />
       )}
 
-      {/* Badges overlay */}
       {nodeBadges.length > 0 && (
         <Box sx={{ position: "absolute", top: -8, right: -8, zIndex: 20, display: "flex", gap: 0.25 }}>
           {nodeBadges.map((badge) => {
@@ -212,24 +211,43 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
           bgcolor: compatStatus === "supported" ? "rgba(0,128,0,0.3)" : "rgba(128,0,0,0.3)",
           borderColor: compatStatus === "supported" ? "rgba(34,197,94,0.5)" : "rgba(239,68,68,0.5)",
         }}>
-          {compatStatus === "supported" ? "✓" : "⊘"}
+          {compatStatus === "supported" ? "\u2713" : "\u2298"}
         </Box>
       )}
 
-      <Box sx={{ ...nodeStyle, opacity: isFailed ? 0.7 : 1, transition: "border 0.15s, box-shadow 0.15s" }}>
+      {/* Main pill node */}
+      <Box sx={{
+        borderRadius: "16px",
+        bgcolor: "rgba(20, 20, 24, 0.80)",
+        backdropFilter: "blur(16px)",
+        border: "1px solid",
+        borderColor: isFailed ? "rgba(239,68,68,0.6)" : selected ? "rgba(99,102,241,0.5)" : bgBorderColor ? bgBorderColor : "rgba(255,255,255,0.08)",
+        boxShadow: isFailed ? failedShadow : selected ? selectedGlow : "0 4px 12px rgba(0, 0, 0, 0.5)",
+        opacity: isFailed ? 0.85 : 1,
+        transition: "border-color 0.2s, box-shadow 0.2s",
+        overflow: "hidden",
+      }}>
         {/* Header */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1.25, py: 1 }}>
-          <Box sx={{ width: 24, height: 24, borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 14 }}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1.5, py: 1.25 }}>
+          <Box sx={{ width: 28, height: 28, borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative" }}
             style={{ backgroundColor: `${meta.color}18` }}>
-            <meta.icon size={14} color={meta.color} />
+            <meta.icon size={16} color={meta.color} />
+            {metrics && !isFailed && (
+              <svg width="36" height="36" style={{ position: "absolute", top: -4, left: -4, pointerEvents: "none", transform: "rotate(-90deg)" }}>
+                <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="2" />
+                <circle cx="18" cy="18" r="16" fill="none" stroke={meta.color} strokeWidth="2"
+                  strokeDasharray={`${Math.min(metrics.cpuPercent, 100) / 100 * 100.53} 100.53`}
+                  strokeLinecap="round" style={{ filter: `drop-shadow(0 0 3px ${meta.color})` }} />
+              </svg>
+            )}
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="caption" noWrap sx={{ display: "block", lineHeight: 1.2, color: isFailed ? "error.main" : "text.primary", fontSize: "0.7rem", fontWeight: 600 }}>
+            <Typography variant="caption" noWrap sx={{ display: "block", lineHeight: 1.3, color: isFailed ? "error.main" : "#EDEDEF", fontSize: "0.7rem", fontWeight: 600 }}>
               {isFailed ? "FAILED" : label}
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.15 }}>
-              <Box sx={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, bgcolor: meta.color }} />
-              <Typography variant="caption" sx={{ fontSize: "0.45rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "text.secondary" }}>
+              <Box sx={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, bgcolor: meta.color, boxShadow: `0 0 4px ${meta.color}` }} />
+              <Typography variant="caption" sx={{ fontSize: "0.45rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8B8B8F" }}>
                 {meta.category}
               </Typography>
               {isPublic && <Globe size={10} color="#60a5fa" />}
@@ -237,11 +255,10 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
           </Box>
         </Box>
 
-        {/* 1px divider */}
-        <Box sx={{ height: "1px", bgcolor: "#2A2A2E", mx: 1.25 }} />
+        <Box sx={{ height: "1px", bgcolor: "rgba(255,255,255,0.06)", mx: 1.5 }} />
 
         {/* Body */}
-        <Box sx={{ px: 1.25, py: 0.75 }}>
+        <Box sx={{ px: 1.5, py: 1 }}>
           {isFailed && (
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.75, py: 0.5 }}>
               <Skull size={16} color="#EF4444" />
@@ -279,24 +296,29 @@ function BaseNode({ id, data, selected, isConnectable, children }: BaseNodeProps
 
           {deployStrategy === "canary" && totalRPS > 0 && (
             <Box sx={{ mb: 0.5 }}>
-              <Box sx={{ height: 6, bgcolor: "#1E1E20", borderRadius: "999px", overflow: "hidden", display: "flex" }}>
+              <Box sx={{ height: 6, bgcolor: "rgba(255,255,255,0.06)", borderRadius: "999px", overflow: "hidden", display: "flex" }}>
                 <Box sx={{ height: "100%", bgcolor: "#3B82F6", transition: "width 0.5s" }} style={{ width: `${stablePct}%` }} />
                 <Box sx={{ height: "100%", bgcolor: "#A855F7", transition: "width 0.5s" }} style={{ width: `${canaryPct}%` }} />
               </Box>
             </Box>
           )}
 
-          {/* Metrics */}
+          {/* Diegetic metrics — glowing bars in footer */}
           {metrics && !isFailed && (
-            <Box sx={{ display: "flex", gap: 0.75, pt: 0.5 }}>
-              <MiniBar value={metrics.cpuPercent} label="CPU" color="#A78BFA" />
-              <MiniBar value={metrics.memoryPercent} label="MEM" color="#38BDF8" />
-              <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-end", flexShrink: 0, minWidth: 36 }}>
-                <Typography variant="caption" sx={{ fontSize: "0.5rem", fontFamily: '"JetBrains Mono", monospace', fontWeight: 500, color: "#34D399", lineHeight: 1 }}>
-                  {metrics.currentRPS.toLocaleString()}
-                </Typography>
-                <Typography variant="caption" sx={{ fontSize: "0.4rem", color: "text.secondary", lineHeight: 1 }}>RPS</Typography>
+            <Box sx={{ display: "flex", gap: 1, pt: 0.5, alignItems: "center" }}>
+              <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 0.5 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Typography variant="caption" sx={{ fontSize: "0.4rem", color: "#8B8B8F", fontWeight: 500, width: 22 }}>CPU</Typography>
+                  <GlowingBar value={metrics.cpuPercent} color="#A78BFA" />
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Typography variant="caption" sx={{ fontSize: "0.4rem", color: "#8B8B8F", fontWeight: 500, width: 22 }}>MEM</Typography>
+                  <GlowingBar value={metrics.memoryPercent} color="#38BDF8" />
+                </Box>
               </Box>
+              <Typography variant="caption" sx={{ fontSize: "0.55rem", fontFamily: '"JetBrains Mono", monospace', fontWeight: 600, color: "#34D399", lineHeight: 1, flexShrink: 0, textAlign: "right", ml: 1 }}>
+                {metrics.currentRPS.toLocaleString()} <Typography component="span" sx={{ fontSize: "0.4rem", fontFamily: "inherit", color: "#8B8B8F", fontWeight: 400 }}>RPS</Typography>
+              </Typography>
             </Box>
           )}
         </Box>
