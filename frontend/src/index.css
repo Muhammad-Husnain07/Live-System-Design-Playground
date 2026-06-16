@@ -12,7 +12,7 @@ html {
 body {
   margin: 0;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
-  background-color: #0A0A0B;
+  background-color: #050507;
   color: #EDEDEF;
   line-height: 1.5;
 }
@@ -23,7 +23,7 @@ body {
 
 /* ===== ReactFlow canvas overrides ===== */
 .react-flow {
-  background: #09090b;
+  background: #050507;
 }
 
 /* Kill ReactFlow's baked-in white node backgrounds */
@@ -170,6 +170,10 @@ body {
   100% { color: #f4f4f5; }
 }
 
+@keyframes edge-flow {
+  to { stroke-dashoffset: -18; }
+}
+
 @keyframes pulse-red {
   0%, 100% { opacity: 0.6; }
   50% { opacity: 1; }
@@ -198,4 +202,13 @@ body {
 .react-flow__selection {
   background: rgba(99, 102, 241, 0.1) !important;
   border: 1px solid #6366F1 !important;
+}
+
+/* ===== Saturated edge pulse ===== */
+@keyframes edge-saturated-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+.edge-saturated-pulse {
+  animation: edge-saturated-pulse 0.8s ease-in-out infinite;
 }

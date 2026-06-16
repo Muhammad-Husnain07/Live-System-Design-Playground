@@ -1,5 +1,5 @@
 import { createTheme } from "@mui/material/styles";
-import { tokens } from "./tokens";
+import { spatialTokens } from "./spatialTokens";
 
 declare module "@mui/material/styles" {
   interface TypeBackground {
@@ -17,20 +17,20 @@ declare module "@mui/material/styles" {
   }
 }
 
-const { bg, border, text, accent } = tokens;
+const { bg, text, accent } = spatialTokens;
 
 const theme = createTheme({
   palette: {
     mode: "dark",
     background: {
-      default: bg.canvas,
-      paper: bg.panel,
-      elevated: bg.subtle,
-      hover: bg.hover,
+      default: bg.void,
+      paper: bg.island,
+      elevated: "rgba(30, 30, 36, 0.90)",
+      hover: "rgba(255, 255, 255, 0.06)",
     },
-    divider: border.default,
+    divider: "rgba(255, 255, 255, 0.08)",
     borderColor: {
-      main: border.default,
+      main: "rgba(255, 255, 255, 0.08)",
     },
     primary: {
       main: accent.primary,
@@ -51,101 +51,13 @@ const theme = createTheme({
     },
   },
   shape: {
-    borderRadius: 6,
+    borderRadius: 12,
   },
   typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: spatialTokens.font.ui,
     fontWeightRegular: 500,
     fontWeightMedium: 600,
     fontWeightBold: 700,
-  },
-  components: {
-    MuiButton: {
-      defaultProps: {
-        variant: "contained",
-        disableElevation: true,
-      },
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-          fontWeight: 600,
-          borderRadius: 6,
-        },
-        outlined: {
-          borderColor: border.default,
-          "&:hover": {
-            borderColor: border.strong,
-            backgroundColor: bg.hover,
-          },
-        },
-      },
-    },
-    MuiPaper: {
-      defaultProps: {
-        elevation: 0,
-        variant: "outlined",
-      },
-      styleOverrides: {
-        root: {
-          backgroundImage: "none",
-          backgroundColor: bg.panel,
-          borderColor: border.default,
-        },
-      },
-    },
-    MuiTextField: {
-      defaultProps: {
-        variant: "outlined",
-        size: "small",
-        slotProps: {
-          inputLabel: {
-            shrink: true,
-          },
-        },
-      },
-      styleOverrides: {
-        root: {
-          "& .MuiOutlinedInput-root": {
-            "& fieldset": {
-              borderColor: border.default,
-            },
-            "&:hover fieldset": {
-              borderColor: border.strong,
-            },
-            "&.Mui-focused fieldset": {
-              borderColor: accent.primary,
-            },
-          },
-          "& .MuiInputLabel-root": {
-            color: text.secondary,
-          },
-          "& .MuiInputLabel-root.Mui-focused": {
-            color: accent.primary,
-          },
-        },
-      },
-    },
-    MuiTabs: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-        },
-        indicator: {
-          backgroundColor: accent.primary,
-        },
-      },
-    },
-    MuiTab: {
-      defaultProps: {
-        disableRipple: true,
-      },
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-          fontWeight: 500,
-        },
-      },
-    },
   },
 });
 
