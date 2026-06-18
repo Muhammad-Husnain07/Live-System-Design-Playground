@@ -91,3 +91,25 @@ func TestGenerateTerraformSanitizedID(t *testing.T) {
 		t.Errorf("SanitizeID('simple') = %q, want 'resource_simple'", got)
 	}
 }
+
+func TestGenerateTerraformModernTypes(t *testing.T) {
+	data := ExportData{
+		ProjectID:   "proj-modern",
+		ProjectName: "ModernWorkloads",
+		Resources: []Resource{
+			{ID: "llm", Type: "LLMNode", Provider: "aws", Properties: map[string]any{"instance_type": "ml.g5.2xlarge"}},
+			{ID: "gpu", Type: "GPUCluster", Provider: "aws", Properties: map[string]any{"instance_type": "p3.2xlarge"}},
+			{ID: "edge", Type: "EdgeCompute", Provider: "aws", Properties: map[string]any{"runtime": "cloudfront-js-2.0"}},
+			{ID: "sv2", Type: "ServerlessV2", Provider: "aws", Properties: map[string]any{"snap_start": true}},
+		},
+	}
+	hcl, err := GenerateTerraform(data)
+	if err != nil {
+		t.Fatalf("GenerateTerraform failed: %v", err)
+	}
+	for _, s := range []string{"LLMNode", "GPUCluster", "EdgeCompute", "ServerlessV2"} {
+		if !strings.Contains(hcl, s) {
+			t.Errorf("expected %q in HCL output", s)
+		}
+	}
+}

@@ -293,6 +293,26 @@ metadata:
 data:
   type: "batch"
 {{- end}}
+{{- if eq .Type "aws_sagemaker_endpoint"}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{index .Properties "name" | default .ID}}-llm
+data:
+  type: "sagemaker-endpoint"
+  instance_type: {{index .Properties "instance_type" | default "ml.g5.2xlarge"}}
+{{- end}}
+{{- if eq .Type "aws_cloudfront_function"}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{index .Properties "name" | default .ID}}-edge
+data:
+  type: "cloudfront-function"
+  runtime: {{index .Properties "runtime" | default "cloudfront-js-2.0"}}
+{{- end}}
 {{- if eq .Type "aws_instance"}}
 ---
 apiVersion: apps/v1

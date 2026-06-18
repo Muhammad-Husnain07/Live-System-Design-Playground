@@ -225,3 +225,96 @@ func TestParseCanvasToSimNodes_WithEdges(t *testing.T) {
 		t.Error("expected IsSync=true")
 	}
 }
+
+func TestMathRound(t *testing.T) {
+	tests := []struct {
+		v        float64
+		decimals int
+		want     float64
+	}{
+		{123.456789, 2, 123.46},
+		{123.456789, 0, 123},
+		{99.9999, 2, 100.00},
+		{0.0001234, 4, 0.0001},
+		{42, 2, 42},
+	}
+	for _, tt := range tests {
+		got := mathRound(tt.v, tt.decimals)
+		if got != tt.want {
+			t.Errorf("mathRound(%v, %d) = %v, want %v", tt.v, tt.decimals, got, tt.want)
+		}
+	}
+}
+
+func TestGeoMetricsAggregation_RegionMetrics(t *testing.T) {
+	regions := map[string]RegionMetrics{
+		"us-east-1": {
+			NodeCount:    3,
+			TotalRPS:     1500.50,
+			AvgLatencyMs: 45.20,
+			AvgErrorRate: 0.0012,
+			NodeIDs:      []string{"web-1", "app-1", "db-1"},
+			IsFailed:     false,
+			FailedNodeIDs: nil,
+		},
+		"eu-west-1": {
+			NodeCount:    2,
+			TotalRPS:     800.00,
+			AvgLatencyMs: 120.75,
+			AvgErrorRate: 0.05,
+			NodeIDs:      []string{"web-eu", "db-eu"},
+			IsFailed:     true,
+			FailedNodeIDs: []string{"db-eu"},
+		},
+	}
+	resp := GeoMetricsResponse{Regions: regions, InterRegionEdges: []InterRegionEdge{}}
+
+	us := resp.Regions["us-east-1"]
+	if us.TotalRPS != 1500.50 {
+		t.Errorf("us-east-1 TotalRPS: expected 1500.50, got %v", us.TotalRPS)
+	}
+	if us.AvgLatencyMs != 45.20 {
+		t.Errorf("us-east-1 AvgLatencyMs: expected 45.20, got %v", us.AvgLatencyMs)
+	}
+	if len(us.NodeIDs) != 3 {
+		t.Errorf("us-east-1 NodeIDs: expected 3, got %d", len(us.NodeIDs))
+	}
+	if us.IsFailed {
+		t.Error("us-east-1: expected IsFailed=false")
+	}
+
+	eu := resp.Regions["eu-west-1"]
+	if !eu.IsFailed {
+		t.Error("eu-west-1: expected IsFailed=true")
+	}
+	if len(eu.FailedNodeIDs) != 1 || eu.FailedNodeIDs[0] != "db-eu" {
+		t.Errorf("eu-west-1 FailedNodeIDs: expected [db-eu], got %v", eu.FailedNodeIDs)
+	}
+}
+
+func TestGeoMetricsAggregation_InterRegionEdge(t *testing.T) {
+	edges := []InterRegionEdge{
+		{SourceRegion: "us-east-1", TargetRegion: "eu-west-1", TotalRPS: 500, AvgLatencyMs: 95, EdgeCount: 3},
+		{SourceRegion: "eu-west-1", TargetRegion: "ap-southeast-1", TotalRPS: 200, AvgLatencyMs: 175, EdgeCount: 2},
+	}
+	resp := GeoMetricsResponse{Regions: map[string]RegionMetrics{}, InterRegionEdges: edges}
+
+	if len(resp.InterRegionEdges) != 2 {
+		t.Fatalf("expected 2 edges, got %d", len(resp.InterRegionEdges))
+	}
+	e := resp.InterRegionEdges[0]
+	if e.TotalRPS != 500 || e.AvgLatencyMs != 95 || e.EdgeCount != 3 {
+		t.Errorf("edge 0: expected 500/95/3, got %v/%v/%d", e.TotalRPS, e.AvgLatencyMs, e.EdgeCount)
+	}
+	if e.SourceRegion != "us-east-1" || e.TargetRegion != "eu-west-1" {
+		t.Errorf("edge 0 regions: expected us-east-1 -> eu-west-1, got %s -> %s", e.SourceRegion, e.TargetRegion)
+	}
+}
+
+func TestGeoMetricsResponse_EmptyRegions(t *testing.T) {
+	_ = GeoMetricsResponse{
+		Regions:         map[string]RegionMetrics{},
+		InterRegionEdges: []InterRegionEdge{},
+	}
+	// Should not panic
+}

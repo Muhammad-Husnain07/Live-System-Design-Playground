@@ -26,7 +26,7 @@ provider "aws" {
 
 {{range .Resources}}
 {{- if .DependsOn}}
-resource {{.Type}} {{SanitizeID .ID | quote}} {
+resource {{.Type | quote}} {{SanitizeID .ID | quote}} {
   {{- range $k, $v := .Properties}}
   {{$k}} = {{formatValue $v}}
   {{- end}}
@@ -37,7 +37,7 @@ resource {{.Type}} {{SanitizeID .ID | quote}} {
   ]
 }
 {{- else}}
-resource {{.Type}} {{SanitizeID .ID | quote}} {
+resource {{.Type | quote}} {{SanitizeID .ID | quote}} {
   {{- range $k, $v := .Properties}}
   {{$k}} = {{formatValue $v}}
   {{- end}}

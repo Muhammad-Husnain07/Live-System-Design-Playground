@@ -384,20 +384,25 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64, tickNum int) {
 			}
 			ticksSinceFailure := tickNum - failedTick
 
+			// Accumulate all incoming traffic: base IncomingRPS + edge throughput
+			totalIncoming := n.IncomingRPS
+			for _, e := range ctx.EdgeInMap[id] {
+				totalIncoming += e.ThroughputRPS
+			}
+
 			// After DNS propagation delay, redirect traffic to replica in another region
 			if ticksSinceFailure >= DNSFailoverDelayTicks {
 				replicaID, _ := FindReplicaInOtherRegion(nodeMap, n.ID)
 				if replicaID != "" {
 					if replica, ok := nodeMap[replicaID]; ok {
-						replica.IncomingRPS += n.IncomingRPS
+						replica.IncomingRPS += totalIncoming
 					}
 				}
 			}
 
 			n.CurrentRPS = 0
-			dropped := n.IncomingRPS
 			n.IncomingRPS = 0
-			n.DroppedRequests = dropped
+			n.DroppedRequests = totalIncoming
 			continue
 		}
 
@@ -660,7 +665,7 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64, tickNum int) {
 					// Find the downstream LLMNode connected to this VectorDB
 					for _, ve := range ctx.EdgeOutMap[e.Target] {
 						if downstream, ok := nodeMap[ve.Target]; ok && downstream.NodeType == NodeLLMNode {
-							if _, exists := ctx.RAGPendingQueries[n.ID]; !exists {
+							if _, exists := ctx.RAGPendingQueries[ve.Target]; !exists {
 								qTokens := n.RagQueryTokens
 								if qTokens <= 0 {
 									qTokens = n.PromptTokenCount * 0.3 // default: 30% of prompt as query
@@ -669,7 +674,7 @@ func (ctx *PropagationContext) PropagateTick(baseRPS float64, tickNum int) {
 								if cTokens <= 0 {
 									cTokens = n.CompletionTokenCount * 0.5 // default: 50% of completion as context
 								}
-								ctx.RAGPendingQueries[n.ID] = &RAGPendingQuery{
+								ctx.RAGPendingQueries[ve.Target] = &RAGPendingQuery{
 									SourceLLMID:   n.ID,
 									TargetLLMID:   ve.Target,
 									QueryTokens:   qTokens,

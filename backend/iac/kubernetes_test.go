@@ -79,6 +79,35 @@ func TestGenerateKubernetesWithLoadBalancer(t *testing.T) {
 	}
 }
 
+func TestGenerateKubernetesModernTypes(t *testing.T) {
+	data := ExportData{
+		ProjectID:   "proj-k8s-modern",
+		ProjectName: "K8sModern",
+		Resources: []Resource{
+			{ID: "gpu", Type: "aws_instance", Provider: "kubernetes", Properties: map[string]any{"name": "gpu-cluster"}},
+			{ID: "llm", Type: "aws_sagemaker_endpoint", Provider: "kubernetes", Properties: map[string]any{"name": "llm-service"}},
+			{ID: "edge", Type: "aws_cloudfront_function", Provider: "kubernetes", Properties: map[string]any{"name": "edge-cache"}},
+			{ID: "sv2", Type: "aws_lambda_function", Provider: "kubernetes", Properties: map[string]any{"name": "serverless-v2"}},
+		},
+		Edges: []Edge{},
+	}
+	yaml, err := GenerateKubernetes(data)
+	if err != nil {
+		t.Fatalf("GenerateKubernetes failed: %v", err)
+	}
+	if yaml == "" {
+		t.Fatal("expected non-empty YAML output")
+	}
+	// aws_instance is already handled by the K8s template (as Deployment)
+	if !strings.Contains(yaml, "gpu-cluster") {
+		t.Error("expected 'gpu-cluster' in YAML output from aws_instance")
+	}
+	// aws_lambda_function is already handled by the K8s template (as ConfigMap)
+	if !strings.Contains(yaml, "serverless-v2") {
+		t.Error("expected 'serverless-v2' in YAML output from aws_lambda_function")
+	}
+}
+
 func TestGenerateKubernetesEmptyData(t *testing.T) {
 	data := ExportData{
 		ProjectID:   "proj-empty",

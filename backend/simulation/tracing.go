@@ -225,22 +225,20 @@ func NewTraceFromNodes(traceID string, nodeIDs []string, nodeMap map[string]*Nod
 		// ── Generate structured log for this span ──
 		level := LogLevelInfo
 		msg := "Request processed"
-		if isAsync {
+		if isAsync && level == LogLevelInfo {
 			asyncWaitMs := n.QueueDepth * 100  // approximate from tick duration
 			if asyncWaitMs > 10000 {
 				asyncWaitMs = 10000
 			}
 			msg = fmt.Sprintf("Async wait %.0fms", asyncWaitMs)
 		}
-		if status == SpanStatusERROR && !n.IsFailed {
-			level = LogLevelError
-			msg = fmt.Sprintf("Error rate %.1f%%", n.ErrorRate*100)
-		}
 		if n.IsFailed {
 			level = LogLevelCritical
 			msg = "Health check failed"
-		}
-		if n.RetryCount > 0 {
+		} else if status == SpanStatusERROR {
+			level = LogLevelError
+			msg = fmt.Sprintf("Error rate %.1f%%", n.ErrorRate*100)
+		} else if n.RetryCount > 0 {
 			level = LogLevelWarn
 			msg = fmt.Sprintf("Retry attempt %d", n.RetryCount)
 			if n.RetryCount > 1 {
@@ -534,12 +532,10 @@ func (e *Engine) generateTraces(tickTime time.Time) {
 		} else if n.ErrorRate > 0.05 {
 			level = LogLevelError
 			msg = fmt.Sprintf("Error rate %.1f%%", n.ErrorRate*100)
-		}
-		if n.RetryCount > 0 {
+		} else if n.RetryCount > 0 {
 			level = LogLevelWarn
 			msg = fmt.Sprintf("Retry attempt %d", n.RetryCount)
-		}
-		if IsAsyncNodeType(n.NodeType) {
+		} else if IsAsyncNodeType(n.NodeType) {
 			asyncWaitMs := n.QueueDepth * 100
 			if asyncWaitMs > 10000 {
 				asyncWaitMs = 10000

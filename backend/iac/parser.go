@@ -49,6 +49,8 @@ var terraformTypeToNode = map[string]struct {
 	"aws_ecs_cluster":                 {"ContainerCluster", "Container Cluster", nil},
 	"aws_lambda_function":             {"ServerlessFunction", "Lambda Function", map[string]any{"runtime": "nodejs20.x", "memory_size": float64(128)}},
 	"aws_batch_compute_environment":    {"BatchProcessor", "Batch Processor", nil},
+	"aws_sagemaker_endpoint":           {"LLMNode", "LLM Endpoint", map[string]any{"instance_type": "ml.g5.2xlarge", "initial_instance_count": float64(1)}},
+	"aws_cloudfront_function":          {"EdgeCompute", "Edge Function", map[string]any{"runtime": "cloudfront-js-2.0"}},
 }
 
 var terraformRefRegex = regexp.MustCompile(`\$\{?([a-zA-Z0-9_]+)\.([a-zA-Z0-9_-]+)\.[a-zA-Z0-9_.]+\}?`)
@@ -493,6 +495,14 @@ func cloudTypeToNode(name string) string {
 		return "Subnet"
 	case strings.Contains(name, "batch"):
 		return "BatchProcessor"
+	case strings.Contains(name, "edge") || strings.Contains(name, "cloudfront"):
+		return "EdgeCompute"
+	case strings.Contains(name, "llm") || strings.Contains(name, "sagemaker"):
+		return "LLMNode"
+	case strings.Contains(name, "gpu") || strings.Contains(name, "p3") || strings.Contains(name, "p4d"):
+		return "GPUCluster"
+	case strings.Contains(name, "snapstart") || strings.Contains(name, "serverlessv2"):
+		return "ServerlessV2"
 	}
 	return ""
 }
@@ -547,6 +557,8 @@ var cfResourceTypeToNode = map[string]struct {
 	"AWS::ECS::Cluster":                          {"ContainerCluster", "Container Cluster"},
 	"AWS::Lambda::Function":                      {"ServerlessFunction", "Lambda Function"},
 	"AWS::Batch::ComputeEnvironment":             {"BatchProcessor", "Batch Processor"},
+	"AWS::SageMaker::Endpoint":                   {"LLMNode", "LLM Endpoint"},
+	"AWS::CloudFront::Function":                  {"EdgeCompute", "Edge Function"},
 }
 
 func ParseCloudFormation(jsonContent string) (*InfraGraph, error) {

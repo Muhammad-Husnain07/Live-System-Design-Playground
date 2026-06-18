@@ -246,6 +246,35 @@ func mapNode(nd CanvasNodeData) *Resource {
 				"launch_type": "FARGATE", "desired_count": instances,
 			}),
 		}
+	case "LLMNode":
+		return &Resource{
+			ID: nd.ID, Type: "aws_sagemaker_endpoint", Provider: "aws",
+			Properties: merge(props, map[string]any{
+				"instance_type": "ml.g5.2xlarge", "initial_instance_count": instances,
+			}),
+		}
+	case "GPUCluster":
+		return &Resource{
+			ID: nd.ID, Type: "aws_instance", Provider: "aws",
+			Properties: merge(props, map[string]any{
+				"ami": "ami-0c55b159cbfafe1f0", "instance_type": "p3.2xlarge",
+			}),
+		}
+	case "EdgeCompute":
+		return &Resource{
+			ID: nd.ID, Type: "aws_cloudfront_function", Provider: "aws",
+			Properties: merge(props, map[string]any{
+				"runtime": "cloudfront-js-2.0",
+			}),
+		}
+	case "ServerlessV2":
+		return &Resource{
+			ID: nd.ID, Type: "aws_lambda_function", Provider: "aws",
+			Properties: merge(props, map[string]any{
+				"runtime": "nodejs20.x", "handler": "index.handler",
+				"memory_size": 256, "timeout": 30, "snap_start": true,
+			}),
+		}
 	}
 	return nil
 }

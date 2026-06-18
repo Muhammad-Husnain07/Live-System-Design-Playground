@@ -33,50 +33,59 @@ func ApplyAutoScaling(nodeMap map[string]*Node, tickNum int) {
 		}
 
 		ac := n.AutoScaling
-		desired := n.Instances
 
-		cooldownTicks := ac.CooldownTicks
-		if ac.CooldownSeconds > 0 && cooldownTicks <= 0 {
-			cooldownTicks = ac.CooldownSeconds * 10
-		}
-		if cooldownTicks < 1 {
-			cooldownTicks = 1
-		}
+		// ── Boot phase check ─────────────────────────────────────────
+		// If a scale-up boot is already in progress, skip the scaling
+		// decision to avoid re-triggering due to artificially elevated
+		// CPU (Instances=DesiredInstances-1 during boot).
+		isBootInProgress := n.DesiredInstances > n.Instances && n.BootTicksRemaining > 0
 
-		inCooldown := n.LastScaleTick > 0 && tickNum-n.LastScaleTick < cooldownTicks
-		if !inCooldown {
-			capacity := float64(n.Instances) * n.MaxRPS
-			if capacity <= 0 {
-				continue
+		if !isBootInProgress {
+			desired := n.Instances
+
+			cooldownTicks := ac.CooldownTicks
+			if ac.CooldownSeconds > 0 && cooldownTicks <= 0 {
+				cooldownTicks = ac.CooldownSeconds * 10
 			}
-			util := n.CurrentRPS / capacity
-			cpuPct := util * 100
-
-			switch {
-			case cpuPct > ac.TargetCPUPercent+ScaleUpThreshold && n.Instances < ac.MaxInstances:
-				desired = n.Instances + 1
-			case cpuPct < ac.TargetCPUPercent-ScaleDownThreshold && n.Instances > ac.MinInstances:
-				desired = n.Instances - 1
+			if cooldownTicks < 1 {
+				cooldownTicks = 1
 			}
 
-			if desired != n.Instances {
-				n.LastScaleTick = tickNum
-				n.DesiredInstances = desired
-				if desired > n.Instances {
-					n.BootTicksRemaining = BootTimeTicks
-					n.LastScaleDir = "up"
-					n.ScalingEvent = "scaling up"
+			inCooldown := n.LastScaleTick > 0 && tickNum-n.LastScaleTick < cooldownTicks
+			if !inCooldown {
+				capacity := float64(n.Instances) * n.MaxRPS
+				if capacity <= 0 {
+					continue
+				}
+				util := n.CurrentRPS / capacity
+				cpuPct := util * 100
+
+				switch {
+				case cpuPct > ac.TargetCPUPercent+ScaleUpThreshold && n.Instances < ac.MaxInstances:
+					desired = n.Instances + 1
+				case cpuPct < ac.TargetCPUPercent-ScaleDownThreshold && n.Instances > ac.MinInstances:
+					desired = n.Instances - 1
+				}
+
+				if desired != n.Instances {
+					n.LastScaleTick = tickNum
+					n.DesiredInstances = desired
+					if desired > n.Instances {
+						n.BootTicksRemaining = BootTimeTicks
+						n.LastScaleDir = "up"
+						n.ScalingEvent = "scaling up"
+					} else {
+						n.LastScaleDir = "down"
+						n.ScalingEvent = "scaling down"
+						n.Instances = desired
+					}
 				} else {
-					n.LastScaleDir = "down"
-					n.ScalingEvent = "scaling down"
-					n.Instances = desired
+					n.DesiredInstances = desired
+					n.ScalingEvent = ""
 				}
 			} else {
-				n.DesiredInstances = desired
 				n.ScalingEvent = ""
 			}
-		} else {
-			n.ScalingEvent = ""
 		}
 
 		// Boot phase: countdown timer; new instance does NOT contribute until boot completes
