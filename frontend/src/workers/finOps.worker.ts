@@ -81,7 +81,22 @@ const pricingRules: Record<string, { baseMonthly: number; perInstance: number; p
   ServerlessFunction: { baseMonthly: 0, perInstance: 0, perUnitDesc: "per 1M invocations", unitPrice: 0.20 },
   BatchProcessor: { baseMonthly: 0, perInstance: 30.37, perUnitDesc: "per compute instance", unitPrice: 0 },
   WorkerService: { baseMonthly: 0, perInstance: 30.37, perUnitDesc: "per instance (t3.medium)", unitPrice: 0 },
+  // Modern workloads
+  LLMNode: { baseMonthly: 0, perInstance: 0, perUnitDesc: "per 1k tokens", unitPrice: 0 },
+  GPUCluster: { baseMonthly: 0, perInstance: 32.77, perUnitDesc: "per GPU instance (P4d)", unitPrice: 0 },
+  EdgeCompute: { baseMonthly: 0, perInstance: 0, perUnitDesc: "per million requests", unitPrice: 0.50 },
+  ServerlessV2: { baseMonthly: 0, perInstance: 0, perUnitDesc: "per 1M invocations", unitPrice: 0.20 },
 };
+
+const LLMInputTokenPrice = 0.03;
+const LLMOutputTokenPrice = 0.06;
+const LLMTokensPerRPSUnit = 1000;
+const GPUPricePerHour = 32.77;
+const EdgeEgressPricePerGB = 0.08;
+const RespSizeDefaultKB = 10;
+const GCPAppServerHourly = 0.20;
+const AzureAppServerHourly = 0.192;
+const HOURS_PER_MONTH = 730;
 
 const computeTierMultipliers: Record<string, number> = {
   on_demand: 1.0,
@@ -98,7 +113,7 @@ const userTiers = [
 
 const categories = [
   "Compute", "Networking", "Data & Storage", "Data Transfer",
-  "Request-Based", "Tiered Storage", "Messaging & Events", "Orchestration", "External",
+  "Request-Based", "Tiered Storage", "Messaging & Events", "Orchestration", "AI / GPU", "Edge & Serverless", "External",
 ];
 
 const externalTypes = new Set(["ExternalClient", "ThirdPartyAPI", "MobileClient", "WebBrowser"]);
@@ -125,16 +140,20 @@ function categoryForType(nt: NodeType): string {
   const network = new Set(["LoadBalancer", "APIGateway", "CDN", "DNS", "Firewall", "VPC", "Subnet"]);
   const data = new Set(["PostgreSQLDB", "MySQLDB", "MongoDB", "Redis", "Elasticsearch"]);
   const msg = new Set(["MessageQueue", "EventBus", "PubSub"]);
+  const ai = new Set(["LLMNode", "GPUCluster"]);
+  const edge = new Set(["EdgeCompute", "ServerlessV2"]);
   if (compute.has(nt)) return "Compute";
   if (network.has(nt)) return "Networking";
   if (data.has(nt)) return "Data & Storage";
   if (msg.has(nt)) return "Messaging & Events";
+  if (ai.has(nt)) return "AI / GPU";
+  if (edge.has(nt)) return "Edge & Serverless";
   if (nt === "ContainerCluster") return "Orchestration";
   if (externalTypes.has(nt)) return "External";
   return "Compute";
 }
 
-function calculateNodeCost(nt: NodeType, label: string, node: WorkerNodeData, monthlyUsers: number, multiplier: number): { items: CostLineItem[]; total: number } {
+function calculateNodeCost(nt: NodeType, label: string, node: WorkerNodeData, monthlyUsers: number, multiplier: number, cloudProvider?: string): { items: CostLineItem[]; total: number } {
   const rule = pricingRules[nt];
   if (!rule) return { items: [], total: 0 };
 
@@ -142,6 +161,7 @@ function calculateNodeCost(nt: NodeType, label: string, node: WorkerNodeData, mo
   const scaledInstances = Math.max(1, Math.ceil(instances * multiplier));
   const tier = getComputeTier(node);
   const tierMult = computeTierMultipliers[tier] || 1.0;
+  const rps = node.maxRPS || 1000;
 
   const items: CostLineItem[] = [];
   let total = 0;
@@ -153,13 +173,25 @@ function calculateNodeCost(nt: NodeType, label: string, node: WorkerNodeData, mo
   }
 
   if (rule.perInstance > 0) {
-    const adjustedPrice = rule.perInstance * tierMult;
-    const cost = adjustedPrice * scaledInstances;
+    let effectivePrice = rule.perInstance * tierMult;
+    // Multi-cloud pricing for AppServer
+    if (nt === "AppServer") {
+      if (cloudProvider === "gcp") {
+        effectivePrice = GCPAppServerHourly * HOURS_PER_MONTH * tierMult;
+      } else if (cloudProvider === "azure") {
+        effectivePrice = AzureAppServerHourly * HOURS_PER_MONTH * tierMult;
+      }
+    }
+    // GPUCluster: per-hour to monthly
+    if (nt === "GPUCluster") {
+      effectivePrice = GPUPricePerHour * HOURS_PER_MONTH * tierMult;
+    }
+    const cost = effectivePrice * scaledInstances;
     const tierLabel = tier === "reserved" ? " [Reserved 40% off]" : tier === "spot" ? " [Spot 70% off]" : "";
     items.push({
       service: label,
       description: `${label} — ${scaledInstances} instance(s) (${rule.perUnitDesc})${tierLabel}`,
-      unitPrice: round2(adjustedPrice),
+      unitPrice: round2(effectivePrice),
       quantity: scaledInstances,
       monthlyCost: round2(cost),
     });
@@ -186,6 +218,54 @@ function calculateNodeCost(nt: NodeType, label: string, node: WorkerNodeData, mo
     const queryUnits = queries / 1_000_000;
     const cost = rule.unitPrice * queryUnits;
     items.push({ service: label, description: `${label} — ${queryUnits.toFixed(0)}M queries`, unitPrice: rule.unitPrice, quantity: Math.ceil(queryUnits), monthlyCost: round2(cost) });
+    total += cost;
+  }
+
+  // LLM token cost: based on RPS
+  if (nt === "LLMNode" && rps > 0) {
+    const scaledRPS = rps * multiplier;
+    const requestsPerMonth = scaledRPS * 86400 * 30;
+    const totalTokens = requestsPerMonth * LLMTokensPerRPSUnit;
+    const inputTokensK = (totalTokens * 0.6) / 1000;
+    const outputTokensK = (totalTokens * 0.4) / 1000;
+    const inputCost = inputTokensK * LLMInputTokenPrice;
+    const outputCost = outputTokensK * LLMOutputTokenPrice;
+    const tokenCost = inputCost + outputCost;
+    if (tokenCost > 0) {
+      items.push(
+        { service: label + " (Input Tokens)", description: `${label} — ${inputTokensK.toFixed(0)}K input tokens × $${LLMInputTokenPrice.toFixed(4)}/K`, unitPrice: LLMInputTokenPrice, quantity: Math.ceil(inputTokensK), monthlyCost: round2(inputCost) },
+        { service: label + " (Output Tokens)", description: `${label} — ${outputTokensK.toFixed(0)}K output tokens × $${LLMOutputTokenPrice.toFixed(4)}/K`, unitPrice: LLMOutputTokenPrice, quantity: Math.ceil(outputTokensK), monthlyCost: round2(outputCost) },
+      );
+      total += tokenCost;
+    }
+  }
+
+  // Edge compute: request-based + egress
+  if (nt === "EdgeCompute" && rule.unitPrice > 0) {
+    let estimatedUnits = (monthlyUsers / 1_000_000) * multiplier;
+    if (estimatedUnits < 0.1) estimatedUnits = 0.1;
+    const reqCost = rule.unitPrice * estimatedUnits;
+    items.push({ service: label, description: `${label} — ${estimatedUnits.toFixed(1)}M requests ($${rule.unitPrice.toFixed(2)}/M)`, unitPrice: rule.unitPrice, quantity: Math.ceil(estimatedUnits), monthlyCost: round2(reqCost) });
+    total += reqCost;
+
+    // Edge egress
+    const scaledRPS = rps * multiplier;
+    const gbPerMonth = (scaledRPS * RespSizeDefaultKB * 86400 * 30) / (1024 * 1024);
+    if (gbPerMonth > 0) {
+      const egressCost = gbPerMonth * EdgeEgressPricePerGB;
+      items.push({ service: label + " (Egress)", description: `${label} — ${gbPerMonth.toFixed(1)} GB egress × $${EdgeEgressPricePerGB.toFixed(2)}/GB`, unitPrice: EdgeEgressPricePerGB, quantity: Math.ceil(gbPerMonth), monthlyCost: round2(egressCost) });
+      total += egressCost;
+    }
+  }
+
+  // ServerlessV2: same as Lambda with min 10s billing
+  if (nt === "ServerlessV2" && rule.unitPrice > 0) {
+    let estimatedUnits = (monthlyUsers / 1_000_000) * multiplier;
+    if (estimatedUnits < 0.1) estimatedUnits = 0.1;
+    const minDurationMult = 2.0;
+    const adjusted = estimatedUnits * minDurationMult;
+    const cost = rule.unitPrice * adjusted;
+    items.push({ service: label, description: `${label} — ${adjusted.toFixed(1)}M invocations × $${rule.unitPrice.toFixed(2)}/M (min 10s billing)`, unitPrice: rule.unitPrice, quantity: Math.ceil(adjusted), monthlyCost: round2(cost) });
     total += cost;
   }
 
@@ -348,7 +428,8 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
     let totalEgress = 0;
 
     for (const node of billable) {
-      const result = calculateNodeCost(node.nodeType, node.label, node, tier.users, tier.multiplier);
+      const cloudProvider = node.cloudProvider || "aws";
+      const result = calculateNodeCost(node.nodeType, node.label, node, tier.users, tier.multiplier, cloudProvider);
       const catName = categoryForType(node.nodeType);
       if (!categoryMap.has(catName)) categoryMap.set(catName, []);
       categoryMap.get(catName)!.push(...result.items);

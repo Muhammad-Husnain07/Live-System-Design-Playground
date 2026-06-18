@@ -151,6 +151,53 @@ function genTerraformNode(nt: NodeType, cfg: NodeConfig, label: string, name: st
       "}\n",
     ].join("\n");
   }
+  if (nt === "LLMNode") {
+    return [
+      `resource "aws_sagemaker_endpoint" "${name}" {`,
+      `  endpoint_name = "${name}"`,
+      `  endpoint_config_name = aws_sagemaker_endpoint_configuration.${name}.name`,
+      "}\n",
+      `resource "aws_sagemaker_endpoint_configuration" "${name}" {`,
+      `  production_variants {`,
+      `    variant_name = "default"`,
+      `    model_name = aws_sagemaker_model.${name}.name`,
+      `    initial_instance_count = 1`,
+      `    instance_type = "ml.g5.2xlarge"`,
+      `  }`,
+      "}\n",
+    ].join("\n");
+  }
+  if (nt === "GPUCluster") {
+    return [
+      `resource "aws_instance" "${name}" {`,
+      `  ami           = "ami-0c55b159cbfafe1f0"`,
+      `  instance_type = "p3.2xlarge"`,
+      `  ebs_optimized = true`,
+      `  tags = { Name = "${label}" }`,
+      "}\n",
+    ].join("\n");
+  }
+  if (nt === "EdgeCompute") {
+    return [
+      `resource "aws_cloudfront_function" "${name}" {`,
+      `  name    = "${name}"`,
+      `  runtime = "cloudfront-js-2.0"`,
+      `  code    = file("${path.module}/${name}.js")`,
+      "}\n",
+    ].join("\n");
+  }
+  if (nt === "ServerlessV2") {
+    return [
+      `resource "aws_lambda_function" "${name}" {`,
+      `  filename      = "function.zip"`,
+      `  function_name = "${name}"`,
+      `  role          = aws_iam_role.lambda_exec.arn`,
+      `  handler       = "index.handler"`,
+      `  runtime       = "nodejs20.x"`,
+      `  snap_start { apply_on = "PublishedVersions" }`,
+      "}\n",
+    ].join("\n");
+  }
   return "";
 }
 
@@ -272,6 +319,27 @@ function genTerraformGCPNode(nt: NodeType, _cfg: NodeConfig, label: string, name
       `resource "google_cloudfunctions2_function" "${name}" {`,
       `  name    = "${name}"`,
       `  location = "us-central1"`,
+      "}\n",
+    ].join("\n");
+  }
+  if (nt === "LLMNode") {
+    return [
+      `resource "google_vertex_ai_endpoint" "${name}" {`,
+      `  name           = "${name}"`,
+      `  display_name   = "${label}"`,
+      `  location       = "us-central1"`,
+      `  description    = "LLM endpoint from system design"`,
+      "}\n",
+    ].join("\n");
+  }
+  if (nt === "EdgeCompute") {
+    return [
+      `resource "google_cloudfunctions_function" "${name}" {`,
+      `  name        = "${name}"`,
+      `  runtime     = "nodejs20"`,
+      `  entry_point = "handler"`,
+      `  trigger_http = true`,
+      `  labels = { type = "edge" }`,
       "}\n",
     ].join("\n");
   }
@@ -462,6 +530,59 @@ function genTerraformAzureNode(nt: NodeType, _cfg: NodeConfig, _label: string, n
       "}\n",
     ].join("\n");
   }
+  if (nt === "LLMNode") {
+    return [
+      `resource "azurerm_machine_learning_workspace" "${name}" {`,
+      `  name                = "${name}"`,
+      `  location            = "eastus"`,
+      `  resource_group_name = azurerm_resource_group.main.name`,
+      "}\n",
+    ].join("\n");
+  }
+  if (nt === "GPUCluster") {
+    return [
+      `resource "azurerm_linux_virtual_machine" "${name}" {`,
+      `  name                = "${name}"`,
+      `  resource_group_name = azurerm_resource_group.main.name`,
+      `  location            = "eastus"`,
+      `  size                = "Standard_NC6s_v3"`,
+      `  admin_username      = "adminuser"`,
+      `  network_interface_ids = [azurerm_network_interface.${name}.id]`,
+      `  source_image_reference {`,
+      `    publisher = "nvidia"`,
+      `    offer     = "ngc-base"`,
+      `    sku       = "p3"`,
+      `    version   = "latest"`,
+      `  }`,
+      "}\n",
+    ].join("\n");
+  }
+  if (nt === "EdgeCompute") {
+    return [
+      `resource "azurerm_cdn_frontdoor_custom_domain" "${name}" {`,
+      `  name           = "${name}"`,
+      `  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main.id`,
+      `  host_name      = "${name}.example.com"`,
+      "}\n",
+    ].join("\n");
+  }
+  if (nt === "ServerlessV2") {
+    return [
+      `resource "azurerm_linux_function_app" "${name}" {`,
+      `  name                = "${name}"`,
+      `  location            = "eastus"`,
+      `  resource_group_name = azurerm_resource_group.main.name`,
+      `  service_plan_id     = azurerm_service_plan.${name}.id`,
+      `  storage_account_name = azurerm_storage_account.main.name`,
+      `  site_config {`,
+      `    application_stack {`,
+      `      node_version = 20`,
+      `    }`,
+      `    elastic_instance_minimum = 1`,
+      `  }`,
+      "}\n",
+    ].join("\n");
+  }
   return "";
 }
 
@@ -541,6 +662,35 @@ function genDeploymentManagerNode(nt: NodeType, _cfg: NodeConfig, label: string,
     lines.push(`  properties:`);
     lines.push(`    network: https://www.googleapis.com/compute/v1/projects/{{ params[project-id] }}/global/networks/default`);
     lines.push(`    ipCidrRange: 10.0.1.0/24`);
+  } else if (nt === "LLMNode") {
+    lines.push(`- name: ${name}`);
+    lines.push(`  type: ml.v1.model`);
+    lines.push(`  properties:`);
+    lines.push(`    description: "LLM model from system design"`);
+    lines.push(`    regions: us-central1`);
+  } else if (nt === "GPUCluster") {
+    lines.push(`- name: ${name}`);
+    lines.push(`  type: compute.v1.instance`);
+    lines.push(`  properties:`);
+    lines.push(`    zone: us-central1-a`);
+    lines.push(`    machineType: zones/us-central1-a/machineTypes/a2-highgpu-1g`);
+    lines.push(`    guestAccelerators:`);
+    lines.push(`      - acceleratorType: nvidia-tesla-a100`);
+    lines.push(`        acceleratorCount: 1`);
+  } else if (nt === "EdgeCompute") {
+    lines.push(`- name: ${name}`);
+    lines.push(`  type: cloudfunctions.v1beta2.function`);
+    lines.push(`  properties:`);
+    lines.push(`    runtime: nodejs20`);
+    lines.push(`    entryPoint: handler`);
+    lines.push(`    httpsTrigger: {}`);
+    lines.push(`    labels: { type: edge }`);
+  } else if (nt === "ServerlessV2") {
+    lines.push(`- name: ${name}`);
+    lines.push(`  type: cloudfunctions.v2beta.function`);
+    lines.push(`  properties:`);
+    lines.push(`    location: us-central1`);
+    lines.push(`    minInstances: 1`);
   }
   return lines;
 }
@@ -709,6 +859,65 @@ function genArmResource(nt: NodeType, _cfg: NodeConfig, label: string, name: str
       properties: { addressPrefix: "10.0.1.0/24" },
     };
   }
+  if (nt === "LLMNode") {
+    return {
+      ...baseResource,
+      type: "Microsoft.MachineLearningServices/workspaces",
+      name,
+      apiVersion: "2023-04-01",
+      location: "[resourceGroup().location]",
+      properties: {
+        friendlyName: name,
+        description: "LLM workspace from system design",
+      },
+      sku: { name: "Basic" },
+    };
+  }
+  if (nt === "GPUCluster") {
+    return {
+      ...baseResource,
+      type: "Microsoft.Compute/virtualMachines",
+      name,
+      apiVersion: "2023-03-01",
+      location: "[resourceGroup().location]",
+      properties: {
+        hardwareProfile: { vmSize: "Standard_NC6s_v3" },
+        storageProfile: {
+          imageReference: { publisher: "nvidia", offer: "ngc-base", sku: "p3", version: "latest" },
+        },
+        osProfile: { computerName: name, adminUsername: "adminuser" },
+      },
+    };
+  }
+  if (nt === "EdgeCompute") {
+    return {
+      ...baseResource,
+      type: "Microsoft.Cdn/profiles/endpoints",
+      name: `cdn-${name}`,
+      apiVersion: "2023-05-01",
+      location: "global",
+      properties: {
+        origins: [{ name: "origin", properties: { hostName: `${name}.azureedge.net` } }],
+      },
+    };
+  }
+  if (nt === "ServerlessV2") {
+    return {
+      ...baseResource,
+      type: "Microsoft.Web/sites",
+      name,
+      apiVersion: "2023-01-01",
+      location: "[resourceGroup().location]",
+      kind: "functionapp,linux",
+      properties: {
+        serverFarmId: `[resourceId('Microsoft.Web/serverfarms', 'plan-${name}')]`,
+        siteConfig: {
+          appSettings: [{ name: "SNAP_START", value: "true" }],
+          elasticInstanceMinimum: 1,
+        },
+      },
+    };
+  }
   return null;
 }
 
@@ -803,6 +1012,91 @@ function genK8sNode(nt: NodeType, cfg: NodeConfig, _label: string, name: string)
       "",
     ].join("\n");
   }
+  if (nt === "LLMNode") {
+    return [
+      "---",
+      `apiVersion: apps/v1`,
+      `kind: Deployment`,
+      `metadata:`,
+      `  name: ${name}`,
+      `  labels: { app: ${name} }`,
+      `spec:`,
+      `  replicas: 1`,
+      `  selector:`,
+      `    matchLabels: { app: ${name} }`,
+      `  template:`,
+      `    metadata:`,
+      `      labels: { app: ${name}, type: llm }`,
+      `    spec:`,
+      `      containers:`,
+      `        - name: ${name}`,
+      `          image: nvidia/cuda:12.2-runtime-ubuntu22.04`,
+      `          resources:`,
+      `            limits:`,
+      `              nvidia.com/gpu: 1`,
+      "",
+    ].join("\n");
+  }
+  if (nt === "GPUCluster") {
+    return [
+      "---",
+      `apiVersion: apps/v1`,
+      `kind: Deployment`,
+      `metadata:`,
+      `  name: ${name}`,
+      `  labels: { app: ${name} }`,
+      `spec:`,
+      `  replicas: 1`,
+      `  selector:`,
+      `    matchLabels: { app: ${name} }`,
+      `  template:`,
+      `    metadata:`,
+      `      labels: { app: ${name}, type: gpu }`,
+      `    spec:`,
+      `      containers:`,
+      `        - name: ${name}`,
+      `          image: nvidia/cuda:12.2-runtime-ubuntu22.04`,
+      `          resources:`,
+      `            limits:`,
+      `              nvidia.com/gpu: 4`,
+      "",
+    ].join("\n");
+  }
+  if (nt === "EdgeCompute") {
+    return [
+      "---",
+      `apiVersion: v1`,
+      `kind: ConfigMap`,
+      `metadata:`,
+      `  name: ${name}`,
+      `  labels: { app: ${name}, type: edge }`,
+      `data:`,
+      `  handler.js: |`,
+      `    function handler(event) {`,
+      `      return event.request;`,
+      `    }`,
+      "",
+    ].join("\n");
+  }
+  if (nt === "ServerlessV2") {
+    return [
+      "---",
+      `apiVersion: v1`,
+      `kind: Pod`,
+      `metadata:`,
+      `  name: ${name}`,
+      `  labels: { app: ${name}, type: serverless-v2 }`,
+      `spec:`,
+      `  containers:`,
+      `    - name: ${name}`,
+      `      image: alpine:latest`,
+      `      command: ["sleep", "infinity"]`,
+      `      env:`,
+      `        - name: SNAP_START`,
+      `          value: "true"`,
+      "",
+    ].join("\n");
+  }
   return "";
 }
 
@@ -860,6 +1154,31 @@ function genCfnNode(nt: NodeType, cfg: NodeConfig, label: string, name: string, 
     lines.push(`      Type: AWS::EC2::VPC`);
     lines.push(`      Properties:`);
     lines.push(`        CidrBlock: 10.0.0.0/16`);
+  } else if (nt === "LLMNode") {
+    lines.push(`    SageMakerEndpoint${idx}:`);
+    lines.push(`      Type: AWS::SageMaker::Endpoint`);
+    lines.push(`      Properties:`);
+    lines.push(`        EndpointName: ${name}`);
+  } else if (nt === "GPUCluster") {
+    lines.push(`    GPUNode${idx}:`);
+    lines.push(`      Type: AWS::EC2::Instance`);
+    lines.push(`      Properties:`);
+    lines.push(`        InstanceType: p3.2xlarge`);
+    lines.push(`        EbsOptimized: true`);
+  } else if (nt === "EdgeCompute") {
+    lines.push(`    EdgeFn${idx}:`);
+    lines.push(`      Type: AWS::CloudFront::Function`);
+    lines.push(`      Properties:`);
+    lines.push(`        Name: ${name}`);
+    lines.push(`        Runtime: cloudfront-js-2.0`);
+  } else if (nt === "ServerlessV2") {
+    lines.push(`    ServerlessV2${idx}:`);
+    lines.push(`      Type: AWS::Lambda::Function`);
+    lines.push(`      Properties:`);
+    lines.push(`        FunctionName: ${name}`);
+    lines.push(`        Runtime: nodejs20.x`);
+    lines.push(`        SnapStart:`);
+    lines.push(`          ApplyOn: PublishedVersions`);
   }
   return lines;
 }
