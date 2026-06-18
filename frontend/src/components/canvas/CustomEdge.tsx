@@ -5,6 +5,7 @@ import { useChaosStore } from "../../store/chaosStore";
 import { useSecurityStore } from "../../store/securityStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { NODE_REGISTRY } from "../../utils/nodeRegistry";
+import { spatialTokens } from "../../theme/spatialTokens";
 import type { CanvasEdge } from "../../types/canvas";
 
 type CustomEdgeData = CanvasEdge["data"];
@@ -93,24 +94,35 @@ function CustomEdge({
     }),
   );
 
+  // Node colors for gradient
   const sourceColor = useMemo(() => getNodeColor(source), [source]);
   const targetColor = useMemo(() => getNodeColor(target), [target]);
 
   const gradientId = `edge-grad-${id.replace(/[^a-zA-Z0-9]/g, "_")}`;
-  const laserId = `edge-laser-${id.replace(/[^a-zA-Z0-9]/g, "_")}`;
 
+  // Determine stroke color (fallback for non-gradient paths)
   let opacity = 0.7;
-  if (selected || isSecurityHighlighted || isImplicitTrust) opacity = 1;
-  if (isImplicitTrust) opacity = 1;
-  else if (!isSync) opacity = 0.55;
-  if (!isImplicitTrust && !isSecure && requiresTLS) opacity = 1;
 
-  const isEnergyFlowing = isAnimated || hasChaos;
+  if (selected || isSecurityHighlighted || isImplicitTrust) {
+    opacity = 1;
+  }
+  if (isImplicitTrust) {
+    opacity = 1;
+  } else if (!isSync) {
+    opacity = 0.55;
+  }
+  if (!isImplicitTrust && !isSecure && requiresTLS) {
+    opacity = 1;
+  }
+
   const animDuration = isSync ? "1.2s" : "4s";
+  const isEnergyFlowing = isAnimated || hasChaos;
 
+  // Dynamic stroke width based on throughput
   const baseWidth = throughput <= 0 ? 1.5 : throughput < 1000 ? 2 : throughput < 5000 ? 3 : throughput < 10000 ? 4 : 5;
   const edgeWidth = selected ? baseWidth + 0.5 : baseWidth;
 
+  // Saturated pulse via CSS class
   const isSaturated = data?.isSaturated ?? false;
 
   return (
@@ -124,12 +136,6 @@ function CustomEdge({
         <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor={sourceColor} />
           <stop offset="100%" stopColor={targetColor} />
-        </linearGradient>
-        <linearGradient id={laserId} x1="0%" y1="0%" x2="100%" y2="0%" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={sourceColor} stopOpacity="0" />
-          <stop offset="40%" stopColor="#ffffff" stopOpacity="0.8" />
-          <stop offset="60%" stopColor="#ffffff" stopOpacity="0.8" />
-          <stop offset="100%" stopColor={targetColor} stopOpacity="0" />
         </linearGradient>
       </defs>
 
@@ -145,6 +151,7 @@ function CustomEdge({
         </>
       ) : (
         <>
+          {/* Base gradient path */}
           <BaseEdge id={id} path={edgePath}
             style={{
               stroke: `url(#${gradientId})`,
@@ -153,33 +160,20 @@ function CustomEdge({
               filter: selected ? "drop-shadow(0 0 4px rgba(99,102,241,0.4))" : "drop-shadow(0 0 2px rgba(255,255,255,0.1))",
             }}
           />
-
+          {/* Energy flow animation overlay */}
           {isEnergyFlowing && (
             <path d={edgePath} fill="none"
-              stroke={`url(#${laserId})`}
-              strokeWidth={edgeWidth + 1}
+              stroke={`url(#${gradientId})`}
+              strokeWidth={edgeWidth + 0.5}
+              strokeDasharray="6 12"
               opacity={0.9}
               style={{
-                animation: `laser-beam ${animDuration} linear infinite`,
-                filter: "brightness(2) drop-shadow(0 0 3px rgba(255,255,255,0.3))",
+                animation: `edge-flow ${animDuration} linear infinite`,
+                filter: "brightness(1.5)",
               }}
             />
           )}
-
-          {!isSync && !hasCanary && (
-            <BaseEdge id={`${id}-async`} path={edgePath}
-              style={{ stroke: `url(#${gradientId})`, strokeWidth: edgeWidth, strokeDasharray: "4 4", opacity: 0.4,
-                animation: "edge-dash 0.6s linear infinite",
-              }} />
-          )}
-
-          {isSaturated && (
-            <BaseEdge id={`${id}-saturated`} path={edgePath}
-              style={{ stroke: "#f97316", strokeWidth: edgeWidth + 1, strokeDasharray: "4 3", opacity: 0.5,
-                animation: "edge-saturated-pulse 0.5s ease-in-out infinite",
-              }} />
-          )}
-
+          {/* TLS violation / insecure / implicit trust overrides */}
           {isImplicitTrust && (
             <BaseEdge id={`${id}-implicit`} path={edgePath}
               style={{ stroke: "#EF4444", strokeWidth: edgeWidth, strokeDasharray: "6 4", opacity: 1 }} />
@@ -195,8 +189,8 @@ function CustomEdge({
           {hovered && !isSecurityHighlighted && (
             <g>
               <rect x={labelX - 28} y={labelY - 8} width={56} height={14} rx={3}
-                fill="#141415" stroke={sourceColor} strokeWidth={0.5} opacity={0.95} />
-              <text x={labelX} y={labelY + 3} textAnchor="middle" fill={sourceColor} fontSize={7} fontFamily="monospace" fontWeight="bold">
+                fill={spatialTokens.bg.panel} stroke={sourceColor} strokeWidth={0.5} opacity={0.95} />
+              <text x={labelX} y={labelY + 3} textAnchor="middle" fill={sourceColor} fontSize={7} fontFamily={spatialTokens.font.mono} fontWeight="bold">
                 {PROTOCOL_DISPLAY[protocol] ?? protocol}
               </text>
             </g>
@@ -204,30 +198,34 @@ function CustomEdge({
         </>
       )}
 
+      {/* Animated flow dots (non-canary, non-gradient-flow edges) */}
       {!hasCanary && !isEnergyFlowing && (isAnimated || hasChaos) && (
         <circle r={2} fill={sourceColor} opacity={0.8}>
           <animateMotion dur={hasChaos ? "0.4s" : animDuration} repeatCount="indefinite" path={edgePath} />
         </circle>
       )}
 
+      {/* RAG step badge */}
       {ragStep > 0 && (
         <g>
           <rect x={labelX - 8} y={labelY - 22} width={16} height={14} rx={3}
             fill={ragStep === 1 ? "#8B5CF6" : ragStep === 2 ? "#A855F7" : "#7C3AED"} opacity={0.9}>
             <animate attributeName="opacity" values="0.9; 0.5; 0.9" dur={`${0.5 + ragStep * 0.3}s`} repeatCount="indefinite" />
           </rect>
-          <text x={labelX} y={labelY - 11} textAnchor="middle" fill="#fff" fontSize={7} fontFamily="monospace" fontWeight="bold">{ragStep}</text>
+          <text x={labelX} y={labelY - 11} textAnchor="middle" fill="#fff" fontSize={7} fontFamily={spatialTokens.font.mono} fontWeight="bold">{ragStep}</text>
         </g>
       )}
 
+      {/* Security indicator */}
       {isSecurityHighlighted && (
         <g>
           <rect x={labelX - 40} y={labelY - 14} width={80} height={16} rx={4}
-            fill="#141415" stroke="#EF4444" strokeWidth={0.5} />
-          <text x={labelX} y={labelY - 2} textAnchor="middle" fill="#EF4444" fontSize={8} fontFamily="monospace" fontWeight="bold">Insecure</text>
+            fill={spatialTokens.bg.panel} stroke={spatialTokens.accent.error} strokeWidth={0.5} />
+          <text x={labelX} y={labelY - 2} textAnchor="middle" fill={spatialTokens.accent.error} fontSize={8} fontFamily={spatialTokens.font.mono} fontWeight="bold">Insecure</text>
         </g>
       )}
 
+      {/* mTLS / Unsecured ZTA indicator */}
       {(isMTLS || serviceMeshMTLS) && !isImplicitTrust && (
         <text x={labelX - 24} y={labelY - 6} textAnchor="middle" fontSize={12} fill="#14B8A6">\uD83D\uDD12</text>
       )}
@@ -235,6 +233,7 @@ function CustomEdge({
         <text x={labelX - 24} y={labelY - 6} textAnchor="middle" fontSize={12} fill="#EF4444">\uD83D\uDD13</text>
       )}
 
+      {/* TLS / NoTLS text */}
       {!isImplicitTrust && !isSecurityHighlighted && (isSecure || !requiresTLS) && (
         <text x={labelX + 10} y={labelY - 4} textAnchor="middle" fill={sourceColor} fontSize={8} opacity={selected ? 1 : 0.4}>TLS</text>
       )}
@@ -242,26 +241,27 @@ function CustomEdge({
         <text x={labelX + 10} y={labelY - 4} textAnchor="middle" fill="#EF4444" fontSize={8}>NoTLS</text>
       )}
 
+      {/* Hover tooltip */}
       {hovered && routing && !hasCanary && (
         <g>
           <rect x={labelX - 48} y={labelY + 10} width={96} height={30} rx={4}
-            fill="#141415" stroke="#2A2A2E" strokeWidth={0.5} opacity={0.95} />
-          <text x={labelX} y={labelY + 20} textAnchor="middle" fill="#a1a1aa" fontSize={6} fontFamily="monospace">
+            fill={spatialTokens.bg.panel} stroke={spatialTokens.border.default} strokeWidth={0.5} opacity={0.95} />
+          <text x={labelX} y={labelY + 20} textAnchor="middle" fill={spatialTokens.text.secondary} fontSize={6} fontFamily={spatialTokens.font.mono}>
             {throughput.toLocaleString()} RPS \u00B7 {latency}ms \u00B7 {trafficPercent}% traffic
           </text>
-          <text x={labelX} y={labelY + 28} textAnchor="middle" fill={isSync ? "#3B82F6" : "#F97316"} fontSize={6} fontFamily="monospace">
+          <text x={labelX} y={labelY + 28} textAnchor="middle" fill={isSync ? "#3B82F6" : "#F97316"} fontSize={6} fontFamily={spatialTokens.font.mono}>
             {isSync ? "Synchronous" : "Asynchronous"}
           </text>
           {(isMTLS || serviceMeshMTLS) && (
-            <text x={labelX} y={labelY + 36} textAnchor="middle" fill="#14B8A6" fontSize={6} fontFamily="monospace">mTLS \uD83D\uDD12</text>
+            <text x={labelX} y={labelY + 36} textAnchor="middle" fill="#14B8A6" fontSize={6} fontFamily={spatialTokens.font.mono}>mTLS \uD83D\uDD12</text>
           )}
         </g>
       )}
       {hovered && hasCanary && (
         <g>
           <rect x={labelX - 48} y={labelY + 10} width={96} height={18} rx={4}
-            fill="#141415" stroke="#2A2A2E" strokeWidth={0.5} opacity={0.95} />
-          <text x={labelX} y={labelY + 22} textAnchor="middle" fill="#A855F7" fontSize={6} fontFamily="monospace">
+            fill={spatialTokens.bg.panel} stroke={spatialTokens.border.default} strokeWidth={0.5} opacity={0.95} />
+          <text x={labelX} y={labelY + 22} textAnchor="middle" fill="#A855F7" fontSize={6} fontFamily={spatialTokens.font.mono}>
             Canary {edgeCanaryPct}% \u00B7 Stable {100 - edgeCanaryPct}%
           </text>
         </g>

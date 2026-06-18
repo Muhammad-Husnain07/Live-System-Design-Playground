@@ -3,10 +3,10 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useAuthStore } from "../../store/authStore";
+import { spatialTokens } from "../../theme/spatialTokens";
 import {
   Box, Typography, Menu, MenuItem, Avatar, AvatarGroup, Tooltip,
 } from "@mui/material";
-import { spatialTokens } from "../../theme/spatialTokens";
 
 interface StatusBarProps {
   saving: boolean;
@@ -22,7 +22,7 @@ const pulseKeyframes = {
 };
 
 function SaveDot({ saving, isDirty }: { saving: boolean; isDirty: boolean }) {
-  const color = saving ? "#eab308" : isDirty ? "#fb923c" : "#22c55e";
+  const color = saving ? spatialTokens.accent.warning : isDirty ? "#fb923c" : spatialTokens.accent.success;
   return (
     <Box
       sx={{
@@ -53,12 +53,12 @@ export default function StatusBar({ saving, collabConnected, remoteUsers }: Stat
         position: "fixed",
         bottom: 24,
         right: 24,
-        zIndex: spatialTokens.z.topToolbar,
+        zIndex: spatialTokens.z.statusBar,
         background: "rgba(5,5,7,0.75)",
         backdropFilter: "blur(20px) saturate(180%)",
-        border: "1px solid rgba(255,255,255,0.06)",
+        border: spatialTokens.border.island,
         borderRadius: "12px",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
+        boxShadow: spatialTokens.shadow.island,
         pointerEvents: "auto",
         display: "flex",
         alignItems: "center",
@@ -75,7 +75,7 @@ export default function StatusBar({ saving, collabConnected, remoteUsers }: Stat
           sx={{
             fontSize: "0.6rem",
             color: "rgba(255,255,255,0.4)",
-            fontFamily: '"Inter", sans-serif',
+            fontFamily: spatialTokens.font.ui,
             fontWeight: 500,
             minWidth: 40,
           }}
@@ -88,8 +88,8 @@ export default function StatusBar({ saving, collabConnected, remoteUsers }: Stat
       {collabConnected && (
         <Tooltip title="Collaborators connected" arrow>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
-            <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "#22C55E", flexShrink: 0, boxShadow: "0 0 6px rgba(34,197,94,0.5)" }} />
-            <Typography sx={{ fontSize: "0.5rem", color: "rgba(255,255,255,0.3)", fontFamily: '"JetBrains Mono", monospace' }}>
+            <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: spatialTokens.accent.success, flexShrink: 0, boxShadow: "0 0 6px rgba(34,197,94,0.5)" }} />
+            <Typography sx={{ fontSize: "0.5rem", color: "rgba(255,255,255,0.3)", fontFamily: spatialTokens.font.mono }}>
               LIVE
             </Typography>
           </Box>
@@ -99,7 +99,7 @@ export default function StatusBar({ saving, collabConnected, remoteUsers }: Stat
       {!collabConnected && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
           <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
-          <Typography sx={{ fontSize: "0.5rem", color: "rgba(255,255,255,0.2)", fontFamily: '"JetBrains Mono", monospace' }}>
+          <Typography sx={{ fontSize: "0.5rem", color: "rgba(255,255,255,0.2)", fontFamily: spatialTokens.font.mono }}>
             OFFLINE
           </Typography>
         </Box>
@@ -120,7 +120,7 @@ export default function StatusBar({ saving, collabConnected, remoteUsers }: Stat
         >
           {remoteUsers.map((u) => (
             <Tooltip key={u.clientId} title={u.name} arrow>
-              <Avatar sx={{ bgcolor: u.color, color: "#fff", fontFamily: '"Inter", sans-serif' }}>
+              <Avatar sx={{ bgcolor: u.color, color: "#fff", fontFamily: spatialTokens.font.ui }}>
                 {u.name.charAt(0).toUpperCase()}
               </Avatar>
             </Tooltip>
@@ -146,8 +146,8 @@ export default function StatusBar({ saving, collabConnected, remoteUsers }: Stat
             border: "1px solid rgba(99,102,241,0.25)",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: "0.55rem", fontWeight: 600,
-            color: "#6366F1",
-            fontFamily: '"Inter", sans-serif',
+            color: spatialTokens.accent.primary,
+            fontFamily: spatialTokens.font.ui,
           }}
         >
           {user?.username?.charAt(0).toUpperCase() ?? "?"}
@@ -156,7 +156,7 @@ export default function StatusBar({ saving, collabConnected, remoteUsers }: Stat
           sx={{
             fontSize: "0.65rem",
             color: "rgba(255,255,255,0.5)",
-            fontFamily: '"Inter", sans-serif',
+            fontFamily: spatialTokens.font.ui,
             fontWeight: 500,
             maxWidth: 56,
             overflow: "hidden",
@@ -177,8 +177,8 @@ export default function StatusBar({ saving, collabConnected, remoteUsers }: Stat
         slotProps={{
           paper: {
             sx: {
-              bgcolor: "rgba(20,20,24,0.92)", backdropFilter: "blur(16px)",
-              border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px",
+              bgcolor: spatialTokens.bg.islandDarker, backdropFilter: "blur(16px)",
+              border: spatialTokens.border.island, borderRadius: "8px",
               boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
             },
           },
@@ -191,7 +191,7 @@ export default function StatusBar({ saving, collabConnected, remoteUsers }: Stat
           <Typography sx={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.7)" }}>Settings</Typography>
         </MenuItem>
         <MenuItem onClick={() => { setUserAnchorEl(null); logout(); navigate("/login"); }} dense>
-          <Typography sx={{ fontSize: "0.65rem", color: "#EF4444" }}>Sign Out</Typography>
+          <Typography sx={{ fontSize: "0.65rem", color: spatialTokens.accent.error }}>Sign Out</Typography>
         </MenuItem>
       </Menu>
     </motion.div>
