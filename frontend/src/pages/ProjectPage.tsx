@@ -4,6 +4,7 @@ import ReactFlow, {
   Background, BackgroundVariant,
   Controls,
   MiniMap,
+  Panel,
   type Node,
   type Edge,
   type OnNodesChange,
@@ -15,11 +16,13 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { Sword } from "lucide-react";
+import { spatialTokens } from "../theme/spatialTokens";
 import { useProjectStore } from "../store/projectStore";
 import { useCanvasStore } from "../store/canvasStore";
 import { useShallow } from "zustand/react/shallow";
 import { nodeTypes, edgeTypes, getReactFlowType } from "../components/canvas/nodeTypes";
 import { NODE_REGISTRY } from "../utils/nodeRegistry";
+import UnifiedRightPanel from "../components/panels/UnifiedRightPanel";
 import TopToolbar from "../components/toolbar/TopToolbar";
 import ToastContainer from "../components/ui/Toast";
 import { useSimulation } from "../hooks/useSimulation";
@@ -35,7 +38,6 @@ import ExportModal from "../components/panels/ExportModal";
 import FinOpsModal from "../components/panels/FinOpsModal";
 import ChaosPanel from "../components/panels/ChaosPanel";
 import SecurityPanel from "../components/panels/SecurityPanel";
-import DeploymentPanel from "../components/panels/DeploymentPanel";
 import FloatingFeaturePanel from "../components/panels/FloatingFeaturePanel";
 import ActionDock, { type PanelId } from "../components/toolbar/ActionDock";
 import CommandPalette from "../components/ui/CommandPalette";
@@ -51,12 +53,13 @@ import type { NodeType } from "../types/canvas";
 import RadialMenu from "../components/canvas/RadialMenu";
 import FloatingInspector from "../components/panels/FloatingInspector";
 import ComponentSpawner from "../components/canvas/ComponentSpawner";
+import NodeActionToolbar from "../components/canvas/NodeActionToolbar";
 import HeatmapOverlay from "../components/canvas/HeatmapOverlay";
 import DeepDiveChart from "../components/panels/DeepDiveChart";
 import StatusBar from "../components/toolbar/StatusBar";
 import QuakeTerminal from "../components/ui/QuakeTerminal";
+import BottomDrawer from "../components/panels/BottomDrawer";
 import { Box, Typography, Button } from "@mui/material";
-import { spatialTokens } from "../theme/spatialTokens";
 
 const VPC_COLORS = [
   "rgba(59,130,246,0.08)", "rgba(16,185,129,0.08)", "rgba(245,158,11,0.08)",
@@ -153,7 +156,7 @@ function ChallengeTimerBar({ challenge, onSubmit, submitting }: { challenge: Non
   const timeStr = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 
   return (
-    <Box sx={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", zIndex: spatialTokens.z.floatingPanels, height: 36, display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, borderRadius: "8px", backdropFilter: "blur(12px)", border: "1px solid", borderColor: isUrgent ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.08)", bgcolor: isUrgent ? "rgba(239,68,68,0.12)" : "rgba(5,5,7,0.7)", gap: 1.5, minWidth: 300, pointerEvents: "auto" }}>
+    <Box sx={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", zIndex: spatialTokens.z.challengeBar, height: 36, display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, borderRadius: "8px", backdropFilter: "blur(12px)", border: "1px solid", borderColor: isUrgent ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.08)", bgcolor: isUrgent ? "rgba(239,68,68,0.12)" : "rgba(5,5,7,0.7)", gap: 1.5, minWidth: 300, pointerEvents: "auto" }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
         <Typography sx={{ fontSize: "10px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em", color: "#71717a", display: "flex", alignItems: "center", gap: 0.5 }}>
           <Sword size={16} /> {challenge.title}
@@ -164,7 +167,7 @@ function ChallengeTimerBar({ challenge, onSubmit, submitting }: { challenge: Non
           <Box sx={{ width: 80, height: 6, bgcolor: "#27272a", borderRadius: "9999px", overflow: "hidden" }}>
             <Box sx={{ height: "100%", borderRadius: "9999px", transition: "all 1s", bgcolor: isUrgent ? "#ef4444" : "#3b82f6", width: `${progress}%` }} />
           </Box>
-          <Typography sx={{ fontSize: "12px", fontFamily: '"ui-monospace", "SFMono-Regular", monospace', fontVariantNumeric: "tabular-nums", fontWeight: 500, "@keyframes pulse": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: isUrgent ? "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" : "none", color: isUrgent ? "#ef4444" : "#f4f4f5" }}>
+          <Typography sx={{ fontSize: "12px", fontFamily: spatialTokens.font.mono, fontVariantNumeric: "tabular-nums", fontWeight: 500, "@keyframes pulse": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.5 } }, animation: isUrgent ? "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" : "none", color: isUrgent ? "#ef4444" : "#f4f4f5" }}>
             {timeStr}
           </Typography>
         </Box>
@@ -195,7 +198,7 @@ function ScoreReportModal({ report, onClose }: { report: { cost: number; reliabi
   ];
 
   return (
-    <Box sx={{ position: "fixed", inset: 0, zIndex: spatialTokens.z.modals, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} onClick={onClose}>
+    <Box sx={{ position: "fixed", inset: 0, zIndex: spatialTokens.z.scoreModal, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} onClick={onClose}>
       <Box sx={{ bgcolor: "#18181b", border: "1px solid", borderColor: "#3f3f46", borderRadius: "12px", p: 3, width: 320, boxShadow: 24 }} onClick={(e) => e.stopPropagation()}>
         <Box sx={{ textAlign: "center", mb: 2 }}>
           <Box sx={{ fontSize: "30px", lineHeight: 1.2, mb: 1 }}>{report.passed ? "&#10003;" : "&#10007;"}</Box>
@@ -203,7 +206,7 @@ function ScoreReportModal({ report, onClose }: { report: { cost: number; reliabi
             {report.passed ? "Challenge Passed!" : "Challenge Failed"}
           </Typography>
           <Typography sx={{ fontSize: "11px", mt: 0.25, color: "#71717a" }}>
-            Total Score: <Box component="span" sx={{ fontFamily: '"ui-monospace", "SFMono-Regular", monospace', fontWeight: 600, color: "#f4f4f5" }}>{report.total.toFixed(1)}</Box>
+            Total Score: <Box component="span" sx={{ fontFamily: spatialTokens.font.mono, fontWeight: 600, color: "#f4f4f5" }}>{report.total.toFixed(1)}</Box>
           </Typography>
         </Box>
 
@@ -212,7 +215,7 @@ function ScoreReportModal({ report, onClose }: { report: { cost: number; reliabi
             <Box key={item.label} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
               <ProgressRing value={item.value} color={item.color} size={56} strokeWidth={5} />
               <Typography sx={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, color: "#71717a" }}>{item.label}</Typography>
-              <Typography sx={{ fontSize: "12px", fontFamily: '"ui-monospace", "SFMono-Regular", monospace', fontWeight: 600, color: item.color }}>{item.value.toFixed(1)}</Typography>
+              <Typography sx={{ fontSize: "12px", fontFamily: spatialTokens.font.mono, fontWeight: 600, color: item.color }}>{item.value.toFixed(1)}</Typography>
             </Box>
           ))}
         </Box>
@@ -240,7 +243,7 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
 
   const { currentProject, isLoading, error, getProject, saveCanvas } = useProjectStore(useShallow((s) => ({ currentProject: s.currentProject, isLoading: s.isLoading, error: s.error, getProject: s.getProject, saveCanvas: s.saveCanvas })));
 
-  const { nodes, edges, isDirty, setNodes, setEdges, addNode, removeNode, removeEdge, selectNode, selectEdge, markDirty, markSaved, pushUndoState, undo, redo, addEdge, setActiveRightTab } = useCanvasStore(useShallow((s) => ({ nodes: s.nodes, edges: s.edges, isDirty: s.isDirty, setNodes: s.setNodes, setEdges: s.setEdges, addNode: s.addNode, removeNode: s.removeNode, removeEdge: s.removeEdge, selectNode: s.selectNode, selectEdge: s.selectEdge, markDirty: s.markDirty, markSaved: s.markSaved, pushUndoState: s.pushUndoState, undo: s.undo, redo: s.redo, addEdge: s.addEdge, setActiveRightTab: s.setActiveRightTab })));
+  const { nodes, edges, isDirty, setNodes, setEdges, addNode, removeNode, removeEdge, selectNode, selectEdge, markDirty, markSaved, pushUndoState, undo, redo, addEdge, setActiveRightTab, setViewport } = useCanvasStore(useShallow((s) => ({ nodes: s.nodes, edges: s.edges, isDirty: s.isDirty, setNodes: s.setNodes, setEdges: s.setEdges, addNode: s.addNode, removeNode: s.removeNode, removeEdge: s.removeEdge, selectNode: s.selectNode, selectEdge: s.selectEdge, markDirty: s.markDirty, markSaved: s.markSaved, pushUndoState: s.pushUndoState, undo: s.undo, redo: s.redo, addEdge: s.addEdge, setActiveRightTab: s.setActiveRightTab, setViewport: s.setViewport })));
 
   const nodesRef = useRef(nodes);
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
@@ -251,16 +254,6 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [chaosFlash, setChaosFlash] = useState(false);
   const lastChaosInjectionAt = useChaosStore((s) => s.lastChaosInjectionAt);
-  const storeShowChaos = useChaosStore((s) => s.showChaosPanel);
-  const storeShowDeploy = useDeployStore((s) => s.showDeployPanel);
-
-  /* Sync store-level show flags → activePanel (intentional: zustand → local state bridge) */
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (storeShowChaos && activePanel !== "chaos") setActivePanel("chaos");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (storeShowDeploy && activePanel !== "deploy") setActivePanel("deploy");
-  }, [storeShowChaos, storeShowDeploy]);
 
   useEffect(() => {
     if (lastChaosInjectionAt > 0) {
@@ -324,16 +317,29 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
       const cd = currentProject.canvas_data;
       setNodes(cd.nodes?.length ? cd.nodes.map(enrichNode) : []);
       setEdges(cd.edges?.length ? cd.edges : []);
+      if (cd.viewport) {
+        setViewport(cd.viewport);
+      }
       markSaved(currentProject.updated_at);
     }
-  }, [currentProject, setNodes, setEdges, markSaved]);
+  }, [currentProject, setNodes, setEdges, setViewport, markSaved]);
+
+  useEffect(() => {
+    if (reactFlowInstance) {
+      const vp = useCanvasStore.getState().viewport;
+      if (vp && (vp.x !== 0 || vp.y !== 0 || vp.zoom !== 1)) {
+        reactFlowInstance.setViewport(vp);
+      }
+    }
+  }, [reactFlowInstance]);
 
   const doAutoSave = useCallback(async () => {
     if (!projectId) return;
     if (useCanvasStore.getState().collabConnected) return;
     setSaving(true);
     try {
-      const payload = { nodes: nodesRef.current, edges: edgesRef.current };
+      const { viewport: vp } = useCanvasStore.getState();
+      const payload = { nodes: nodesRef.current, edges: edgesRef.current, viewport: { x: vp.x, y: vp.y, zoom: vp.zoom } };
       const updatedAt = await saveCanvas(projectId, payload);
       markSaved(updatedAt);
     } catch {
@@ -450,6 +456,13 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
     selectEdge(null);
     setContextMenu(null);
   }, [selectNode, selectEdge]);
+
+  const onMoveEnd = useCallback(
+    (_: any, viewport: { x: number; y: number; zoom: number }) => {
+      setViewport(viewport);
+    },
+    [setViewport],
+  );
 
   const onNodeDragStop = useCallback(() => {
     pushUndoState();
@@ -739,6 +752,10 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
           setTerminalOpen(false);
           return;
         }
+        if (contextMenu) {
+          closeContextMenu();
+          return;
+        }
         selectNode(null);
         selectEdge(null);
         return;
@@ -763,12 +780,12 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
     return (
       <Box sx={{ height: "100vh", bgcolor: spatialTokens.bg.void, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, width: 320 }}>
-          <Box className="floating-island" sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <Box sx={{ bgcolor: spatialTokens.bg.island, border: "1px solid", borderColor: spatialTokens.border.strong, borderRadius: "12px", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
             <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "70%", height: 16 }} />
             <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "90%", height: 10 }} />
             <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "60%", height: 10 }} />
           </Box>
-          <Box className="floating-island" sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <Box sx={{ bgcolor: spatialTokens.bg.island, border: "1px solid", borderColor: spatialTokens.border.strong, borderRadius: "12px", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
             <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "50%", height: 16 }} />
             <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "80%", height: 10 }} />
             <Box sx={{ bgcolor: "#27272a", borderRadius: "4px", width: "70%", height: 10 }} />
@@ -782,8 +799,8 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
     return (
       <Box sx={{ height: "100vh", bgcolor: spatialTokens.bg.void, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Box sx={{ textAlign: "center" }}>
-          <Typography sx={{ fontSize: "14px", mb: 0.5, color: spatialTokens.accent.error }}>{error}</Typography>
-          <Button onClick={() => navigate("/dashboard")} sx={{ fontSize: "14px", color: spatialTokens.accent.primary, textTransform: "none", minWidth: "unset", p: 0, "&:hover": { bgcolor: "transparent", opacity: 0.8 } }}>
+          <Typography sx={{ fontSize: "14px", mb: 0.5, color: "error.main" }}>{error}</Typography>
+          <Button onClick={() => navigate("/dashboard")} sx={{ fontSize: "14px", color: "primary.main", textTransform: "none", minWidth: "unset", p: 0, "&:hover": { bgcolor: "transparent", opacity: 0.8 } }}>
             Back to Dashboard
           </Button>
         </Box>
@@ -792,10 +809,14 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
   }
 
   return (
-    <Box sx={{ height: "100vh", bgcolor: spatialTokens.bg.void, overflow: "hidden", color: spatialTokens.text.primary, position: "relative" }}>
-      {/* Fullscreen canvas fills entire viewport */}
-      <Box ref={reactFlowWrapper} sx={{ width: "100%", height: "100vh", position: "relative", cursor: isDraggingOver ? "crosshair" : undefined,
+    <Box sx={{ height: "100vh", bgcolor: spatialTokens.bg.void, overflow: "hidden", color: spatialTokens.text.primary, position: "relative", display: "flex" }}>
+      {/* Left sidebar */}
+      <ComponentSpawner reactFlowInstance={reactFlowInstance} wrapperRef={reactFlowWrapper} />
+      {/* Canvas area + bottom drawer */}
+      <Box sx={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+      <Box ref={reactFlowWrapper} sx={{ flex: 1, minHeight: 0, position: "relative", cursor: isDraggingOver ? "crosshair" : undefined,
         "& .react-flow": isDraggingOver ? { boxShadow: "inset 0 0 60px rgba(34,197,94,0.08)", transition: "box-shadow 0.15s" } : {},
+        "& .react-flow__selection": { background: "rgba(99,102,241,0.1)", border: "1px solid #6366F1" },
       }} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} onMouseMove={handleMouseMove}>
         <ReactFlow
           nodes={nodes}
@@ -812,6 +833,7 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
           onNodeContextMenu={onNodeContextMenu}
           onPaneClick={onPaneClick}
           onNodeDragStop={onNodeDragStop}
+          onMoveEnd={onMoveEnd}
           isValidConnection={isValidConnection}
           fitView
           panOnScroll
@@ -836,20 +858,30 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
           <VpcBoundaries nodes={nodes} />
           <HeatmapOverlay nodes={nodes} />
 
-          <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: spatialTokens.z.canvasControls,
+          {/* Radial vignette overlay */}
+          <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: spatialTokens.z.vignette,
             background: "radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(5,5,7,0.6) 100%)",
           }} />
 
-          <Controls />
+          <Box sx={{
+            "& .react-flow__controls": {
+              background: "transparent !important", border: "none !important", boxShadow: "none !important",
+              display: "flex !important", flexDirection: "column-reverse !important",
+            },
+            "& .react-flow__controls-button": {
+              background: "#27272a !important", border: "1px solid #3f3f46 !important",
+              boxShadow: "none !important",
+              "&:hover": { background: "#3f3f46 !important" },
+            },
+          }}>
+            <Controls />
+          </Box>
           <MiniMap
             style={{
-              background: spatialTokens.bg.island,
-              border: spatialTokens.border.island,
-              borderRadius: "10px",
+              background: spatialTokens.bg.void,
+              border: `1px solid ${spatialTokens.border.strong}`,
+              borderRadius: "8px",
               overflow: "hidden",
-              backdropFilter: "blur(16px) saturate(180%)",
-              WebkitBackdropFilter: "blur(16px) saturate(180%)",
-              boxShadow: spatialTokens.shadow.island,
             }}
             nodeColor={(n) => {
               const nt = (n.data as any)?.nodeType;
@@ -859,19 +891,17 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
             maskColor="rgba(5,5,7,0.8)"
             nodeStrokeWidth={2}
           />
-
-          {/* Floating node/edge count */}
-          <Box sx={{ position: "absolute", bottom: 16, left: 16, zIndex: spatialTokens.z.canvasControls, pointerEvents: "auto" }}>
-            <Box className="floating-island" sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2.5, py: 1.5, fontSize: "10px", fontFamily: spatialTokens.font.mono, color: spatialTokens.text.secondary }}>
+          <Panel position="bottom-left">
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "10px", fontFamily: spatialTokens.font.mono, bgcolor: "rgba(5,5,7,0.8)", backdropFilter: "blur(4px)", px: "10px", py: "4px", borderRadius: "4px", border: "1px solid", borderColor: "#27272a", pointerEvents: "auto", color: "#52525b" }}>
               <Typography component="span" sx={{ fontSize: "inherit", fontFamily: "inherit" }}>Nodes: {nodes.length}</Typography>
-              <Typography component="span" sx={{ fontSize: "inherit", color: spatialTokens.text.placeholder }}>|</Typography>
+              <Typography component="span" sx={{ fontSize: "inherit", color: "#3f3f46" }}>|</Typography>
               <Typography component="span" sx={{ fontSize: "inherit", fontFamily: "inherit" }}>Edges: {edges.length}</Typography>
             </Box>
-          </Box>
+          </Panel>
         </ReactFlow>
 
         {collabConnected && remoteCursors.map((c) => (
-          <Box key={c.clientId} sx={{ position: "absolute", pointerEvents: "none", zIndex: 50, left: c.x, top: c.y }}>
+          <Box key={c.clientId} sx={{ position: "absolute", pointerEvents: "none", zIndex: spatialTokens.z.remoteCursor, left: c.x, top: c.y }}>
             <svg width="20" height="24" viewBox="0 0 20 24" fill="none">
               <path d="M2 2L15 20L10.5 13.5L18 11L2 2Z" fill={c.color} stroke="white" strokeWidth="1.5" />
             </svg>
@@ -883,7 +913,7 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
 
         {nodes.length === 0 && !isLoading && (
           <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Box sx={{ textAlign: "center", maxWidth: 420, zIndex: 10 }}>
+            <Box sx={{ textAlign: "center", maxWidth: 420, zIndex: spatialTokens.z.emptyState }}>
               <Box sx={{ width: 64, height: 64, mx: "auto", mb: 2, borderRadius: "50%", bgcolor: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Typography component="span" sx={{ fontSize: "24px", lineHeight: 1, color: "#22c55e" }}>&#9678;</Typography>
               </Box>
@@ -891,7 +921,7 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
                 Start Designing Your System
               </Typography>
               <Typography variant="body1" sx={{ fontSize: "12px", color: "#71717a", mb: 2.5, lineHeight: 1.5 }}>
-                Press <Box component="span" sx={{ fontFamily: '"JetBrains Mono", monospace', bgcolor: "rgba(255,255,255,0.06)", px: 0.6, py: 0.15, borderRadius: "3px", fontSize: "0.6rem" }}>+</Box> or <Box component="span" sx={{ fontFamily: '"JetBrains Mono", monospace', bgcolor: "rgba(255,255,255,0.06)", px: 0.6, py: 0.15, borderRadius: "3px", fontSize: "0.6rem" }}>Ctrl+K</Box> to add components, or start with a template
+                Press <Box component="span" sx={{ fontFamily: spatialTokens.font.mono, bgcolor: "rgba(255,255,255,0.06)", px: 0.6, py: 0.15, borderRadius: "3px", fontSize: "0.6rem" }}>+</Box> or <Box component="span" sx={{ fontFamily: spatialTokens.font.mono, bgcolor: "rgba(255,255,255,0.06)", px: 0.6, py: 0.15, borderRadius: "3px", fontSize: "0.6rem" }}>Ctrl+K</Box> to add components, or start with a template
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1, pointerEvents: "auto" }}>
                 {allTemplates.map((tpl) => (
@@ -918,6 +948,15 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
         )}
       </Box>
 
+      <BottomDrawer />
+      </Box>
+
+      {/* Right sidebar — config, deploy, chaos, etc. */}
+      <UnifiedRightPanel
+        onSimStart={simStart}
+        onSimStop={simStop}
+      />
+
       {/* Floating HUD — overlays canvas */}
       <TopToolbar
         projectId={projectId}
@@ -940,14 +979,14 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
       )}
 
       {wsStatus === "disconnected" && useSimulationStore.getState().isRunning && (
-        <Box sx={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", zIndex: spatialTokens.z.floatingPanels, pointerEvents: "none", display: "flex", alignItems: "center", gap: 1.5, px: 2.5, py: 1, className: "floating-island", bgcolor: "rgba(249,115,22,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(249,115,22,0.2)", borderRadius: "8px" }}>
+        <Box sx={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", zIndex: spatialTokens.z.wsBanner, height: 28, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(249,115,22,0.12)", borderRadius: "6px", px: 2, backdropFilter: "blur(8px)", border: "1px solid rgba(249,115,22,0.2)", gap: 1 }}>
           <Box component="span" sx={{ "@keyframes spin": { to: { transform: "rotate(360deg)" } }, animation: "spin 1s linear infinite", height: 10, width: 10, border: "1.5px solid", borderColor: "#fb923c", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block" }} />
-          <Typography sx={{ fontSize: "10px", fontWeight: 500, color: "#fb923c", fontFamily: spatialTokens.font.ui }}>Connection lost. Reconnecting...</Typography>
+          <Typography sx={{ fontSize: "9px", fontWeight: 500, color: "#fb923c", fontFamily: spatialTokens.font.ui }}>Connection lost. Reconnecting...</Typography>
         </Box>
       )}
       {wsStatus === "error" && !useSimulationStore.getState().isRunning && (
-        <Box sx={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", zIndex: spatialTokens.z.floatingPanels, pointerEvents: "none", display: "flex", alignItems: "center", gap: 1.5, px: 2.5, py: 1, className: "floating-island", bgcolor: "rgba(239,68,68,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "8px" }}>
-          <Typography sx={{ fontSize: "10px", fontWeight: 500, color: spatialTokens.accent.error, fontFamily: spatialTokens.font.ui }}>WebSocket connection failed</Typography>
+        <Box sx={{ position: "absolute", top: 72, left: "50%", transform: "translateX(-50%)", zIndex: spatialTokens.z.wsBanner, height: 28, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(239,68,68,0.12)", borderRadius: "6px", px: 2, backdropFilter: "blur(8px)", border: "1px solid rgba(239,68,68,0.2)" }}>
+          <Typography sx={{ fontSize: "9px", fontWeight: 500, color: "#ef4444", fontFamily: spatialTokens.font.ui }}>WebSocket connection failed</Typography>
         </Box>
       )}
 
@@ -967,13 +1006,14 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
         nodeId={contextMenu?.nodeId ?? null}
         position={contextMenu ? { x: contextMenu.x, y: contextMenu.y } : null}
         onClose={closeContextMenu}
+        onOpenChaos={() => setActivePanel("chaos")}
       />
 
       {/* Floating node inspector */}
       <FloatingInspector />
 
-      {/* Component spawner */}
-      <ComponentSpawner reactFlowInstance={reactFlowInstance} />
+      {/* Node action toolbar — floats above selected node */}
+      <NodeActionToolbar />
 
       {/* Deep-dive chart overlay */}
       <DeepDiveChart
@@ -993,20 +1033,11 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
 
       <FloatingFeaturePanel
         open={activePanel === "chaos"}
-        onClose={() => { setActivePanel(null); useChaosStore.getState().setShowChaosPanel(false); }}
+        onClose={() => setActivePanel(null)}
         title="Chaos Engineering"
         color="#F59E0B"
       >
         <ChaosPanel />
-      </FloatingFeaturePanel>
-
-      <FloatingFeaturePanel
-        open={activePanel === "deploy"}
-        onClose={() => { setActivePanel(null); useDeployStore.getState().setShowDeployPanel(false); }}
-        title="Deployment"
-        color="#8B5CF6"
-      >
-        <DeploymentPanel />
       </FloatingFeaturePanel>
 
       <FloatingFeaturePanel
@@ -1051,7 +1082,7 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
 
       {/* Chaos flash overlay */}
       {chaosFlash && (
-        <Box sx={{ position: "fixed", inset: 0, zIndex: spatialTokens.z.toasts, pointerEvents: "none", bgcolor: "rgba(239,68,68,0.05)", transition: "opacity 0.15s" }} />
+        <Box sx={{ position: "fixed", inset: 0, zIndex: spatialTokens.z.toast, pointerEvents: "none", bgcolor: "rgba(239,68,68,0.05)", transition: "opacity 0.15s" }} />
       )}
 
       {/* Quake terminal */}

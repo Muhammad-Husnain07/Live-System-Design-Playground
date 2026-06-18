@@ -21,10 +21,18 @@ export default function DashboardPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(totalProjects / PAGE_SIZE);
 
   useEffect(() => {
     fetchProjects(page);
   }, [fetchProjects, page]);
+
+  // Clamp currentPage when totalPages shrinks (e.g., after delete on last page)
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
 
   const handleCreate = useCallback(async (name: string, description: string | undefined, isPublic: boolean) => {
     const p = await createProject(name, description, isPublic);
@@ -36,8 +44,6 @@ export default function DashboardPage() {
       await deleteProject(id);
     } catch {}
   }, [deleteProject]);
-
-  const totalPages = Math.ceil(totalProjects / PAGE_SIZE);
 
   return (
     <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>

@@ -5,6 +5,8 @@ import { Box, Paper, Typography, TextField, Button } from "@mui/material";
 
 import { useShallow } from "zustand/react/shallow";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function RegisterPage() {
   const { register, isAuthenticated, isLoading, error, clearError } = useAuthStore(useShallow((s) => ({ register: s.register, isAuthenticated: s.isAuthenticated, isLoading: s.isLoading, error: s.error, clearError: s.clearError })));
   const [email, setEmail] = useState("");
@@ -12,29 +14,29 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [err, setErr] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; username?: string; password?: string; confirm?: string }>({});
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const validate = (): string | null => {
-    if (!email.includes("@")) return "Invalid email address";
-    if (username.length < 3 || username.length > 20) return "Username must be 3–20 characters";
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) return "Username: letters, numbers, underscores only";
-    if (password.length < 8) return "Password must be at least 8 characters";
-    if (password !== confirm) return "Passwords do not match";
-    return null;
+  const validate = (): boolean => {
+    const errors: typeof fieldErrors = {};
+    if (!EMAIL_REGEX.test(email)) errors.email = "Enter a valid email address";
+    if (email.length > 100) errors.email = "Email is too long";
+    if (username.length < 3 || username.length > 20) errors.username = "Must be 3–20 characters";
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) errors.username = "Letters, numbers, underscores only";
+    if (password.length < 8) errors.password = "At least 8 characters";
+    if (password !== confirm) errors.confirm = "Passwords do not match";
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErr("");
     clearError();
-    const validationErr = validate();
-    if (validationErr) {
-      setErr(validationErr);
-      return;
-    }
+    if (!validate()) return;
     try {
       await register(email, username, password);
     } catch (caught: any) {
@@ -62,8 +64,10 @@ export default function RegisterPage() {
             required
             fullWidth
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }}
             placeholder="you@example.com"
+            error={!!fieldErrors.email}
+            helperText={fieldErrors.email}
           />
 
           <TextField
@@ -72,8 +76,10 @@ export default function RegisterPage() {
             required
             fullWidth
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e) => { setUsername(e.target.value); setFieldErrors((p) => ({ ...p, username: undefined })); }}
             placeholder="myuser"
+            error={!!fieldErrors.username}
+            helperText={fieldErrors.username}
           />
 
           <TextField
@@ -83,8 +89,10 @@ export default function RegisterPage() {
             required
             fullWidth
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: undefined })); }}
             placeholder="••••••••"
+            error={!!fieldErrors.password}
+            helperText={fieldErrors.password}
           />
 
           <TextField
@@ -94,8 +102,10 @@ export default function RegisterPage() {
             required
             fullWidth
             value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
+            onChange={(e) => { setConfirm(e.target.value); setFieldErrors((p) => ({ ...p, confirm: undefined })); }}
             placeholder="••••••••"
+            error={!!fieldErrors.confirm}
+            helperText={fieldErrors.confirm}
           />
 
           {(err || error) && (
