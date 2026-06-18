@@ -57,6 +57,17 @@ export default function ExportModal({ embedded = false }: { embedded?: boolean }
     } catch { /* ignore */ }
   };
 
+  const handleDownload = () => {
+    const ext = currentTab.id === "kubernetes" || currentTab.id === "deployment-manager" ? "yaml" : currentTab.id === "arm" ? "json" : "tf";
+    const blob = new Blob([code], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `infrastructure.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleTabClick = (i: number) => {
     setTabIndex(i);
     setIacError(null);
@@ -151,22 +162,39 @@ export default function ExportModal({ embedded = false }: { embedded?: boolean }
               {currentTab.label} — {currentTab.sublabel}
             </Typography>
           </Box>
-          <Button
-            onClick={handleCopy}
-            variant="contained"
-            sx={{
-              fontSize: "0.65rem", fontWeight: 600, px: 2, py: 0.75,
-              bgcolor: copied ? "#22C55E" : "#6366F1",
-              color: "#fff",
-              "&:hover": { bgcolor: copied ? "#16A34A" : "#4F46E5" },
-              "&:focus-visible": { outline: "2px solid #6366F1", outlineOffset: 2 },
-              "&:active": { transform: "scale(0.98)" },
-              transition: "all 0.12s",
-              textTransform: "none", borderRadius: "6px",
-            }}
-          >
-            {copied ? "Copied!" : "Copy Code"}
-          </Button>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              onClick={handleDownload}
+              variant="outlined"
+              sx={{
+                fontSize: "0.65rem", fontWeight: 600, px: 2, py: 0.75,
+                color: "#8B8B8F", borderColor: "#2A2A2E",
+                "&:hover": { borderColor: "#6366F1", color: "#EDEDEF", bgcolor: "rgba(99,102,241,0.08)" },
+                "&:focus-visible": { outline: "2px solid #6366F1", outlineOffset: 2 },
+                "&:active": { transform: "scale(0.98)" },
+                transition: "all 0.12s",
+                textTransform: "none", borderRadius: "6px",
+              }}
+            >
+              Download
+            </Button>
+            <Button
+              onClick={handleCopy}
+              variant="contained"
+              sx={{
+                fontSize: "0.65rem", fontWeight: 600, px: 2, py: 0.75,
+                bgcolor: copied ? "#22C55E" : "#6366F1",
+                color: "#fff",
+                "&:hover": { bgcolor: copied ? "#16A34A" : "#4F46E5" },
+                "&:focus-visible": { outline: "2px solid #6366F1", outlineOffset: 2 },
+                "&:active": { transform: "scale(0.98)" },
+                transition: "all 0.12s",
+                textTransform: "none", borderRadius: "6px",
+              }}
+            >
+              {copied ? "Copied!" : "Copy Code"}
+            </Button>
+          </Box>
         </Box>
 
         {/* Editor */}

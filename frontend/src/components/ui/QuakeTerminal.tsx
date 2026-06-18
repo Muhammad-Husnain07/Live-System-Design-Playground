@@ -5,13 +5,13 @@ import { useSimulationStore } from "../../store/simulationStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
 import { useChaosStore } from "../../store/chaosStore";
+import { spatialTokens } from "../../theme/spatialTokens";
 import api from "../../utils/api";
 import { Box, Typography } from "@mui/material";
 import { Terminal } from "lucide-react";
-import { spatialTokens } from "../../theme/spatialTokens";
 
 const LEVEL_WEIGHT: Record<string, number> = { CRITICAL: 700, ERROR: 600, WARN: 500, INFO: 400 };
-const LEVEL_COLOR: Record<string, string> = { CRITICAL: "#ef4444", ERROR: "#ef4444", WARN: "#f97316", INFO: "#a1a1aa" };
+const LEVEL_COLOR: Record<string, string> = { CRITICAL: spatialTokens.accent.error, ERROR: spatialTokens.accent.error, WARN: "#f97316", INFO: spatialTokens.text.secondary };
 const LEVEL_BG: Record<string, string> = {
   CRITICAL: "rgba(239,68,68,0.08)", ERROR: "rgba(239,68,68,0.04)",
   WARN: "rgba(249,115,22,0.06)", INFO: "transparent",
@@ -28,7 +28,7 @@ function LogEntryRow({ log, index }: { log: SimLogEntry; index: number }) {
     <Box
       sx={{
         display: "flex", gap: 1, px: 1.5, py: 0.15, fontSize: "0.6rem",
-        fontFamily: '"JetBrains Mono", monospace',
+        fontFamily: spatialTokens.font.mono,
         bgcolor: LEVEL_BG[log.level] || bg, color: "#d4d4d8",
         alignItems: "center", minHeight: 18,
         borderLeft: `2px solid ${LEVEL_COLOR[log.level] || "transparent"}`,
@@ -36,7 +36,7 @@ function LogEntryRow({ log, index }: { log: SimLogEntry; index: number }) {
         "&:hover": { bgcolor: "rgba(255,255,255,0.03)" },
       }}
     >
-      <Box sx={{ width: 48, flexShrink: 0, color: LEVEL_COLOR[log.level] || "#8B8B8F", fontWeight: LEVEL_WEIGHT[log.level] || 400, fontSize: "0.5rem" }}>
+      <Box sx={{ width: 48, flexShrink: 0, color: LEVEL_COLOR[log.level] || spatialTokens.text.secondary, fontWeight: LEVEL_WEIGHT[log.level] || 400, fontSize: "0.5rem" }}>
         {log.level}
       </Box>
       <Box sx={{ width: 80, flexShrink: 0, color: "#8B8B8F", fontSize: "0.5rem" }}>
@@ -225,15 +225,15 @@ export default memo(function QuakeTerminal({ open, onClose }: { open: boolean; o
           initial={{ y: "-100%" }}
           animate={{ y: 0 }}
           exit={{ y: "-100%" }}
-          transition={{ type: "spring", damping: 28, stiffness: 300, mass: 0.8 }}
+          transition={{ type: "spring", damping: 20, stiffness: 300 }}
           style={{
             position: "fixed",
             top: 0,
             left: 0,
             right: 0,
             height: "40vh",
-            zIndex: spatialTokens.z.modals,
-            background: "rgba(5,5,7,0.94)",
+            zIndex: spatialTokens.z.quakeTerminal,
+            background: spatialTokens.bg.islandDarker,
             backdropFilter: "blur(24px) saturate(180%)",
             borderBottom: "1px solid rgba(255,255,255,0.06)",
             boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
@@ -258,7 +258,7 @@ export default memo(function QuakeTerminal({ open, onClose }: { open: boolean; o
               {isRunning && (
                 <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#22c55e", boxShadow: "0 0 6px #22c55e80" }} />
               )}
-              <Typography sx={{ fontSize: "0.5rem", color: "#555558", fontFamily: '"JetBrains Mono", monospace' }}>
+              <Typography sx={{ fontSize: "0.5rem", color: "#555558", fontFamily: spatialTokens.font.mono }}>
                 {logTotal} logs
               </Typography>
               <Box
@@ -280,14 +280,14 @@ export default memo(function QuakeTerminal({ open, onClose }: { open: boolean; o
             sx={{
               flex: 1, overflowY: "auto", minHeight: 0,
               bgcolor: "rgba(5,5,7,0.6)",
-              fontFamily: '"JetBrains Mono", monospace',
+              fontFamily: spatialTokens.font.mono,
             }}
           >
             {/* Command history */}
             {history.map((line, i) => {
               if (line.startsWith("> ")) {
                 return (
-                  <Box key={`h-${i}`} sx={{ px: 1.5, py: 0.15, fontSize: "0.6rem", fontFamily: '"JetBrains Mono", monospace', color: "#22d3ee", bgcolor: "rgba(34,211,238,0.03)" }}>
+                  <Box key={`h-${i}`} sx={{ px: 1.5, py: 0.15, fontSize: "0.6rem", fontFamily: spatialTokens.font.mono, color: "#22d3ee", bgcolor: "rgba(34,211,238,0.03)" }}>
                     {line}
                   </Box>
                 );
@@ -295,20 +295,20 @@ export default memo(function QuakeTerminal({ open, onClose }: { open: boolean; o
               if (line.startsWith("  ")) {
                 const isErr = line.includes("ERROR") || line.includes("error");
                 return (
-                  <Box key={`h-${i}`} sx={{ px: 1.5, py: 0.15, fontSize: "0.6rem", fontFamily: '"JetBrains Mono", monospace', color: isErr ? "#ef4444" : "#a1a1aa", whiteSpace: "pre-wrap" }}>
+                  <Box key={`h-${i}`} sx={{ px: 1.5, py: 0.15, fontSize: "0.6rem", fontFamily: spatialTokens.font.mono, color: isErr ? "#ef4444" : "#a1a1aa", whiteSpace: "pre-wrap" }}>
                     {line}
                   </Box>
                 );
               }
               if (line.startsWith("Available")) {
                 return (
-                  <Box key={`h-${i}`} sx={{ px: 1.5, py: 0.15, fontSize: "0.55rem", fontFamily: '"JetBrains Mono", monospace', color: "#8B8B8F", whiteSpace: "pre-wrap" }}>
+                  <Box key={`h-${i}`} sx={{ px: 1.5, py: 0.15, fontSize: "0.55rem", fontFamily: spatialTokens.font.mono, color: "#8B8B8F", whiteSpace: "pre-wrap" }}>
                     {line}
                   </Box>
                 );
               }
               return (
-                <Box key={`h-${i}`} sx={{ px: 1.5, py: 0.15, fontSize: "0.6rem", fontFamily: '"JetBrains Mono", monospace', color: "#a1a1aa" }}>
+                <Box key={`h-${i}`} sx={{ px: 1.5, py: 0.15, fontSize: "0.6rem", fontFamily: spatialTokens.font.mono, color: "#a1a1aa" }}>
                   {line}
                 </Box>
               );
@@ -328,7 +328,7 @@ export default memo(function QuakeTerminal({ open, onClose }: { open: boolean; o
             px: 1.5, py: 0.5, borderTop: "1px solid rgba(255,255,255,0.06)",
             bgcolor: "rgba(10,10,11,0.6)", flexShrink: 0,
           }}>
-            <Typography sx={{ fontSize: "0.65rem", fontFamily: '"JetBrains Mono", monospace', color: "#22d3ee", mr: 1, flexShrink: 0 }}>
+            <Typography sx={{ fontSize: "0.65rem", fontFamily: spatialTokens.font.mono, color: "#22d3ee", mr: 1, flexShrink: 0 }}>
               $
             </Typography>
             <Box
@@ -340,9 +340,9 @@ export default memo(function QuakeTerminal({ open, onClose }: { open: boolean; o
               placeholder="Type a command…"
               sx={{
                 flex: 1, border: "none", outline: "none", bgcolor: "transparent",
-                fontFamily: '"JetBrains Mono", monospace', fontSize: "0.65rem",
-                color: "#EDEDEF", caretColor: "#22d3ee",
-                "&::placeholder": { color: "#555558", opacity: 1 },
+                fontFamily: spatialTokens.font.mono, fontSize: "0.65rem",
+                color: spatialTokens.text.primary, caretColor: "#22d3ee",
+                "&::placeholder": { color: spatialTokens.text.placeholder, opacity: 1 },
               }}
             />
           </Box>
