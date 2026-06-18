@@ -1,14 +1,50 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { type NodeProps } from "reactflow";
 import { DatabaseSearch, Layers } from "lucide-react";
 import BaseNode from "../BaseNode";
 import type { BaseNodeData } from "../BaseNode";
 import { Box, Stack, Typography } from "@mui/material";
 
+const DOT_ROWS = 5;
+const DOT_COLS = 8;
+const ROW_HEIGHTS = [10, 16, 22, 28, 34];
+const COL_OFFSETS = [14, 35, 56, 77, 98, 119, 140, 161];
+const DOT_SEED = [
+  [0.35, 0.22, 0.41, 0.18, 0.38, 0.28, 0.15, 0.42],
+  [0.20, 0.45, 0.12, 0.30, 0.48, 0.10, 0.33, 0.25],
+  [0.40, 0.15, 0.38, 0.48, 0.22, 0.35, 0.18, 0.42],
+  [0.25, 0.42, 0.10, 0.35, 0.15, 0.40, 0.30, 0.20],
+  [0.38, 0.12, 0.45, 0.22, 0.35, 0.18, 0.28, 0.40],
+];
+const RADIUS_SEED = [
+  [1.5, 1.0, 2.0, 1.2, 1.8, 1.0, 1.5, 2.0],
+  [1.0, 2.0, 1.2, 1.5, 2.5, 1.0, 2.0, 1.2],
+  [2.0, 1.5, 2.0, 2.5, 1.0, 2.0, 1.2, 2.0],
+  [1.2, 2.0, 1.0, 2.0, 1.5, 2.0, 1.0, 1.5],
+  [2.0, 1.0, 2.5, 1.5, 2.0, 1.2, 1.5, 2.5],
+];
+
 function VectorDBNode(props: NodeProps<BaseNodeData>) {
   const dims = props.data?.config?.dimensions ?? 1536;
   const topK = props.data?.config?.topK ?? 10;
   const indexType = props.data?.config?.indexType ?? "hnsw";
+
+  const dots = useMemo(() => {
+    const result: { cx: number; cy: number; r: number; brightness: number; row: number; col: number }[] = [];
+    for (let row = 0; row < DOT_ROWS; row++) {
+      for (let col = 0; col < DOT_COLS; col++) {
+        result.push({
+          cx: COL_OFFSETS[col % COL_OFFSETS.length],
+          cy: ROW_HEIGHTS[row % ROW_HEIGHTS.length],
+          r: RADIUS_SEED[row][col] ?? 1.5,
+          brightness: DOT_SEED[row][col] ?? 0.3,
+          row,
+          col,
+        });
+      }
+    }
+    return result;
+  }, []);
 
   return (
     <BaseNode {...props}>
@@ -26,22 +62,9 @@ function VectorDBNode(props: NodeProps<BaseNodeData>) {
           <rect x="2" y="2" width="176" height="32" rx="4" fill="url(#vecgrid)" stroke="rgba(139,92,246,0.15)" strokeWidth="1" />
           <rect x="2" y="2" width="176" height="32" rx="4" fill="url(#vecgrid-dense)" />
 
-          {Array.from({ length: 5 }).map((_, row) =>
-            Array.from({ length: 8 }).map((_, col) => {
-              const cx = 14 + col * 21;
-              const cy = 10 + row * 6;
-              const brightness = 0.15 + 0.35 * Math.random();
-              return (
-                <circle
-                  key={`${row}-${col}`}
-                  cx={cx}
-                  cy={cy}
-                  r={1 + Math.random() * 1.5}
-                  fill={`rgba(139,92,246,${brightness})`}
-                />
-              );
-            }),
-          )}
+          {dots.map((d) => (
+            <circle key={`${d.row}-${d.col}`} cx={d.cx} cy={d.cy} r={d.r} fill={`rgba(139,92,246,${d.brightness})`} />
+          ))}
 
           <text x="90" y="46" textAnchor="middle" fill="#71717a" fontSize="7" fontFamily="monospace">
             {dims.toLocaleString()}d · Top-{topK} · {indexType.toUpperCase()}

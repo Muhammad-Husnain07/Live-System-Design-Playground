@@ -1,28 +1,57 @@
 import { memo, useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, CornerDownLeft, ArrowUp, ArrowDown } from "lucide-react";
-import { Box, Typography } from "@mui/material";
-import { NODE_REGISTRY } from "../../utils/nodeRegistry";
-import { useCanvasStore } from "../../store/canvasStore";
-import { getReactFlowType } from "../canvas/nodeTypes";
-import { DEFAULT_SIM, DEFAULT_METRICS } from "../../utils/enterpriseTemplates";
-import type { NodeType } from "../../types/canvas";
-import type { Node } from "reactflow";
+import { Search, GripVertical, ChevronDown, ChevronRight } from "lucide-react";
+import { Box, Typography, Collapse } from "@mui/material";
 import { spatialTokens } from "../../theme/spatialTokens";
+import { NODE_REGISTRY } from "../../utils/nodeRegistry";
+import { NodeCategory } from "../../types/canvas";
+import type { NodeType } from "../../types/canvas";
 
 interface ComponentSpawnerProps {
   reactFlowInstance?: any;
+  wrapperRef?: React.RefObject<HTMLDivElement | null>;
 }
+
+const NODE_CATEGORIES: { key: string; label: string; color: string }[] = [
+  { key: NodeCategory.Infrastructure, label: "Infrastructure", color: "#3B82F6" },
+  { key: NodeCategory.Data, label: "Data", color: "#22C55E" },
+  { key: NodeCategory.Network, label: "Network", color: "#14B8A6" },
+  { key: NodeCategory.Messaging, label: "Messaging", color: "#F59E0B" },
+  { key: NodeCategory.Compute, label: "Compute", color: "#A78BFA" },
+  { key: NodeCategory.External, label: "External", color: "#6B7280" },
+  { key: NodeCategory.AIML, label: "AI / ML", color: "#A855F7" },
+  { key: NodeCategory.ModernCompute, label: "Modern Compute", color: "#06B6D4" },
+];
+
+const CATEGORY_DOT_COLORS: Record<string, string> = {
+  [NodeCategory.Infrastructure]: "#3B82F6",
+  [NodeCategory.Data]: "#22C55E",
+  [NodeCategory.Network]: "#14B8A6",
+  [NodeCategory.Messaging]: "#F59E0B",
+  [NodeCategory.Compute]: "#A78BFA",
+  [NodeCategory.External]: "#6B7280",
+  [NodeCategory.AIML]: "#A855F7",
+  [NodeCategory.ModernCompute]: "#06B6D4",
+};
 
 const entries = Object.entries(NODE_REGISTRY);
 
-export default memo(function ComponentSpawner({ reactFlowInstance }: ComponentSpawnerProps) {
-  const [open, setOpen] = useState(false);
+function groupByCategory(entriesArr: typeof entries): Map<string, typeof entriesArr> {
+  const map = new Map<string, typeof entriesArr>();
+  for (const [nodeType, meta] of entriesArr) {
+    const cat = meta.category;
+    if (!map.has(cat)) map.set(cat, []);
+    map.get(cat)!.push([nodeType, meta] as [string, typeof meta]);
+  }
+  return map;
+}
+
+export default memo(function ComponentSpawner({ reactFlowInstance, wrapperRef }: ComponentSpawnerProps) {
   const [query, setQuery] = useState("");
-  const [selectedIdx, setSelectedIdx] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const addNode = useCanvasStore((s) => s.addNode);
-  const pushUndoState = useCanvasStore((s) => s.pushUndoState);
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set(NODE_CATEGORIES.map((c) => c.key)));
+  const [draggingType, setDraggingType] = useState<string | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const dragGhostRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -35,332 +64,224 @@ export default memo(function ComponentSpawner({ reactFlowInstance }: ComponentSp
     );
   }, [query]);
 
+  const grouped = useMemo(() => groupByCategory(filtered), [filtered]);
+
+  const toggleCategory = useCallback((cat: string) => {
+    setExpandedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
-    setSelectedIdx(0);
-  }, [query]);
+    if (!draggingType) return;
+    const onMove = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [draggingType]);
 
-  const handleOpen = useCallback(() => {
-    setOpen(true);
-    setQuery("");
-    setTimeout(() => inputRef.current?.focus(), 50);
-  }, []);
-
-  const handleClose = useCallback(() => {
-    setOpen(false);
-    setQuery("");
-  }, []);
-
-  const handleSelect = useCallback(
-    (nodeType: string) => {
-      const meta = NODE_REGISTRY[nodeType as NodeType];
-      if (!meta) return;
-
-      let x = 300, y = 200;
-      if (reactFlowInstance) {
-        const wrapper = document.querySelector(".react-flow") as HTMLElement;
-        const w = wrapper?.clientWidth ?? 800;
-        const h = wrapper?.clientHeight ?? 600;
-        const center = reactFlowInstance.screenToFlowPosition({ x: w / 2, y: h / 3 });
-        x = center.x;
-        y = center.y;
-      }
-
-      const newNode: Node = {
-        id: `${nodeType}-${Date.now()}`,
-        type: getReactFlowType(nodeType as NodeType),
-        position: { x, y },
-        style: { width: 220, height: 120 },
-        data: {
-          nodeType,
-          label: meta.label,
-          config: meta.defaultConfig,
-          simulationState: DEFAULT_SIM,
-          metrics: DEFAULT_METRICS,
-        },
-      };
-      pushUndoState();
-      addNode(newNode);
-      handleClose();
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, nodeType: string) => {
+      e.dataTransfer.setData("application/node-type", nodeType);
+      e.dataTransfer.effectAllowed = "move";
+      setMousePos({ x: e.clientX, y: e.clientY });
+      setDraggingType(nodeType);
     },
-    [addNode, pushUndoState, handleClose],
+    [],
   );
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIdx((i) => Math.min(i + 1, filtered.length - 1));
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIdx((i) => Math.max(i - 1, 0));
-      } else if (e.key === "Enter" && filtered[selectedIdx]) {
-        e.preventDefault();
-        handleSelect(filtered[selectedIdx][0]);
-      } else if (e.key === "Escape") {
-        handleClose();
-      }
-    },
-    [filtered, selectedIdx, handleSelect, handleClose],
-  );
+  const handleDragEnd = useCallback(() => {
+    setDraggingType(null);
+  }, []);
+
+  const sidebarW = 240;
 
   return (
     <>
-      {/* "+" Floating Island button */}
-      <motion.button
-        className="floating-island"
-        onClick={handleOpen}
-        whileHover={{ scale: 1.08 }}
-        whileTap={{ scale: 0.92 }}
-        style={{
-          position: "fixed",
-          bottom: 24,
-          left: 24,
-          zIndex: spatialTokens.z.topToolbar,
-          width: 44,
-          height: 44,
-          borderRadius: "50%",
-          border: "1px solid rgba(99,102,241,0.4)",
-          background: "rgba(20,20,24,0.85)",
-          backdropFilter: "blur(16px) saturate(180%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          pointerEvents: "auto",
-          color: "#6366F1",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.15)",
-          outline: "none",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = "0 4px 24px rgba(99,102,241,0.25), 0 0 0 1px rgba(99,102,241,0.3)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.15)";
-        }}
-      >
-        <Plus size={20} strokeWidth={2.5} />
-      </motion.button>
-
-      {/* Search palette */}
+      {/* Drag ghost portal */}
       <AnimatePresence>
-        {open && (
+        {draggingType && (
           <motion.div
-            key="spawner-palette"
-            initial={{ opacity: 0, y: 16, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.95 }}
+            ref={dragGhostRef}
+            key="drag-ghost"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            className="floating-island"
             style={{
               position: "fixed",
-              bottom: 80,
-              left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: spatialTokens.z.floatingPanels,
-              width: 360,
-              maxHeight: 420,
-              background: "rgba(20,20,24,0.92)",
-              backdropFilter: "blur(20px) saturate(180%)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: "12px",
-              boxShadow: "0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-              pointerEvents: "auto",
+              pointerEvents: "none",
+              zIndex: 99999,
+              top: mousePos.y + 16,
+              left: mousePos.x + 16,
             }}
           >
-            {/* Search input */}
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                px: 1.5,
-                py: 1.25,
-                borderBottom: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
-              <Search size={14} style={{ color: "rgba(255,255,255,0.25)", flexShrink: 0 }} />
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Search components…"
-                style={{
-                  flex: 1,
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                  color: "#EDEDEF",
-                  fontSize: "0.75rem",
-                  fontFamily: '"Inter", sans-serif',
-                  fontWeight: 500,
-                }}
-              />
-              <Box
-                sx={{
-                  fontSize: "0.5rem",
-                  color: "rgba(255,255,255,0.2)",
-                  fontFamily: '"Inter", sans-serif',
-                  bgcolor: "rgba(255,255,255,0.04)",
-                  px: 0.5,
-                  py: 0.15,
-                  borderRadius: "3px",
-                  lineHeight: 1.4,
-                }}
-              >
-                ESC
-              </Box>
-            </Box>
-
-            {/* Results list */}
-            <Box sx={{ overflow: "auto", flex: 1, py: 0.5 }}>
-              {filtered.length === 0 ? (
-                <Typography
-                  sx={{
-                    textAlign: "center",
-                    py: 3,
-                    fontSize: "0.65rem",
-                    color: "rgba(255,255,255,0.25)",
-                    fontFamily: '"Inter", sans-serif',
-                  }}
-                >
-                  No matching components
-                </Typography>
-              ) : (
-                filtered.map(([nodeType, meta], i) => {
-                  const Icon = meta.icon;
-                  return (
-                    <Box
-                      key={nodeType}
-                      onClick={() => handleSelect(nodeType)}
-                      onMouseEnter={() => setSelectedIdx(i)}
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1.5,
-                        px: 1.5,
-                        py: 1,
-                        cursor: "pointer",
-                        bgcolor: i === selectedIdx ? "rgba(99,102,241,0.1)" : "transparent",
-                        transition: "background 0.1s ease",
-                        "&:hover": { bgcolor: "rgba(255,255,255,0.03)" },
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          width: 28, height: 28,
-                          borderRadius: "8px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          bgcolor: `${meta.color}18`,
-                          border: `1px solid ${meta.color}25`,
-                          flexShrink: 0,
-                        }}
-                      >
-                        <Icon size={14} color={meta.color} />
-                      </Box>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography
-                          sx={{
-                            fontSize: "0.7rem",
-                            fontWeight: 600,
-                            color: "#EDEDEF",
-                            fontFamily: '"Inter", sans-serif',
-                            lineHeight: 1.3,
-                          }}
-                        >
-                          {meta.label}
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontSize: "0.6rem",
-                            color: "rgba(255,255,255,0.35)",
-                            fontFamily: '"Inter", sans-serif',
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {meta.description}
-                        </Typography>
-                      </Box>
-                      <Box
-                        sx={{
-                          fontSize: "0.5rem",
-                          color: `${meta.color}80`,
-                          fontFamily: '"JetBrains Mono", monospace',
-                          textTransform: "uppercase",
-                          letterSpacing: "0.04em",
-                          bgcolor: `${meta.color}10`,
-                          px: 0.6,
-                          py: 0.2,
-                          borderRadius: "3px",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {meta.category}
-                      </Box>
-                    </Box>
-                  );
-                })
-              )}
-            </Box>
-
-            {/* Footer hints */}
-            <Box
-              sx={{
-                display: "flex",
-                gap: 1.5,
-                px: 1.5,
-                py: 0.75,
-                borderTop: "1px solid rgba(255,255,255,0.06)",
-                justifyContent: "flex-end",
-              }}
-            >
-              <KeyHint icon={<CornerDownLeft size={11} />} desc="select" />
-              <KeyHint icon={<><ArrowUp size={11} /><ArrowDown size={11} /></>} desc="navigate" />
-              <KeyHint label="Esc" desc="close" />
-            </Box>
+            <DragGhost nodeType={draggingType} />
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Sidebar */}
+      <Box
+        sx={{
+          width: sidebarW,
+          height: "100%",
+          flexShrink: 0,
+          bgcolor: spatialTokens.bg.panel,
+          borderRight: 1,
+          borderColor: "divider",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        {/* Header */}
+        <Box sx={{ px: 1.5, py: 1.25, borderBottom: 1, borderColor: "divider" }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, color: "text.primary", fontSize: "0.7rem", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            Components
+          </Typography>
+        </Box>
+
+        {/* Search */}
+        <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: "divider" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, bgcolor: "background.elevated", borderRadius: "6px", px: 1, py: 0.5 }}>
+            <Search size={12} style={{ color: "rgba(255,255,255,0.25)", flexShrink: 0 }} />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search components\u2026"
+              style={{
+                flex: 1,
+                background: "transparent",
+                border: "none",
+                outline: "none",
+                color: "#EDEDEF",
+                fontSize: "0.7rem",
+                fontFamily: spatialTokens.font.ui,
+              }}
+            />
+          </Box>
+        </Box>
+
+        {/* Accordion list */}
+        <Box sx={{ flex: 1, overflow: "auto", py: 0.5 }}>
+          {filtered.length === 0 ? (
+            <Typography sx={{ textAlign: "center", py: 3, fontSize: "0.65rem", color: "rgba(255,255,255,0.25)" }}>
+              No matching components
+            </Typography>
+          ) : query.trim() ? (
+            /* Flat list when searching */
+            filtered.map(([nodeType, meta]) => (
+              <DraggableRow key={nodeType} nodeType={nodeType} meta={meta} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
+            ))
+          ) : (
+            /* Accordion groups */
+            NODE_CATEGORIES.map((cat) => {
+              const catEntries = grouped.get(cat.key);
+              if (!catEntries || catEntries.length === 0) return null;
+              const isExpanded = expandedCats.has(cat.key);
+              return (
+                <Box key={cat.key}>
+                  <Box
+                    onClick={() => toggleCategory(cat.key)}
+                    sx={{
+                      display: "flex", alignItems: "center", gap: 0.75, px: 1.5, py: 0.75,
+                      cursor: "pointer", userSelect: "none",
+                      "&:hover": { bgcolor: "rgba(255,255,255,0.03)" },
+                    }}
+                  >
+                    <Box sx={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, bgcolor: cat.color, boxShadow: `0 0 4px ${cat.color}` }} />
+                    <Typography variant="caption" sx={{ flex: 1, fontSize: "0.6rem", fontWeight: 600, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      {cat.label}
+                    </Typography>
+                    <Typography variant="caption" sx={{ fontSize: "0.5rem", color: "text.disabled", fontFamily: spatialTokens.font.mono }}>
+                      {catEntries.length}
+                    </Typography>
+                    {isExpanded ? <ChevronDown size={10} style={{ color: "rgba(255,255,255,0.2)" }} /> : <ChevronRight size={10} style={{ color: "rgba(255,255,255,0.2)" }} />}
+                  </Box>
+                  <Collapse in={isExpanded}>
+                    {catEntries.map(([nodeType, meta]) => (
+                      <DraggableRow key={nodeType} nodeType={nodeType} meta={meta} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
+                    ))}
+                  </Collapse>
+                </Box>
+              );
+            })
+          )}
+        </Box>
+      </Box>
     </>
   );
 });
 
-function KeyHint({ icon, label, desc }: { icon?: React.ReactNode; label?: string; desc: string }) {
+function DraggableRow({
+  nodeType, meta, onDragStart, onDragEnd,
+}: {
+  nodeType: string;
+  meta: (typeof NODE_REGISTRY)[NodeType];
+  onDragStart: (e: React.DragEvent, nodeType: string) => void;
+  onDragEnd: () => void;
+}) {
+  const Icon = meta.icon;
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+    <Box
+      draggable
+      onDragStart={(e) => onDragStart(e, nodeType)}
+      onDragEnd={onDragEnd}
+      sx={{
+        display: "flex", alignItems: "center", gap: 1, px: 1.5, py: 0.75,
+        cursor: "grab", userSelect: "none",
+        transition: "background 0.1s ease",
+        "&:hover": { bgcolor: "rgba(99,102,241,0.08)" },
+        "&:active": { cursor: "grabbing", bgcolor: "rgba(99,102,241,0.12)" },
+      }}
+    >
+      {/* Drag handle */}
       <Box
-        sx={{
-          fontSize: "0.5rem",
-          color: "rgba(255,255,255,0.3)",
-          bgcolor: "rgba(255,255,255,0.04)",
-          px: 0.4,
-          py: 0.15,
-          borderRadius: "3px",
-          lineHeight: 1.3,
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          fontFamily: '"Inter", sans-serif',
-        }}
+        sx={{ display: "flex", alignItems: "center", color: "rgba(255,255,255,0.15)", flexShrink: 0, "&:hover": { color: "rgba(255,255,255,0.4)" } }}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        {icon ?? label}
+        <GripVertical size={12} />
       </Box>
-      <Typography
-        variant="caption"
-        sx={{
-          fontSize: "0.5rem",
-          color: "rgba(255,255,255,0.2)",
-          fontFamily: '"Inter", sans-serif',
-        }}
-      >
-        {desc}
+      {/* Colored dot */}
+      <Box sx={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, bgcolor: meta.color, boxShadow: `0 0 4px ${meta.color}` }} />
+      {/* Icon */}
+      <Box sx={{ width: 20, height: 20, borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, bgcolor: `${meta.color}18` }}>
+        <Icon size={11} color={meta.color} />
+      </Box>
+      {/* Label */}
+      <Typography variant="caption" sx={{ fontSize: "0.65rem", fontWeight: 500, color: "#EDEDEF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+        {meta.label}
+      </Typography>
+    </Box>
+  );
+}
+
+function DragGhost({ nodeType }: { nodeType: string }) {
+  const meta = NODE_REGISTRY[nodeType as NodeType];
+  if (!meta) return null;
+  const Icon = meta.icon;
+  return (
+    <Box
+      sx={{
+        display: "flex", alignItems: "center", gap: 1.5,
+        px: 2, py: 1,
+        borderRadius: "16px",
+        bgcolor: "rgba(39,39,42,0.85)",
+        backdropFilter: "blur(12px)",
+        border: "1px solid rgba(99,102,241,0.3)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <Box sx={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, bgcolor: meta.color, boxShadow: `0 0 6px ${meta.color}` }} />
+      <Box sx={{ width: 24, height: 24, borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: `${meta.color}18` }}>
+        <Icon size={13} color={meta.color} />
+      </Box>
+      <Typography variant="caption" sx={{ fontSize: "0.7rem", fontWeight: 600, color: "#EDEDEF" }}>
+        {meta.label}
       </Typography>
     </Box>
   );

@@ -6,6 +6,9 @@ interface HeatmapOverlayProps {
   nodes: Node[];
 }
 
+const MAX_RPS = 10000;
+const MAX_CPU = 100;
+
 function gradientId(index: number) {
   return `heat-grad-${index}`;
 }
@@ -21,27 +24,23 @@ export default memo(function HeatmapOverlay({ nodes }: HeatmapOverlayProps) {
       .map((n, i) => {
         const metrics = n.data.metrics;
         const cpu = metrics.cpuPercent ?? 0;
-        const cpuRatio = Math.min(cpu / 100, 1);
-        const stress = cpuRatio;
-        const intensity = 0.1 + stress * 0.28;
-        const radius = 80 + stress * 140;
+        const cpuRatio = Math.min(cpu / MAX_CPU, 1);
+        const intensity = 0.12 + cpuRatio * 0.25;
+        let r: number, g: number, b: number;
+        if (cpu < 30) {
+          r = 59; g = 130; b = 246;
+        } else if (cpu < 60) {
+          const t = (cpu - 30) / 30;
+          r = Math.round(59 + t * (251 - 59));
+          g = Math.round(130 - t * (130 - 146));
+          b = Math.round(246 - t * (246 - 20));
+        } else {
+          r = 251; g = 146; b = 20;
+        }
+        const radius = 80 + cpuRatio * 120;
         const x = n.position.x + 110;
         const y = n.position.y + 60;
-
-        let r: number, g: number, b: number;
-        if (stress < 0.3) {
-          r = 59; g = 130 + stress * 100; b = 246;
-        } else if (stress < 0.6) {
-          r = 130 + (stress - 0.3) * 120;
-          g = 160 - (stress - 0.3) * 80;
-          b = 246 - (stress - 0.3) * 200;
-        } else {
-          r = Math.min(255, 166 + (stress - 0.6) * 200);
-          g = Math.max(40, 136 - (stress - 0.6) * 200);
-          b = Math.max(20, 80 - (stress - 0.6) * 150);
-        }
-
-        return { i, x, y, radius, r, g, b, intensity, stress };
+        return { i, x, y, radius, r, g, b, intensity };
       });
   }, [nodes, isSimRunning, simulationSpeed]);
 
@@ -53,7 +52,7 @@ export default memo(function HeatmapOverlay({ nodes }: HeatmapOverlayProps) {
         {heats.map((h) => (
           <radialGradient key={h.i} id={gradientId(h.i)} cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor={`rgba(${h.r},${h.g},${h.b},${h.intensity})`} />
-            <stop offset="50%" stopColor={`rgba(${h.r},${h.g},${h.b},${h.intensity * 0.4})`} />
+            <stop offset="60%" stopColor={`rgba(${h.r},${h.g},${h.b},${h.intensity * 0.3})`} />
             <stop offset="100%" stopColor={`rgba(${h.r},${h.g},${h.b},0)`} />
           </radialGradient>
         ))}

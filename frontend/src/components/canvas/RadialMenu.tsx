@@ -1,23 +1,22 @@
 import { memo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings, Bomb, Trash2, Rocket } from "lucide-react";
+import { Settings, Bomb, Trash2, Copy } from "lucide-react";
 import { Box, Typography } from "@mui/material";
-import { useCanvasStore } from "../../store/canvasStore";
-import { useChaosStore } from "../../store/chaosStore";
-import { useDeployStore } from "../../store/deploymentStore";
 import { spatialTokens } from "../../theme/spatialTokens";
+import { useCanvasStore } from "../../store/canvasStore";
 
 interface RadialMenuProps {
   nodeId: string | null;
   position: { x: number; y: number } | null;
   onClose: () => void;
+  onOpenChaos: () => void;
 }
 
 const SLICES = [
   { id: "config", label: "Config", icon: Settings, color: "#3B82F6", desc: "Configure node" },
   { id: "chaos", label: "Chaos", icon: Bomb, color: "#F59E0B", desc: "Inject failure" },
   { id: "delete", label: "Delete", icon: Trash2, color: "#EF4444", desc: "Remove node" },
-  { id: "deploy", label: "Deploy", icon: Rocket, color: "#22C55E", desc: "Deployment settings" },
+  { id: "duplicate", label: "Duplicate", icon: Copy, color: "#22C55E", desc: "Duplicate node" },
 ];
 
 const R = 68;
@@ -25,22 +24,21 @@ const MENU_SIZE = R * 2 + 40;
 
 const containerVariants = {
   hidden: { opacity: 0, scale: 0 },
-  visible: { opacity: 1, scale: 1, transition: { staggerChildren: 0.05, delayChildren: 0.03 } },
-  exit: { opacity: 0, scale: 0, transition: spatialTokens.animation.spring },
+  visible: { opacity: 1, scale: 1, transition: { type: "spring" as const, stiffness: 300, damping: 20, staggerChildren: 0.05, delayChildren: 0.05 } },
+  exit: { opacity: 0, scale: 0, transition: { type: "spring" as const, stiffness: 300, damping: 20 } },
 };
 
 const sliceVariants = {
-  hidden: { opacity: 0, scale: 0 },
-  visible: { opacity: 1, scale: 1, transition: spatialTokens.animation.spring },
+  hidden: { opacity: 0, scale: 0.4, y: 8 },
+  visible: { opacity: 1, scale: 1, y: 0 },
 };
 
-export default memo(function RadialMenu({ nodeId, position, onClose }: RadialMenuProps) {
+export default memo(function RadialMenu({ nodeId, position, onClose, onOpenChaos }: RadialMenuProps) {
   const selectNode = useCanvasStore((s) => s.selectNode);
   const removeNode = useCanvasStore((s) => s.removeNode);
+  const duplicateNode = useCanvasStore((s) => s.duplicateNode);
   const pushUndoState = useCanvasStore((s) => s.pushUndoState);
   const setActiveRightTab = useCanvasStore((s) => s.setActiveRightTab);
-  const setShowChaosPanel = useChaosStore((s) => s.setShowChaosPanel);
-  const setShowDeployPanel = useDeployStore((s) => s.setShowDeployPanel);
 
   const handleAction = useCallback(
     (actionId: string) => {
@@ -53,21 +51,20 @@ export default memo(function RadialMenu({ nodeId, position, onClose }: RadialMen
         case "chaos":
           selectNode(nodeId);
           setActiveRightTab("simulate");
-          setShowChaosPanel(true);
+          onOpenChaos();
           break;
         case "delete":
           pushUndoState();
           removeNode(nodeId);
           break;
-        case "deploy":
-          selectNode(nodeId);
-          setActiveRightTab("deploy");
-          setShowDeployPanel(true);
+        case "duplicate":
+          pushUndoState();
+          duplicateNode(nodeId);
           break;
       }
       onClose();
     },
-    [nodeId, selectNode, removeNode, pushUndoState, setActiveRightTab, setShowChaosPanel, setShowDeployPanel, onClose],
+    [nodeId, selectNode, removeNode, duplicateNode, pushUndoState, setActiveRightTab, onOpenChaos, onClose],
   );
 
   return (
@@ -75,6 +72,7 @@ export default memo(function RadialMenu({ nodeId, position, onClose }: RadialMen
       {nodeId && position && (
         <motion.div
           key="radial-menu"
+          className="floating-island"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -91,13 +89,13 @@ export default memo(function RadialMenu({ nodeId, position, onClose }: RadialMen
             justifyContent: "center",
             background: spatialTokens.bg.island,
             backdropFilter: "blur(16px) saturate(180%)",
-            WebkitBackdropFilter: "blur(16px) saturate(180%)",
             border: spatialTokens.border.island,
             borderRadius: "50%",
-            boxShadow: spatialTokens.shadow.elevation,
+            boxShadow: spatialTokens.shadow.island,
             pointerEvents: "auto",
           }}
         >
+          {/* Center dot */}
           <Box
             sx={{
               position: "absolute",

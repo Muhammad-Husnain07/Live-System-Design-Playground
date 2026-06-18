@@ -2,13 +2,13 @@ import { create } from "zustand";
 import type { Node, Edge } from "reactflow";
 import type { NodeConfig, NodeMetrics, CanvasState } from "../types/canvas";
 
-export type RightTab = "config" | "simulate" | "deploy" | "security" | "finops" | "incident" | "waterfall";
+export type RightTab = "config" | "simulate" | "deploy" | "security" | "finops" | "chaos" | "incident" | "waterfall";
 
 const MAX_UNDO = 50;
 const LS_KEY = "activeRightTab";
 
-function clone(nodes: Node[], edges: Edge[]): CanvasState {
-  return JSON.parse(JSON.stringify({ nodes, edges, viewport: { x: 0, y: 0, zoom: 1 } }));
+function clone(nodes: Node[], edges: Edge[], viewport?: { x: number; y: number; zoom: number }): CanvasState {
+  return JSON.parse(JSON.stringify({ nodes, edges, viewport: viewport ?? { x: 0, y: 0, zoom: 1 } }));
 }
 
 function loadTab(): RightTab {
@@ -22,6 +22,7 @@ function loadTab(): RightTab {
 interface CanvasStore {
   nodes: Node[];
   edges: Edge[];
+  viewport: { x: number; y: number; zoom: number };
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
   isSimulationRunning: boolean;
@@ -39,9 +40,11 @@ interface CanvasStore {
 
   setNodes: (nodes: Node[]) => void;
   setEdges: (edges: Edge[]) => void;
+  setViewport: (viewport: { x: number; y: number; zoom: number }) => void;
   loadTemplate: (templateNodes: Node[], templateEdges: Edge[]) => void;
   addNode: (node: Node) => void;
   removeNode: (id: string) => void;
+  duplicateNode: (id: string) => void;
   resizeNode: (id: string, width: number, height: number) => void;
   updateNodeConfig: (id: string, config: Partial<NodeConfig>) => void;
   updateNodeData: (id: string, data: Record<string, any>) => void;
@@ -71,6 +74,7 @@ interface CanvasStore {
 export const useCanvasStore = create<CanvasStore>((set, get) => ({
   nodes: [],
   edges: [],
+  viewport: { x: 0, y: 0, zoom: 1 },
   selectedNodeId: null,
   selectedEdgeId: null,
   isSimulationRunning: false,
@@ -90,35 +94,58 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
 
   setEdges: (edges) => set({ edges, isDirty: true }),
 
+  setViewport: (viewport) => set({ viewport }),
+
   loadTemplate: (templateNodes: Node[], templateEdges: Edge[]) => {
-    const { nodes, edges, pastStates } = get();
+    const { nodes, edges, pastStates, viewport } = get();
     set({
       nodes: [...nodes, ...templateNodes],
       edges: [...edges, ...templateEdges],
-      pastStates: [...pastStates, clone(nodes, edges)].slice(-MAX_UNDO),
+      pastStates: [...pastStates, clone(nodes, edges, viewport)].slice(-MAX_UNDO),
       futureStates: [],
       isDirty: true,
     });
   },
 
   addNode: (node) => {
-    const { nodes, edges, pastStates } = get();
+    const { nodes, edges, pastStates, viewport } = get();
     set({
       nodes: [...nodes, node],
-      pastStates: [...pastStates, clone(nodes, edges)].slice(-MAX_UNDO),
+      pastStates: [...pastStates, clone(nodes, edges, viewport)].slice(-MAX_UNDO),
       futureStates: [],
       isDirty: true,
     });
   },
 
   removeNode: (id) => {
-    const { nodes, edges, pastStates, selectedNodeId } = get();
+    const { nodes, edges, pastStates, selectedNodeId, viewport } = get();
     set({
       nodes: nodes.filter((n) => n.id !== id),
       edges: edges.filter((e) => e.source !== id && e.target !== id),
-      pastStates: [...pastStates, clone(nodes, edges)].slice(-MAX_UNDO),
+      pastStates: [...pastStates, clone(nodes, edges, viewport)].slice(-MAX_UNDO),
       futureStates: [],
       selectedNodeId: selectedNodeId === id ? null : selectedNodeId,
+      isDirty: true,
+    });
+  },
+
+  duplicateNode: (id) => {
+    const { nodes, edges, pastStates, viewport } = get();
+    const original = nodes.find((n) => n.id === id);
+    if (!original) return;
+    const newId = `${original.type}-${Date.now()}`;
+    const dup: Node = {
+      ...original,
+      id: newId,
+      position: { x: original.position.x + 60, y: original.position.y + 60 },
+      selected: false,
+      data: { ...original.data, label: `${original.data?.label ?? ""} (copy)` },
+    };
+    set({
+      nodes: [...nodes, dup],
+      edges: [...edges],
+      pastStates: [...pastStates, clone(nodes, edges, viewport)].slice(-MAX_UNDO),
+      futureStates: [],
       isDirty: true,
     });
   },
@@ -133,26 +160,26 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   },
 
   updateNodeConfig: (id, config) => {
-    const { nodes, edges, pastStates } = get();
+    const { nodes, edges, pastStates, viewport } = get();
     set({
       nodes: nodes.map((n) =>
         n.id === id
           ? { ...n, data: { ...n.data, config: { ...n.data.config, ...config } } }
           : n,
       ),
-      pastStates: [...pastStates, clone(nodes, edges)].slice(-MAX_UNDO),
+      pastStates: [...pastStates, clone(nodes, edges, viewport)].slice(-MAX_UNDO),
       futureStates: [],
       isDirty: true,
     });
   },
 
   updateNodeData: (id, data) => {
-    const { nodes, edges, pastStates } = get();
+    const { nodes, edges, pastStates, viewport } = get();
     set({
       nodes: nodes.map((n) =>
         n.id === id ? { ...n, data: { ...n.data, ...data } } : n,
       ),
-      pastStates: [...pastStates, clone(nodes, edges)].slice(-MAX_UNDO),
+      pastStates: [...pastStates, clone(nodes, edges, viewport)].slice(-MAX_UNDO),
       futureStates: [],
       isDirty: true,
     });
@@ -169,7 +196,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   },
 
   updateEdge: (id, data) => {
-    const { nodes, edges, pastStates } = get();
+    const { nodes, edges, pastStates, viewport } = get();
     set({
       edges: edges.map((e) => {
         if (e.id !== id) return e;
@@ -179,7 +206,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
         }
         return { ...e, data: newData };
       }),
-      pastStates: [...pastStates, clone(nodes, edges)].slice(-MAX_UNDO),
+      pastStates: [...pastStates, clone(nodes, edges, viewport)].slice(-MAX_UNDO),
       futureStates: [],
       isDirty: true,
     });
@@ -190,20 +217,20 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   selectEdge: (id) => set({ selectedEdgeId: id, selectedNodeId: id ? null : get().selectedNodeId }),
 
   addEdge: (edge) => {
-    const { nodes, edges, pastStates } = get();
+    const { nodes, edges, pastStates, viewport } = get();
     set({
       edges: [...edges, edge],
-      pastStates: [...pastStates, clone(nodes, edges)].slice(-MAX_UNDO),
+      pastStates: [...pastStates, clone(nodes, edges, viewport)].slice(-MAX_UNDO),
       futureStates: [],
       isDirty: true,
     });
   },
 
   removeEdge: (id) => {
-    const { nodes, edges, pastStates, selectedEdgeId } = get();
+    const { nodes, edges, pastStates, selectedEdgeId, viewport } = get();
     set({
       edges: edges.filter((e) => e.id !== id),
-      pastStates: [...pastStates, clone(nodes, edges)].slice(-MAX_UNDO),
+      pastStates: [...pastStates, clone(nodes, edges, viewport)].slice(-MAX_UNDO),
       futureStates: [],
       selectedEdgeId: selectedEdgeId === id ? null : selectedEdgeId,
       isDirty: true,
@@ -215,22 +242,23 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   markSaved: (timestamp) => set({ isDirty: false, lastSaved: timestamp }),
 
   pushUndoState: () => {
-    const { nodes, edges, pastStates } = get();
+    const { nodes, edges, pastStates, viewport } = get();
     set({
-      pastStates: [...pastStates, clone(nodes, edges)].slice(-MAX_UNDO),
+      pastStates: [...pastStates, clone(nodes, edges, viewport)].slice(-MAX_UNDO),
       futureStates: [],
     });
   },
 
   undo: () => {
-    const { pastStates, nodes, edges, futureStates } = get();
+    const { pastStates, nodes, edges, futureStates, viewport } = get();
     if (pastStates.length === 0) return;
     const prev = pastStates[pastStates.length - 1];
     set({
       nodes: prev.nodes,
       edges: prev.edges,
+      viewport: prev.viewport,
       pastStates: pastStates.slice(0, -1),
-      futureStates: [...futureStates, clone(nodes, edges)],
+      futureStates: [...futureStates, clone(nodes, edges, viewport)],
       selectedNodeId: null,
       selectedEdgeId: null,
       isDirty: true,
@@ -238,13 +266,14 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   },
 
   redo: () => {
-    const { pastStates, nodes, edges, futureStates } = get();
+    const { pastStates, nodes, edges, futureStates, viewport } = get();
     if (futureStates.length === 0) return;
     const next = futureStates[futureStates.length - 1];
     set({
       nodes: next.nodes,
       edges: next.edges,
-      pastStates: [...pastStates, clone(nodes, edges)],
+      viewport: next.viewport,
+      pastStates: [...pastStates, clone(nodes, edges, viewport)],
       futureStates: futureStates.slice(0, -1),
       selectedNodeId: null,
       selectedEdgeId: null,
@@ -279,8 +308,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     const { nodes, edges } = get();
     set({
       nodes: nodes.map((n) => {
-        const { metrics: _metrics, ...restData } = n.data;
-        const { isBottleneck: _bn, isFailed: _fail, ...restConfig } = restData.config ?? {};
+        const { metrics, ...restData } = n.data;
+        const { isBottleneck, isFailed, ...restConfig } = restData.config ?? {};
         return { ...n, data: { ...restData, config: restConfig } };
       }),
       edges: edges.map((e) => ({
