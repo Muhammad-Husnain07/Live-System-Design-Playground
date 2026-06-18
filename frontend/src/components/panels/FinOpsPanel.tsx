@@ -7,7 +7,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
-import { Paper, Typography, Box, ButtonGroup, Button } from "@mui/material";
+import { Paper, Typography, Box, ButtonGroup, Button, CircularProgress } from "@mui/material";
 
 const USER_PRESETS = [
   { label: "1K", value: 1000 },
@@ -182,24 +182,17 @@ const ProviderBreakdownDonut = memo(function ProviderBreakdownDonut({ estimate, 
   );
 });
 
-const TokenCostCard = memo(function TokenCostCard({ estimate, nodes }: { estimate: CostReport["currentEstimate"]; nodes: any[] }) {
+const TokenCostCard = memo(function TokenCostCard({ nodes }: { nodes: any[] }) {
   const { inputCost, outputCost } = useMemo(() => {
     let inp = 0;
     let out = 0;
     for (const node of nodes) {
       if (node.data?.nodeType !== "LLMNode") continue;
-      const label = node.data?.label ?? "";
-      for (const cat of estimate.breakdown) {
-        for (const item of cat.items) {
-          if (item.service === label) {
-            inp += ((node.data?.config?.promptTokenCount ?? 0) / 1000) * 0.03;
-            out += ((node.data?.config?.completionTokenCount ?? 0) / 1000) * 0.06;
-          }
-        }
-      }
+      inp += ((node.data?.config?.promptTokenCount ?? 0) / 1000) * 0.03;
+      out += ((node.data?.config?.completionTokenCount ?? 0) / 1000) * 0.06;
     }
     return { inputCost: Math.round(inp * 100) / 100, outputCost: Math.round(out * 100) / 100 };
-  }, [estimate, nodes]);
+  }, [nodes]);
 
   const total = inputCost + outputCost;
   if (total <= 0) return null;
@@ -226,6 +219,61 @@ const TokenCostCard = memo(function TokenCostCard({ estimate, nodes }: { estimat
     </Paper>
   );
 });
+
+function NodeCostTable({ nodes, estimate }: { nodes: any[]; estimate: CostReport["currentEstimate"] }) {
+  const selectNode = useCanvasStore((s) => s.selectNode);
+
+  const tableData = useMemo(() => {
+    const costMap = new Map<string, number>();
+    for (const cat of estimate.breakdown) {
+      for (const item of cat.items) {
+        for (const node of nodes) {
+          if (node.data?.label === item.service && item.monthlyCost > 0) {
+            costMap.set(node.id, (costMap.get(node.id) || 0) + item.monthlyCost);
+          }
+        }
+      }
+    }
+    return Array.from(costMap.entries())
+      .map(([nodeId, cost]) => ({ nodeId, label: nodes.find((n) => n.id === nodeId)?.data?.label ?? nodeId, cost: Math.round(cost * 100) / 100 }))
+      .sort((a, b) => b.cost - a.cost);
+  }, [estimate, nodes]);
+
+  if (tableData.length === 0) return null;
+
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "action.hover" }}>
+      <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, display: "block", mb: 1, fontSize: "0.6rem" }}>
+        Node Cost ({tableData.length})
+      </Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+        {tableData.map((row) => (
+          <Button
+            key={row.nodeId}
+            onClick={() => selectNode(row.nodeId)}
+            fullWidth
+            sx={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              px: 1, py: 0.75, textTransform: "none", borderRadius: "6px",
+              bgcolor: "rgba(0,0,0,0.15)", minHeight: 0, lineHeight: "normal",
+              "&:hover": { bgcolor: "rgba(59,130,246,0.15)" },
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0, flex: 1 }}>
+              <Box sx={{ width: 4, height: 4, borderRadius: "50%", flexShrink: 0, bgcolor: "success.main" }} />
+              <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.6rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {row.label}
+              </Typography>
+            </Box>
+            <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.primary", fontWeight: 500, fontSize: "0.65rem", flexShrink: 0 }}>
+              {formatCurrency(row.cost)}
+            </Typography>
+          </Button>
+        ))}
+      </Box>
+    </Paper>
+  );
+}
 
 const EdgeVsOriginChart = memo(function EdgeVsOriginChart({ estimate, nodes }: { estimate: CostReport["currentEstimate"]; nodes: any[] }) {
   const chartData = useMemo(() => {
@@ -409,6 +457,7 @@ export default function FinOpsPanel() {
       region: n.data?.config?.region ?? "us-east-1",
       maxRPS: n.data?.config?.maxRPS ?? 1000,
       computeTier: n.data?.config?.computeTier ?? "on_demand",
+      cloudProvider: n.data?.config?.cloudProvider ?? "aws",
     }));
 
     const workerEdges = edges.map((e) => ({
@@ -460,6 +509,7 @@ export default function FinOpsPanel() {
             color="success"
             onClick={handleCalculate}
             disabled={loading}
+            startIcon={loading ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : undefined}
             sx={{ fontSize: "0.7rem" }}
           >
             {loading ? "Calculating..." : "Calculate"}
@@ -487,6 +537,7 @@ export default function FinOpsPanel() {
                 color="success"
                 onClick={handleCalculate}
                 disabled={loading}
+                startIcon={loading ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : undefined}
                 sx={{ fontSize: "0.7rem" }}
               >
                 {loading ? "Calculating..." : "Calculate Now"}
@@ -512,9 +563,11 @@ export default function FinOpsPanel() {
 
               <ProviderBreakdownDonut estimate={estimate!.currentEstimate} nodes={nodes} />
 
-              <TokenCostCard estimate={estimate!.currentEstimate} nodes={nodes} />
+              <TokenCostCard nodes={nodes} />
 
               <EdgeVsOriginChart estimate={estimate!.currentEstimate} nodes={nodes} />
+
+              <NodeCostTable nodes={nodes} estimate={estimate!.currentEstimate} />
 
               <Box>
                 <Typography variant="caption" sx={{ color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, display: "block", mb: 0.75, fontSize: "0.6rem" }}>

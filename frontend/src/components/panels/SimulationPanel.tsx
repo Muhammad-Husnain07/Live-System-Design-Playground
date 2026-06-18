@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { Square, Play, X, AlertTriangle, RefreshCw } from "lucide-react";
 import { useSimulationStore, type SimConfig } from "../../store/simulationStore";
-import { TextField, MenuItem, ButtonGroup, Button, Slider, Paper, Typography, Box } from "@mui/material";
+import { useCanvasStore } from "../../store/canvasStore";
+import { TextField, MenuItem, ButtonGroup, Button, Slider, Paper, Typography, Box, CircularProgress } from "@mui/material";
 
 interface SimulationPanelProps {
   onStart: (overrides?: Partial<SimConfig>) => void;
@@ -16,6 +18,7 @@ export default function SimulationPanel({ onStart, onStop }: SimulationPanelProp
   const connectionStatus = useSimulationStore((s) => s.connectionStatus);
   const elapsed = useSimulationStore((s) => s.elapsed);
   const setConfig = useSimulationStore((s) => s.setConfig);
+  const canvasEmpty = useCanvasStore((s) => s.nodes.length === 0);
 
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -78,6 +81,19 @@ function ConfigForm({
   setConfig: (p: Partial<SimConfig>) => void;
   onStart: () => void;
 }) {
+  const isRunning = useSimulationStore((s) => s.isRunning);
+  const canvasEmpty = useCanvasStore((s) => s.nodes.length === 0);
+  const [starting, setStarting] = useState(false);
+
+  useEffect(() => {
+    if (isRunning) setStarting(false);
+  }, [isRunning]);
+
+  const handleStart = () => {
+    setStarting(true);
+    onStart();
+  };
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Field label="Traffic Pattern">
@@ -114,8 +130,9 @@ function ConfigForm({
         </ButtonGroup>
       </Field>
 
-      <Button variant="contained" color="success" onClick={onStart} startIcon={<Play size={14} />} sx={{ fontSize: "0.75rem" }}>
-        Start Simulation
+      <Button variant="contained" color="success" onClick={handleStart} disabled={canvasEmpty || starting} startIcon={starting ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : <Play size={14} />}
+        sx={{ fontSize: "0.75rem", cursor: canvasEmpty || starting ? "not-allowed" : "pointer", "&.Mui-disabled": { opacity: 0.4, cursor: "not-allowed" } }}>
+        {starting ? "Starting..." : "Run Simulation"}
       </Button>
     </Box>
   );

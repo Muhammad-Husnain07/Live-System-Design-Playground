@@ -4,7 +4,7 @@ import { useSecurityStore, type SecurityViolation } from "../../store/securitySt
 import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
 import api from "../../utils/api";
-import { Box, Typography, Button } from "@mui/material";
+import { Box, Typography, Button, Alert, CircularProgress } from "@mui/material";
 
 const ZTA_TYPES = new Set(["implicit_trust", "public_secret", "llm_injection"]);
 
@@ -25,9 +25,11 @@ const VIOLATION_ICONS: Record<string, LucideIcon> = {
 function ViolationRow({
   violation,
   onClick,
+  severity,
 }: {
   violation: SecurityViolation;
   onClick: () => void;
+  severity: "error" | "warning" | "info";
 }) {
   const nodes = useCanvasStore((s) => s.nodes);
   const edges = useCanvasStore((s) => s.edges);
@@ -44,15 +46,17 @@ function ViolationRow({
   const isZeroTrust = ZTA_TYPES.has(violation.type);
 
   return (
-    <Box
+    <Alert
+      severity={severity}
+      icon={false}
       sx={{
+        p: '10px',
+        borderRadius: '8px',
         bgcolor: 'background.paper',
         border: 1,
-        borderRadius: '8px',
-        p: '10px',
-        transition: 'all 0.15s',
         borderColor: isActive ? 'rgba(239,68,68,0.5)' : 'divider',
         boxShadow: isActive ? '0 0 0 1px rgba(239,68,68,0.2)' : 'none',
+        '& .MuiAlert-message': { p: 0, width: '100%' },
       }}
     >
       <Button
@@ -176,7 +180,7 @@ function ViolationRow({
           )}
         </Button>
       )}
-    </Box>
+    </Alert>
   );
 }
 
@@ -352,23 +356,7 @@ export default function SecurityPanel() {
         >
           {auditing ? (
             <>
-              <Box
-                component="span"
-                sx={{
-                  display: 'inline-block',
-                  width: '12px',
-                  height: '12px',
-                  border: '2px solid',
-                  borderColor: 'rgba(99,102,241,0.3)',
-                  borderTopColor: 'primary.main',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                  '@keyframes spin': {
-                    '0%': { transform: 'rotate(0deg)' },
-                    '100%': { transform: 'rotate(360deg)' },
-                  },
-                }}
-              />
+              <CircularProgress size={14} sx={{ color: "#6366F1" }} />
               Scanning...
             </>
           ) : (
@@ -398,18 +386,7 @@ export default function SecurityPanel() {
           >
             {ztaScanning ? (
               <>
-                <Box
-                  component="span"
-                  sx={{
-                    display: 'inline-block',
-                    width: '10px',
-                    height: '10px',
-                    border: '2px solid rgba(20,184,166,0.3)',
-                    borderTopColor: '#14B8A6',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite',
-                  }}
-                />
+                <CircularProgress size={12} sx={{ color: "#14B8A6" }} />
                 Scanning...
               </>
             ) : (
@@ -462,7 +439,7 @@ export default function SecurityPanel() {
           </Box>
           <Box sx={{ '& > * + *': { mt: '6px' } }}>
             {ztaViolations.map((v, i) => (
-              <ViolationRow key={`zta-${i}`} violation={v} onClick={() => {}} />
+              <ViolationRow key={`zta-${i}`} violation={v} onClick={() => {}} severity={v.severity === "critical" ? "error" : "warning"} />
             ))}
           </Box>
         </Box>
@@ -519,7 +496,7 @@ export default function SecurityPanel() {
             </Box>
             <Box sx={{ '& > * + *': { mt: '6px' } }}>
               {critical.filter((v) => !ZTA_TYPES.has(v.type)).map((v, i) => (
-                <ViolationRow key={`crit-${i}`} violation={v} onClick={() => {}} />
+                <ViolationRow key={`crit-${i}`} violation={v} onClick={() => {}} severity="error" />
               ))}
             </Box>
           </Box>
@@ -538,7 +515,7 @@ export default function SecurityPanel() {
             </Box>
             <Box sx={{ '& > * + *': { mt: '6px' } }}>
               {warnings.filter((v) => !ZTA_TYPES.has(v.type)).map((v, i) => (
-                <ViolationRow key={`warn-${i}`} violation={v} onClick={() => {}} />
+                <ViolationRow key={`warn-${i}`} violation={v} onClick={() => {}} severity="warning" />
               ))}
             </Box>
           </Box>

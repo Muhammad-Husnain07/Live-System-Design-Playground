@@ -11,14 +11,15 @@ import FinOpsPanel from "./FinOpsPanel";
 import IncidentPanel from "./IncidentPanel";
 import WaterfallPanel from "./WaterfallPanel";
 import { useCanvasStore, type RightTab } from "../../store/canvasStore";
+import { spatialTokens } from "../../theme/spatialTokens";
 
 interface UnifiedRightPanelProps {
   onSimStart: () => void;
   onSimStop: () => void;
 }
 
-const TAB_KEYS: RightTab[] = ["config", "deploy", "security", "finops"];
-const TAB_LABELS: Record<string, string> = { config: "Design", deploy: "Deploy", security: "Security", finops: "FinOps" };
+const TAB_KEYS: RightTab[] = ["config", "deploy", "security", "finops", "simulate", "chaos"];
+const TAB_LABELS: Record<string, string> = { config: "Design", deploy: "Deploy", security: "Security", finops: "FinOps", simulate: "Simulate", chaos: "Chaos" };
 
 export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRightPanelProps) {
   const activeRightTab = useCanvasStore((s) => s.activeRightTab);
@@ -48,6 +49,11 @@ export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRigh
         return (
           <Box sx={{ overflow: "auto", height: "100%" }}>
             <SimulationPanel onStart={onSimStart} onStop={onSimStop} />
+          </Box>
+        );
+      case "chaos":
+        return (
+          <Box sx={{ overflow: "auto", height: "100%" }}>
             <ChaosPanel />
           </Box>
         );
@@ -66,7 +72,7 @@ export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRigh
     }
   };
 
-  const isSpecialTab = activeRightTab === "waterfall" || activeRightTab === "simulate" || activeRightTab === "incident";
+  const isSpecialTab = activeRightTab === "waterfall" || activeRightTab === "incident";
 
   return (
     <Box
@@ -86,7 +92,6 @@ export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRigh
         <Box sx={{ minHeight: 40, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "center", px: 2 }}>
           <Typography variant="caption" sx={{ fontSize: "0.6rem", fontWeight: 500, color: "text.secondary", display: "flex", alignItems: "center", gap: 0.5 }}>
             {activeRightTab === "waterfall" && <><Search size={12} /> Trace Waterfall</>}
-            {activeRightTab === "simulate" && "Simulation"}
             {activeRightTab === "incident" && "Incident"}
           </Typography>
         </Box>
@@ -110,7 +115,7 @@ export default function UnifiedRightPanel({ onSimStart, onSimStop }: UnifiedRigh
               "&:hover": { color: "text.secondary", bgcolor: "background.elevated" },
               "&.Mui-selected": { color: "text.primary" },
             },
-            "& .MuiTabs-indicator": { height: 2, bgcolor: "text.primary", borderRadius: "2px 2px 0 0" },
+            "& .MuiTabs-indicator": { height: 2, bgcolor: spatialTokens.accent.primary, borderRadius: "2px 2px 0 0" },
           }}
         >
           {TAB_KEYS.map((key) => (

@@ -3,7 +3,7 @@ import api from "../../utils/api";
 import { useSimulationStore } from "../../store/simulationStore";
 import { useObservabilityStore, type SimLogEntry } from "../../store/observabilityStore";
 import {
-  Box, Typography, TextField, IconButton, Select, MenuItem, FormControl, Tooltip,
+  Box, Typography, TextField, IconButton, Select, MenuItem, FormControl, Tooltip, Chip,
 } from "@mui/material";
 import { RefreshCw } from "lucide-react";
 
@@ -39,7 +39,9 @@ export default function LogsPanel() {
   const [level, setLevel] = useState("");
   const [traceId, setTraceId] = useState("");
   const [page, setPage] = useState(1);
+  const [autoScroll, setAutoScroll] = useState(true);
   const perPage = 50;
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (correlationTraceId) { setTraceId(correlationTraceId); setPage(1); }
@@ -66,6 +68,28 @@ export default function LogsPanel() {
     autoRef.current = setInterval(fetchLogs, 4000);
     return () => { if (autoRef.current) clearInterval(autoRef.current); };
   }, [isRunning, runId, fetchLogs, setLogs]);
+
+  // Auto-scroll: scroll to bottom when new logs arrive
+  useEffect(() => {
+    if (autoScroll && scrollRef.current && logs.length > 0) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [logs, autoScroll]);
+
+  // Pause auto-scroll when user scrolls up
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 40;
+    setAutoScroll(isNearBottom);
+  }, []);
+
+  // Resume auto-scroll when switching to the last page
+  useEffect(() => {
+    if (page === Math.max(1, Math.ceil(logTotal / perPage))) {
+      setAutoScroll(true);
+    }
+  }, [page, logTotal, perPage]);
 
   const totalPages = Math.max(1, Math.ceil(logTotal / perPage));
 
@@ -103,8 +127,22 @@ export default function LogsPanel() {
       </Box>
 
       {/* Log table */}
-      <Box sx={{ flex: 1, overflowY: "auto", minHeight: 0, fontFamily: '"JetBrains Mono", monospace' }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.55rem" }}>
+      <Box
+        ref={scrollRef}
+        onScroll={handleScroll}
+        sx={{ flex: 1, overflowY: "auto", minHeight: 0, fontFamily: '"JetBrains Mono", monospace', position: "relative" }}
+      >
+        {!autoScroll && isRunning && (
+          <Box sx={{ position: "sticky", top: 0, zIndex: 10, display: "flex", justifyContent: "center", pointerEvents: "none", py: 0.5 }}>
+            <Chip
+              label="▼ Live"
+              size="small"
+              onClick={() => { setAutoScroll(true); if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }}
+              sx={{ pointerEvents: "auto", height: 20, fontSize: "0.5rem", bgcolor: "rgba(99,102,241,0.2)", color: "#818cf8", "&:hover": { bgcolor: "rgba(99,102,241,0.3)" }, cursor: "pointer" }}
+            />
+          </Box>
+        )}
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.6rem" }}>
           <thead>
             <tr style={{ color: "#8B8B8F", borderBottom: "1px solid #2A2A2E" }}>
               <th style={{ textAlign: "left", padding: "3px 8px", fontWeight: 500, width: 44 }}>Level</th>
@@ -129,7 +167,7 @@ export default function LogsPanel() {
                     key={`${log.spanId}-${i}`}
                     style={{
                       backgroundColor: i % 2 === 0 ? "#0A0A0B" : "#1E1E20",
-                      borderLeft: err ? "2px solid #EF4444" : "2px solid transparent",
+                      borderLeft: err ? "3px solid #EF4444" : "3px solid transparent",
                     }}
                   >
                     <td style={{ padding: "2px 8px", fontWeight: levelWeight(log.level), color: levelColor(log.level) }}>{log.level}</td>
