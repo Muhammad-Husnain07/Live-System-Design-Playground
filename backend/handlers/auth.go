@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -102,6 +103,35 @@ func (h *AuthHandler) Me(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"user": user})
+}
+
+func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
+	auth := c.Get("Authorization")
+	if auth == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing authorization header"})
+	}
+
+	parts := strings.SplitN(auth, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid authorization format"})
+	}
+
+	claims, err := config.ParseTokenWithoutExpiry(parts[1], h.JWTSecret)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token"})
+	}
+
+	now := time.Now()
+	if claims.ExpiresAt != nil && now.After(claims.ExpiresAt.Time.Add(24*time.Hour)) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "token expired beyond refresh window"})
+	}
+
+	token, err := config.GenerateToken(claims.UserID, claims.Email, claims.Username, h.JWTSecret)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to generate token"})
+	}
+
+	return c.JSON(fiber.Map{"token": token})
 }
 
 func (h *AuthHandler) WsTicket(c *fiber.Ctx) error {

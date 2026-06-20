@@ -43,3 +43,19 @@ func ParseToken(tokenString, secret string) (*JWTClaims, error) {
 
 	return claims, nil
 }
+
+func ParseTokenWithoutExpiry(tokenString, secret string) (*JWTClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(t *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
+	}, jwt.WithoutClaimsValidation())
+	if err != nil {
+		return nil, err
+	}
+
+	claims, ok := token.Claims.(*JWTClaims)
+	if !ok {
+		return nil, jwt.ErrSignatureInvalid
+	}
+
+	return claims, nil
+}

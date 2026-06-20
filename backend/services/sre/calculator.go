@@ -19,6 +19,7 @@ const (
 
 type NodeSLOStatus struct {
 	NodeID               string  `json:"nodeId"`
+	Label                string  `json:"label"`
 	SLOTargetMs          float64 `json:"sloTargetMs"`
 	SLOAvailabilityTarget float64 `json:"sloAvailabilityTarget"`
 	ActualLatencyMs      float64 `json:"actualLatencyMs"`
@@ -81,6 +82,7 @@ func GenerateSLOReport(engine *simulation.Engine) *SLOReport {
 
 	// Aggregate node metrics across all ticks
 	type agg struct {
+		label       string
 		latencySum  float64
 		latencyMax  float64
 		errorSum    float64
@@ -96,8 +98,9 @@ func GenerateSLOReport(engine *simulation.Engine) *SLOReport {
 			a, ok := nodeAgg[m.NodeID]
 			if !ok {
 				a = &agg{
+					label:     m.Label,
 					sloLatency: m.SLOTargetMs,
-					sloAvail:   m.SLOAvailabilityTarget,
+					sloAvail:  m.SLOAvailabilityTarget,
 				}
 				nodeAgg[m.NodeID] = a
 			}
@@ -166,6 +169,7 @@ func GenerateSLOReport(engine *simulation.Engine) *SLOReport {
 
 		nodes = append(nodes, NodeSLOStatus{
 			NodeID:               nodeID,
+			Label:                a.label,
 			SLOTargetMs:          a.sloLatency,
 			SLOAvailabilityTarget: a.sloAvail,
 			ActualLatencyMs:      math.Round(actualLatency*100) / 100,

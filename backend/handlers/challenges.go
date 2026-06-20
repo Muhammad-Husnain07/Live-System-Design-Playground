@@ -57,9 +57,20 @@ func (h *ChallengeHandler) Start(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to create project from challenge"})
 	}
 
+	resp := models.ChallengeResponse{
+		ID:               challenge.ID,
+		Title:            challenge.Title,
+		Description:      challenge.Description,
+		Difficulty:       challenge.Difficulty,
+		Requirements:     challenge.Requirements,
+		InitialCanvas:    challenge.InitialCanvas,
+		TimeLimitSeconds: challenge.TimeLimitSeconds,
+		PassingCriteria:  challenge.PassingCriteria,
+	}
+
 	return c.JSON(fiber.Map{
 		"project":     project,
-		"challenge":   challenge,
+		"challenge":   resp,
 		"timeLimitMs": challenge.TimeLimitSeconds * 1000,
 	})
 }

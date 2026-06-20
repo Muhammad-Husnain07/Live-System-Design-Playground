@@ -66,6 +66,7 @@ func main() {
 
 	api.Post("/auth/register", auth.Register)
 	api.Post("/auth/login", auth.Login)
+	api.Post("/auth/refresh", auth.Refresh)
 
 	protected := api.Group("/auth", middleware.JWTAuth(cfg.JWTSecret))
 	protected.Get("/me", auth.Me)

@@ -201,63 +201,14 @@ func (h *SimulationHandler) GetTraces(c *fiber.Ctx) error {
 	}
 
 	if engine.TraceCollector == nil {
-		return c.JSON(otelTraceResponse{
-			ResourceSpans: []otelResourceSpan{{
-				Resource:   otelResource{Attributes: []otelAttribute{
-					{Key: "service.name", Value: otelValue{StringValue: "systemdesign"}},
-				}},
-				ScopeSpans: []otelScopeSpan{{
-					Scope: otelScope{Name: "systemdesign/simulation", Version: "1.0.0"},
-					Spans: []otelSpan{},
-				}},
-			}},
-		})
+		return c.JSON(fiber.Map{"traces": []simulation.Trace{}})
 	}
 
 	traces := engine.TraceCollector.Recent()
-	if len(traces) == 0 {
-		return c.JSON(otelTraceResponse{
-			ResourceSpans: []otelResourceSpan{{
-				Resource:   otelResource{Attributes: []otelAttribute{
-					{Key: "service.name", Value: otelValue{StringValue: "systemdesign"}},
-				}},
-				ScopeSpans: []otelScopeSpan{{
-					Scope: otelScope{Name: "systemdesign/simulation", Version: "1.0.0"},
-					Spans: []otelSpan{},
-				}},
-			}},
-		})
+	if traces == nil {
+		traces = []simulation.Trace{}
 	}
-
-	// Build OTel response
-	resourceSpans := make([]otelResourceSpan, 0, len(traces))
-	for _, t := range traces {
-		otelSpans := make([]otelSpan, 0, len(t.Spans))
-		for _, s := range t.Spans {
-			otelSpans = append(otelSpans, toOTelSpan(s))
-		}
-
-		resourceAttrs := []otelAttribute{
-			{Key: "service.name", Value: otelValue{StringValue: "systemdesign"}},
-			{Key: "telemetry.sdk.name", Value: otelValue{StringValue: "opentelemetry"}},
-		}
-		if t.RootNodeLabel != "" {
-			resourceAttrs = append(resourceAttrs,
-				otelAttribute{Key: "simulation.root_node", Value: otelValue{StringValue: t.RootNodeLabel}},
-			)
-		}
-
-		resourceSpans = append(resourceSpans, otelResourceSpan{
-			Resource: otelResource{Attributes: resourceAttrs},
-			ScopeSpans: []otelScopeSpan{{
-				Scope: otelScope{Name: "systemdesign/simulation", Version: "1.0.0"},
-				Spans: otelSpans,
-			}},
-		})
-	}
-
-	resp := otelTraceResponse{ResourceSpans: resourceSpans}
-	return c.JSON(resp)
+	return c.JSON(fiber.Map{"traces": traces})
 }
 
 func (h *SimulationHandler) GetLogs(c *fiber.Ctx) error {
