@@ -47,7 +47,7 @@ import {
 } from "../utils/commandActions";
 import { useChaosStore, CHAOS_TYPES } from "../store/chaosStore";
 import { useToastStore } from "../store/toastStore";
-import api from "../utils/api";
+import api, { getErrorMessage } from "../utils/api";
 import { ENTERPRISE_TEMPLATES, DEFAULT_SIM, DEFAULT_METRICS } from "../utils/enterpriseTemplates";
 import type { NodeType } from "../types/canvas";
 import RadialMenu from "../components/canvas/RadialMenu";
@@ -605,7 +605,7 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
           toast({ type: "warning", title: "Select a node to target", duration: 3000 });
           return;
         }
-        api.post("/simulations/chaos/inject", {
+        api.post("/chaos/inject", {
           simulationRunId: runId,
           nodeId: selectedNodeId,
           eventType,
@@ -614,8 +614,9 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
         }).then(() => {
           toast({ type: "success", title: `${label} injected`, duration: 2500 });
           useChaosStore.getState().setLastChaosInjectionAt(Date.now());
-        }).catch(() => {
-          toast({ type: "error", title: `Failed to inject ${label}`, duration: 3000 });
+        }).catch((err: any) => {
+          const msg = getErrorMessage(err, `Failed to inject ${label}.`);
+          toast({ type: "error", title: "Injection failed", message: msg, duration: 5000 });
         });
         return;
       }

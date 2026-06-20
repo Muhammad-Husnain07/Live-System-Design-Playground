@@ -10,7 +10,8 @@ import { Camera, ArrowLeft, Search, Terminal, CheckCircle, Clock, XCircle, Arrow
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import api from "../utils/api";
+import api, { getErrorMessage } from "../utils/api";
+import { useToastStore } from "../store/toastStore";
 import { Box, Typography, Table, TableHead, TableBody, TableRow, TableCell, List, ListItem, ListItemText, Button, Checkbox } from "@mui/material";
 
 const WS_BASE =
@@ -350,69 +351,10 @@ export default function ObservabilityPage() {
     if (!runId) return;
     try {
       const { data } = await api.get(`/simulations/${runId}/traces`);
-      // Parse OTel ResourceSpans envelope
-      if (data.resourceSpans) {
-        const allSpans: SpanData[] = [];
-        for (const rs of data.resourceSpans) {
-          for (const ss of rs.scopeSpans ?? []) {
-            for (const span of ss.spans ?? []) {
-              const sd: SpanData = {
-                spanId: span.spanId ?? span.span_id ?? "",
-                traceId: span.traceId ?? span.trace_id ?? "",
-                nodeId: span.nodeId ?? span.node_id ?? "",
-                nodeLabel: span.nodeLabel ?? span.node_label ?? "",
-                nodeType: span.nodeType ?? span.node_type ?? "",
-                entryTime: span.entryTime ?? span.startTime ?? span.start_time ?? "",
-                exitTime: span.exitTime ?? span.endTime ?? span.end_time ?? "",
-                durationMs: span.durationMs ?? span.duration_ms ?? 0,
-                status: span.status === "ERROR" || span.status_code === 2 ? "ERROR" : "OK",
-                spanType: span.spanType ?? "",
-                events: (span.events ?? []).map((ev: any) => ({
-                  timestamp: ev.timestamp ?? ev.time ?? ev.time_unix_nano ?? "",
-                  name: ev.name ?? "",
-                  attributes: ev.attributes ?? ev.attr ?? {},
-                })),
-                attributes: span.attributes ?? span.attr ?? {},
-                links: (span.links ?? []).map((lnk: any) => ({
-                  traceId: lnk.traceId ?? lnk.trace_id ?? "",
-                  spanId: lnk.spanId ?? lnk.span_id ?? "",
-                  attributes: lnk.attributes ?? lnk.attr ?? {},
-                })),
-              };
-              allSpans.push(sd);
-            }
-          }
-        }
-        // Group by traceId
-        const grouped = new Map<string, SpanData[]>();
-        for (const s of allSpans) {
-          if (!grouped.has(s.traceId)) grouped.set(s.traceId, []);
-          grouped.get(s.traceId)!.push(s);
-        }
-        const tracesArr: TraceData[] = [];
-        for (const [traceId, spans] of grouped) {
-          const startMs = Math.min(...spans.map((s) => new Date(s.entryTime).getTime()).filter((t) => !isNaN(t)));
-          const endMs = Math.max(...spans.map((s) => new Date(s.exitTime).getTime()).filter((t) => !isNaN(t)));
-          const totalDurationMs = endMs - startMs || Math.max(...spans.map((s) => s.durationMs));
-          const root = spans.find((s) => s.nodeId === spans[0]?.nodeId) ?? spans[0];
-          tracesArr.push({
-            traceId,
-            spans,
-            rootNodeId: root.nodeId,
-            rootNodeLabel: root.nodeLabel,
-            startTime: root.entryTime,
-            endTime: root.exitTime,
-            totalDurationMs,
-            status: spans.some((s) => s.status === "ERROR") ? "ERROR" : "OK",
-            hasError: spans.some((s) => s.status === "ERROR"),
-          });
-        }
-        setTraces(tracesArr);
-      } else if (data.traces) {
-        // Fallback to flat format
+      if (data.traces) {
         setTraces(data.traces as TraceData[]);
       }
-    } catch { /* ignore */ }
+    } catch { /* traces are fetched on a polling interval, errors are transient */ }
   }, [runId]);
 
   useEffect(() => {
@@ -455,7 +397,10 @@ export default function ObservabilityPage() {
         ws.onclose = () => { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } };
         ws.onerror = () => {};
         wsRef.current = ws;
-      } catch { /* ignore */ }
+      } catch (err: any) {
+        const msg = getErrorMessage(err, "Could not connect to live observability feed.");
+        useToastStore.getState().addToast({ type: "error", title: "Connection failed", message: msg, duration: 5000 });
+      }
     };
     connect();
     return () => {
@@ -470,55 +415,12 @@ export default function ObservabilityPage() {
     if (found) { setSelectedTrace(found); return; }
     try {
       const { data } = await api.get(`/simulations/${runId}/traces`);
-      if (data.traces) setTraces(data.traces as TraceData[]);
-      if (data.resourceSpans) {
-        // Re-parse the envelope and look for the linked trace
-        const refresh = await api.get(`/simulations/${runId}/traces`);
-        const refreshData = refresh.data;
-        if (refreshData.resourceSpans) {
-          const linkedSpans: SpanData[] = [];
-          for (const rs of refreshData.resourceSpans) {
-            for (const ss of rs.scopeSpans ?? []) {
-              for (const span of ss.spans ?? []) {
-                if ((span.traceId ?? span.trace_id ?? "") === linkTraceId) {
-                  linkedSpans.push({
-                    spanId: span.spanId ?? span.span_id ?? "",
-                    traceId: span.traceId ?? span.trace_id ?? "",
-                    nodeId: span.nodeId ?? span.node_id ?? "",
-                    nodeLabel: span.nodeLabel ?? span.node_label ?? "",
-                    nodeType: span.nodeType ?? span.node_type ?? "",
-                    entryTime: span.entryTime ?? span.startTime ?? span.start_time ?? "",
-                    exitTime: span.exitTime ?? span.endTime ?? span.end_time ?? "",
-                    durationMs: span.durationMs ?? span.duration_ms ?? 0,
-                    status: span.status === "ERROR" || span.status_code === 2 ? "ERROR" : "OK",
-                    spanType: span.spanType ?? "",
-                    events: (span.events ?? []).map((ev: any) => ({ timestamp: ev.timestamp ?? ev.time ?? "", name: ev.name ?? "", attributes: ev.attributes ?? {} })),
-                    attributes: span.attributes ?? {},
-                    links: (span.links ?? []).map((lnk: any) => ({ traceId: lnk.traceId ?? lnk.trace_id ?? "", spanId: lnk.spanId ?? lnk.span_id ?? "", attributes: lnk.attributes ?? {} })),
-                  });
-                }
-              }
-            }
-          }
-          if (linkedSpans.length > 0) {
-            const startMs = Math.min(...linkedSpans.map((s) => new Date(s.entryTime).getTime()).filter((t) => !isNaN(t)));
-            const endMs = Math.max(...linkedSpans.map((s) => new Date(s.exitTime).getTime()).filter((t) => !isNaN(t)));
-            const root = linkedSpans[0];
-            setSelectedTrace({
-              traceId: linkTraceId,
-              spans: linkedSpans,
-              rootNodeId: root.nodeId,
-              rootNodeLabel: root.nodeLabel,
-              startTime: root.entryTime,
-              endTime: root.exitTime,
-              totalDurationMs: endMs - startMs || Math.max(...linkedSpans.map((s) => s.durationMs)),
-              status: linkedSpans.some((s) => s.status === "ERROR") ? "ERROR" : "OK",
-              hasError: linkedSpans.some((s) => s.status === "ERROR"),
-            });
-          }
-        }
+      if (data.traces) {
+        setTraces(data.traces as TraceData[]);
+        const linked = (data.traces as TraceData[]).find((t) => t.traceId === linkTraceId);
+        if (linked) setSelectedTrace(linked);
       }
-    } catch { /* ignore */ }
+    } catch { /* traces are polled, link lookup is best-effort */ }
   }, [runId]);
 
   const prevRunning = useRef(isRunning);

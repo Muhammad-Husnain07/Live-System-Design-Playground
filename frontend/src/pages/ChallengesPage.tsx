@@ -29,8 +29,11 @@ function ChallengeCard({ challenge, onStart }: { challenge: Challenge; onStart: 
 
   const handleStart = async () => {
     setStarting(true);
-    await onStart(challenge.id);
-    setStarting(false);
+    try {
+      await onStart(challenge.id);
+    } finally {
+      setStarting(false);
+    }
   };
 
   return (

@@ -14,13 +14,14 @@ import {
   IconButton,
   TableContainer,
   Paper,
+  Button,
 } from "@mui/material";
 
 import { useShallow } from "zustand/react/shallow";
 
 export default function LeaderboardPage() {
   const navigate = useNavigate();
-  const { leaderboard, leaderboardLoading, fetchLeaderboard } = useChallengeStore(useShallow((s) => ({ leaderboard: s.leaderboard, leaderboardLoading: s.leaderboardLoading, fetchLeaderboard: s.fetchLeaderboard })));
+  const { leaderboard, leaderboardLoading, leaderboardError, fetchLeaderboard } = useChallengeStore(useShallow((s) => ({ leaderboard: s.leaderboard, leaderboardLoading: s.leaderboardLoading, leaderboardError: s.leaderboardError, fetchLeaderboard: s.fetchLeaderboard })));
 
   useEffect(() => {
     fetchLeaderboard();
@@ -53,6 +54,14 @@ export default function LeaderboardPage() {
       </Box>
 
       <Box component="main" sx={{ flex: 1, p: 3, maxWidth: 768, mx: 'auto', width: '100%' }}>
+        {leaderboardError && !leaderboardLoading && (
+          <Box sx={{ mb: 2, p: 1.5, bgcolor: 'rgba(239,68,68,0.1)', border: '1px solid', borderColor: 'rgba(239,68,68,0.2)', borderRadius: 1, fontSize: '12px', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>{leaderboardError}</span>
+            <Button onClick={fetchLeaderboard} size="small" sx={{ fontSize: '11px', color: '#60a5fa', minWidth: 0, ml: 2 }}>
+              Retry
+            </Button>
+          </Box>
+        )}
         {leaderboardLoading ? (
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 20 }}>
             <CircularProgress size={32} sx={{ color: '#3b82f6' }} />

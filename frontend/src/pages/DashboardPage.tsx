@@ -9,7 +9,8 @@ import ImportModal from "../components/panels/ImportModal";
 import { Plus, Layout } from "lucide-react";
 import { SkeletonCard } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
-import { Box, Typography, Button, Grid, Avatar, Menu, MenuItem } from "@mui/material";
+import { useToastStore } from "../store/toastStore";
+import { Box, Typography, Button, Grid, Avatar, Menu, MenuItem, CircularProgress } from "@mui/material";
 
 const PAGE_SIZE = 20;
 
@@ -42,6 +43,7 @@ export default function DashboardPage() {
   const handleDelete = useCallback(async (id: string) => {
     try {
       await deleteProject(id);
+      useToastStore.getState().addToast({ type: "success", title: "Project deleted", duration: 3000 });
     } catch {}
   }, [deleteProject]);
 
@@ -144,7 +146,12 @@ export default function DashboardPage() {
             }
           />
         ) : (
-          <>
+          <Box sx={{ position: "relative" }}>
+            {isLoading && (
+              <Box sx={{ position: "absolute", inset: 0, bgcolor: "rgba(0,0,0,0.3)", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 1 }}>
+                <CircularProgress size={28} sx={{ color: "#60a5fa" }} />
+              </Box>
+            )}
             <Grid container spacing={3} columns={12}>
               {projects.map((p) => (
                 <Grid key={p.id} size={{ xs: 12, sm: 6, md: 4 }}>
@@ -159,7 +166,7 @@ export default function DashboardPage() {
                   size="small"
                   variant="outlined"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
+                  disabled={page <= 1 || isLoading}
                   sx={{ minWidth: 0 }}
                 >
                   Prev
@@ -171,14 +178,14 @@ export default function DashboardPage() {
                   size="small"
                   variant="outlined"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
+                  disabled={page >= totalPages || isLoading}
                   sx={{ minWidth: 0 }}
                 >
                   Next
                 </Button>
               </Box>
             )}
-          </>
+          </Box>
         )}
       </Box>
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Typography, TextField, Button } from "@mui/material";
-import api from "../utils/api";
+import api, { getErrorMessage } from "../utils/api";
 import { useAuthStore } from "../store/authStore";
 
 import { useShallow } from "zustand/react/shallow";
@@ -28,6 +28,8 @@ export default function ProfilePage() {
 
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteErr, setDeleteErr] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [profileLoadingInitial, setProfileLoadingInitial] = useState(true);
 
   useEffect(() => {
     api.get("/users/me/profile").then(({ data }) => {
@@ -35,7 +37,11 @@ export default function ProfilePage() {
       setUsername(data.user.username);
       const d = new Date(data.user.created_at);
       setCreatedAt(d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }));
-    }).catch(() => {});
+    }).catch((err) => {
+      setProfileErr(getErrorMessage(err, "Failed to load your profile."));
+    }).finally(() => {
+      setProfileLoadingInitial(false);
+    });
   }, []);
 
   const handleProfile = async (e: FormEvent) => {
@@ -57,7 +63,7 @@ export default function ProfilePage() {
       useAuthStore.setState({ user: data.user });
       setProfileMsg("Profile updated");
     } catch (err: any) {
-      setProfileErr(err.response?.data?.error || "Update failed");
+      setProfileErr(getErrorMessage(err, "Failed to update your profile."));
     } finally {
       setProfileLoading(false);
     }
@@ -75,7 +81,7 @@ export default function ProfilePage() {
       setPasswordMsg("Password changed");
       setCpCurrent(""); setCpNew(""); setCpConfirm("");
     } catch (err: any) {
-      setPasswordErr(err.response?.data?.error || "Failed to change password");
+      setPasswordErr(getErrorMessage(err, "Failed to change your password."));
     } finally {
       setPasswordLoading(false);
     }
@@ -84,22 +90,31 @@ export default function ProfilePage() {
   const handleDelete = async () => {
     setDeleteErr("");
     if (deleteConfirm !== "DELETE") { setDeleteErr("Type DELETE to confirm"); return; }
+    setDeleteLoading(true);
     try {
       await api.delete("/users/me/account");
       logout();
       navigate("/login");
     } catch (err: any) {
-      setDeleteErr(err.response?.data?.error || "Failed to delete account");
+      setDeleteErr(getErrorMessage(err, "Failed to delete your account."));
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', color: 'text.primary' }}>
       <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 6, py: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h6" sx={{ fontWeight: 600 }}>Settings</Typography>
-        <Button onClick={() => navigate("/dashboard")} variant="text" sx={{ color: 'text.secondary', textTransform: 'none', fontSize: '0.875rem' }}>Back to Dashboard</Button>
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: 18 }}>Settings</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Manage your account</Typography>
+        </Box>
       </Box>
-
+      {profileLoadingInitial ? (
+        <Box sx={{ px: 6, py: 4 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>Loading your profile…</Typography>
+        </Box>
+      ) : (
       <Box component="main" sx={{ maxWidth: 672, mx: 'auto', p: 6, display: 'flex', flexDirection: 'column', gap: 5 }}>
         <Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 500, mb: 1 }}>Edit Profile</Typography>
@@ -149,13 +164,14 @@ export default function ProfilePage() {
               size="small"
               sx={{ maxWidth: 320, '& .MuiOutlinedInput-root': { bgcolor: 'background.paper', '& fieldset': { borderColor: 'divider' }, '&:hover fieldset': { borderColor: 'divider' }, '&.Mui-focused fieldset': { borderColor: '#ef4444' } }, '& .MuiInputBase-input': { color: 'text.primary' } }} />
             {deleteErr && <Typography variant="body2" sx={{ color: '#ef4444' }}>{deleteErr}</Typography>}
-            <Button onClick={handleDelete} disabled={deleteConfirm !== "DELETE"} variant="contained"
+              <Button onClick={handleDelete} disabled={deleteConfirm !== "DELETE" || deleteLoading} variant="contained"
               sx={{ alignSelf: 'flex-start', textTransform: 'none', bgcolor: '#b91c1c', '&:hover': { bgcolor: '#dc2626' }, '&.Mui-disabled': { bgcolor: '#3f3f46', color: '#a1a1aa' } }}>
-              Delete my account
-            </Button>
+                {deleteLoading ? "Deleting…" : "Delete my account"}
+              </Button>
           </Box>
         </Box>
       </Box>
+      )}
     </Box>
   );
 }
