@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import api from "../utils/api";
+import api, { getErrorMessage } from "../utils/api";
+import { useToastStore } from "./toastStore";
 
 interface User {
   id: string;
@@ -36,7 +37,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem("auth_user", JSON.stringify(data.user));
       set({ user: data.user, token: data.token, isAuthenticated: true, isLoading: false });
     } catch (err: any) {
-      const msg = err.response?.data?.error || "Login failed";
+      const msg = getErrorMessage(err, "Login failed. Check your email and password.");
       set({ error: msg, isLoading: false });
       throw new Error(msg);
     }
@@ -50,7 +51,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem("auth_user", JSON.stringify(data.user));
       set({ user: data.user, token: data.token, isAuthenticated: true, isLoading: false });
     } catch (err: any) {
-      const msg = err.response?.data?.error || "Registration failed";
+      const msg = getErrorMessage(err, "Registration failed. Try a different email or username.");
       set({ error: msg, isLoading: false });
       throw new Error(msg);
     }
@@ -73,16 +74,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data } = await api.get("/auth/me");
       localStorage.setItem("auth_user", JSON.stringify(data.user));
       set({ user: data.user, token, isAuthenticated: true, isLoading: false });
-    } catch {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("auth_user");
-      set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("auth_user");
+        set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+      } else {
+        const msg = getErrorMessage(err, "Could not verify your session.");
+        set({ error: msg, isLoading: false });
+      }
     }
   },
 
   fetchWsTicket: async () => {
-    const { data } = await api.post("/auth/ws-ticket");
-    return data.ticket;
+    try {
+      const { data } = await api.post("/auth/ws-ticket");
+      return data.ticket;
+    } catch (err: any) {
+      const msg = getErrorMessage(err, "Could not connect to collaboration service.");
+      useToastStore.getState().addToast({ type: "error", title: "Connection failed", message: msg, duration: 5000 });
+      throw new Error(msg);
+    }
   },
 
   clearError: () => set({ error: null }),

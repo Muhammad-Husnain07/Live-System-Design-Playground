@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import api from "../utils/api";
+import api, { getErrorMessage } from "../utils/api";
 
 export interface MaturityBreakdown {
   redundancy: number;
@@ -45,7 +45,7 @@ export const useMaturityStore = create<MaturityState>((set) => ({
       });
       set({ report: res.data as MaturityReport, loading: false });
     } catch (err: any) {
-      const msg = err?.response?.data?.error ?? err?.message ?? "Failed to fetch maturity report";
+      const msg = getErrorMessage(err, "Failed to fetch maturity report.");
       set({ error: msg, loading: false });
     }
   },

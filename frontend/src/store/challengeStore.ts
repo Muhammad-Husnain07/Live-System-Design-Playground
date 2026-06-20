@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import api from "../utils/api";
+import api, { getErrorMessage } from "../utils/api";
+import { useToastStore } from "./toastStore";
 
 export interface Challenge {
   id: string;
@@ -46,6 +47,7 @@ interface ChallengeStore {
 
   leaderboard: LeaderboardEntry[];
   leaderboardLoading: boolean;
+  leaderboardError: string | null;
 
   fetchChallenges: () => Promise<void>;
   startChallenge: (challengeId: string) => Promise<string>;
@@ -65,6 +67,7 @@ export const useChallengeStore = create<ChallengeStore>((set) => ({
 
   leaderboard: [],
   leaderboardLoading: false,
+  leaderboardError: null,
 
   fetchChallenges: async () => {
     set({ challengesLoading: true, challengesError: null });
@@ -72,24 +75,31 @@ export const useChallengeStore = create<ChallengeStore>((set) => ({
       const { data } = await api.get("/challenges");
       set({ challenges: data.challenges || [], challengesLoading: false });
     } catch (err: any) {
-      set({ challengesError: err.response?.data?.error || "Failed to load challenges", challengesLoading: false });
+      const msg = getErrorMessage(err, "Failed to load challenges.");
+      set({ challengesError: msg, challengesLoading: false });
     }
   },
 
   startChallenge: async (challengeId) => {
-    const { data } = await api.post(`/challenges/${challengeId}/start`);
-    const project = data.project as { id: string };
-    const challenge = data.challenge as Challenge;
-    set({
-      activeChallenge: {
-        id: challengeId,
-        title: challenge.title,
-        projectId: project.id,
-        timeLimitMs: data.timeLimitMs as number,
-        startedAt: Date.now(),
-      },
-    });
-    return project.id;
+    try {
+      const { data } = await api.post(`/challenges/${challengeId}/start`);
+      const project = data.project as { id: string };
+      const challenge = data.challenge as Challenge;
+      set({
+        activeChallenge: {
+          id: challengeId,
+          title: challenge.title,
+          projectId: project.id,
+          timeLimitMs: data.timeLimitMs as number,
+          startedAt: Date.now(),
+        },
+      });
+      return project.id;
+    } catch (err: any) {
+      const msg = getErrorMessage(err, "Failed to start challenge.");
+      useToastStore.getState().addToast({ type: "error", title: "Challenge start failed", message: msg, duration: 5000 });
+      throw new Error(msg);
+    }
   },
 
   submitChallenge: async (challengeId, projectId) => {
@@ -100,8 +110,10 @@ export const useChallengeStore = create<ChallengeStore>((set) => ({
       set({ submitting: false, scoreReport: report });
       return report;
     } catch (err: any) {
+      const msg = getErrorMessage(err, "Failed to submit challenge.");
       set({ submitting: false });
-      throw new Error(err.response?.data?.error || "Submission failed");
+      useToastStore.getState().addToast({ type: "error", title: "Submission failed", message: msg, duration: 5000 });
+      throw new Error(msg);
     }
   },
 
@@ -110,12 +122,13 @@ export const useChallengeStore = create<ChallengeStore>((set) => ({
   },
 
   fetchLeaderboard: async () => {
-    set({ leaderboardLoading: true });
+    set({ leaderboardLoading: true, leaderboardError: null });
     try {
       const { data } = await api.get("/challenges/leaderboard");
       set({ leaderboard: data.leaderboard || [], leaderboardLoading: false });
-    } catch {
-      set({ leaderboard: [], leaderboardLoading: false });
+    } catch (err: any) {
+      const msg = getErrorMessage(err, "Failed to load leaderboard.");
+      set({ leaderboard: [], leaderboardLoading: false, leaderboardError: msg });
     }
   },
 }));

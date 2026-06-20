@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import api from "../utils/api";
+import api, { getErrorMessage } from "../utils/api";
+import { useToastStore } from "./toastStore";
 
 export interface Project {
   id: string;
@@ -27,7 +28,7 @@ interface ProjectState {
   fetchProjects: (page?: number) => Promise<void>;
   getProject: (id: string) => Promise<void>;
   createProject: (name: string, description?: string, is_public?: boolean) => Promise<Project>;
-  updateProject: (id: string, data: Partial<{ name: string; description: string | null; is_public: boolean; canvas_data: string; metadata: string }>) => Promise<void>;
+  updateProject: (id: string, data: Partial<{ name: string; description: string | null; is_public: boolean; canvas_data: Record<string, any>; metadata: Record<string, any> }>) => Promise<void>;
   saveCanvas: (id: string, canvasData: Record<string, any>) => Promise<string>;
   deleteProject: (id: string) => Promise<void>;
   setCurrentProject: (project: ProjectDetail | null) => void;
@@ -58,7 +59,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
         isLoading: false,
       });
     } catch (err: any) {
-      const msg = err.response?.data?.error || "Failed to load projects";
+      const msg = getErrorMessage(err, "Failed to load projects.");
       set({ error: msg, isLoading: false });
     }
   },
@@ -69,7 +70,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
       const { data } = await api.get(`/projects/${id}`);
       set({ currentProject: data.project, isLoading: false });
     } catch (err: any) {
-      const msg = err.response?.data?.error || "Failed to load project";
+      const msg = getErrorMessage(err, "Failed to load project.");
       set({ error: msg, isLoading: false });
       throw new Error(msg);
     }
@@ -86,7 +87,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
       }));
       return data.project;
     } catch (err: any) {
-      const msg = err.response?.data?.error || "Failed to create project";
+      const msg = getErrorMessage(err, "Failed to create project.");
       set({ error: msg, isLoading: false });
       throw new Error(msg);
     }
@@ -102,15 +103,21 @@ export const useProjectStore = create<ProjectState>((set) => ({
         isLoading: false,
       }));
     } catch (err: any) {
-      const msg = err.response?.data?.error || "Failed to update project";
+      const msg = getErrorMessage(err, "Failed to update project.");
       set({ error: msg, isLoading: false });
       throw new Error(msg);
     }
   },
 
   saveCanvas: async (id, canvasData) => {
-    const { data } = await api.put(`/projects/${id}/canvas`, { canvas_data: canvasData });
-    return data.updated_at;
+    try {
+      const { data } = await api.put(`/projects/${id}/canvas`, { canvas_data: canvasData });
+      return data.updated_at;
+    } catch (err: any) {
+      const msg = getErrorMessage(err, "Failed to save canvas.");
+      useToastStore.getState().addToast({ type: "error", title: "Save failed", message: msg, duration: 5000 });
+      throw new Error(msg);
+    }
   },
 
   deleteProject: async (id) => {
@@ -124,7 +131,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
         isLoading: false,
       }));
     } catch (err: any) {
-      const msg = err.response?.data?.error || "Failed to delete project";
+      const msg = getErrorMessage(err, "Failed to delete project.");
       set({ error: msg, isLoading: false });
       throw new Error(msg);
     }

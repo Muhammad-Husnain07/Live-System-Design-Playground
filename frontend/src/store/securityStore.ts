@@ -7,8 +7,6 @@ export interface SecurityViolation {
   targetNodeId: string;
   message: string;
   remediation?: string;
-  permissions?: string;
-  authRequired?: string[];
 }
 
 interface SecurityState {

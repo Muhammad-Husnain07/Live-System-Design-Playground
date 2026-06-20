@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import api from "../utils/api";
+import api, { getErrorMessage } from "../utils/api";
+import { useToastStore } from "./toastStore";
 
 export interface NodeSLOStatus {
   nodeId: string;
@@ -36,8 +37,10 @@ export const useSLOStore = create<SLOStore>((set) => ({
     try {
       const res = await api.get(`/simulations/${simId}/slo-report`);
       set({ sloReport: res.data, loading: false });
-    } catch {
+    } catch (err: any) {
+      const msg = getErrorMessage(err, "Failed to fetch SLO report.");
       set({ loading: false });
+      useToastStore.getState().addToast({ type: "error", title: "SLO fetch failed", message: msg, duration: 5000 });
     }
   },
   clearSLOData: () => set({ sloReport: null, alertedBudgetExhausted: [] }),

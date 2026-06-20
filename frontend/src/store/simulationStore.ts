@@ -39,6 +39,8 @@ export interface NodeMetricsSnapshot {
   isSplitBrain: boolean;
   dataInconsistency: number;
   spotInterrupted: boolean;
+  isLatencyBreached: boolean;
+  isAvailabilityBreached: boolean;
 }
 
 export interface TickData {

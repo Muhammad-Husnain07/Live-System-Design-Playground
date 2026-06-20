@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import api from "../utils/api";
+import api, { getErrorMessage } from "../utils/api";
+import { useToastStore } from "./toastStore";
 import type { IncidentScenario, TimelineMarker, PostMortem } from "../types/incident";
 import type { TickData } from "./simulationStore";
 
@@ -131,8 +132,9 @@ export const useIncidentStore = create<IncidentState>((set, get) => ({
     set({ triggering: true, postMortem: null });
     try {
       await api.post(`/simulations/${runId}/start-incident`, { scenarioId: activeScenario.id });
-    } catch {
-      // error handled by api interceptor
+    } catch (err: any) {
+      const msg = getErrorMessage(err, "Failed to trigger incident.");
+      useToastStore.getState().addToast({ type: "error", title: "Incident failed", message: msg, duration: 5000 });
     } finally {
       set({ triggering: false });
     }
