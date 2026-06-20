@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { Zap, Play, Check, X } from "lucide-react";
-import api from "../../utils/api";
+import api, { getErrorMessage } from "../../utils/api";
 import { Box, Typography, Button, TextField, MenuItem } from "@mui/material";
 
 const SCENARIOS = [
@@ -38,7 +38,7 @@ export default function DrillPanel() {
       });
       setResult(data as DrillResult);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Drill failed");
+      setError(getErrorMessage(err, "Drill failed."));
     } finally {
       setRunning(false);
     }

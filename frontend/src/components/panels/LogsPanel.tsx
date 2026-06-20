@@ -58,7 +58,7 @@ export default function LogsPanel() {
       params.set("perPage", String(perPage));
       const { data } = await api.get(`/simulations/${runId}/logs?${params.toString()}`);
       if (data.logs) setLogs(data.logs as SimLogEntry[], data.total ?? 0);
-    } catch { /* ignore */ }
+    } catch { /* log polling errors are transient */ }
   }, [runId, service, level, traceId, page, perPage, setLogs]);
 
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null);

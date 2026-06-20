@@ -31,7 +31,7 @@ export default function TracesPanel() {
       if (search) params.set("operation", search);
       const { data } = await api.get(`/simulations/${runId}/traces?${params.toString()}`);
       if (data.traces) setTraces(data.traces as TraceData[]);
-    } catch { /* ignore */ }
+    } catch { /* trace polling errors are transient */ }
   }, [runId, search, setTraces]);
 
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null);

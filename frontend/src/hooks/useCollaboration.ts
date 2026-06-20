@@ -3,7 +3,8 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import * as encoding from "lib0/encoding";
 import { useCanvasStore } from "../store/canvasStore";
-import api from "../utils/api";
+import api, { getErrorMessage } from "../utils/api";
+import { useToastStore } from "../store/toastStore";
 
 const WS_BASE =
   (import.meta.env.VITE_API_URL ?? "http://localhost:8080/api")
@@ -195,7 +196,10 @@ export function useCollaboration(projectId: string) {
           yDoc: doc,
           syncToYjs,
         };
-      } catch { /* ticket fetch failed */ }
+      } catch (err: any) {
+        const msg = getErrorMessage(err, "Could not connect to collaboration service.");
+        useToastStore.getState().addToast({ type: "error", title: "Collaboration failed", message: msg, duration: 5000 });
+      }
     })();
 
     return () => {

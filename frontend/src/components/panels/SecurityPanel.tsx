@@ -3,7 +3,7 @@ import { Unlock, Database, Globe, DoorOpen, Shield, Lock, Cloud, Bug, Key, UserX
 import { useSecurityStore, type SecurityViolation } from "../../store/securityStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
-import api from "../../utils/api";
+import api, { getErrorMessage } from "../../utils/api";
 import { Box, Typography, Button, Alert, CircularProgress } from "@mui/material";
 
 const ZTA_TYPES = new Set(["implicit_trust", "public_secret", "llm_injection"]);
@@ -220,7 +220,7 @@ export default function SecurityPanel() {
         duration: 4000,
       });
     } catch (err: any) {
-      const msg = err?.response?.data?.error ?? "Audit request failed";
+      const msg = getErrorMessage(err, "Audit request failed.");
       addToast({ type: "error", title: "Audit failed", message: msg, duration: 5000 });
     } finally {
       setAuditing(false);
@@ -280,7 +280,7 @@ export default function SecurityPanel() {
         });
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.error ?? "Zero Trust scan failed";
+      const msg = getErrorMessage(err, "Zero Trust scan failed.");
       addToast({ type: "error", title: "Scan failed", message: msg, duration: 5000 });
     } finally {
       setZtaScanning(false);

@@ -5,7 +5,7 @@ import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
 import EmptyState from "../ui/EmptyState";
 import { useSimulationStore } from "../../store/simulationStore";
-import api from "../../utils/api";
+import api, { getErrorMessage } from "../../utils/api";
 import { Alert, Card, Box, Typography, Select, MenuItem, Slider, TextField, Button } from "@mui/material";
 
 function ChaosConfigPopover({
@@ -46,7 +46,7 @@ function ChaosConfigPopover({
       });
       onClose();
     } catch (err: any) {
-      const msg = err?.response?.data?.error ?? "Failed to inject chaos";
+      const msg = getErrorMessage(err, "Failed to inject chaos.");
       addToast({ type: "error", title: "Chaos injection failed", message: msg, duration: 5000 });
     } finally {
       setInjecting(false);
@@ -217,7 +217,7 @@ export default function ChaosPanel() {
       try {
         const resp = await api.get(`/chaos/active/${runId}`);
         setActiveEvents(resp.data.events ?? []);
-      } catch { /* ignore */ }
+      } catch { /* poll errors are transient */ }
     };
     poll();
     pollTimer.current = setInterval(poll, 3000);

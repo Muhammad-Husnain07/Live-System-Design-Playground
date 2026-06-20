@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToastStore } from "../../store/toastStore";
-import api from "../../utils/api";
+import api, { getErrorMessage } from "../../utils/api";
 import { X, FileText, Upload, AlertTriangle } from "lucide-react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Box, Button, Typography, Select, MenuItem } from "@mui/material";
 
@@ -107,7 +107,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
       onClose();
       navigate(`/project/${project.id}`);
     } catch (err: any) {
-      const msg = err?.response?.data?.error ?? err.message ?? "Import failed";
+      const msg = getErrorMessage(err, "Import failed.");
       setError(msg);
       addToast({ type: "error", title: "Import failed", message: msg, duration: 8000 });
     } finally {

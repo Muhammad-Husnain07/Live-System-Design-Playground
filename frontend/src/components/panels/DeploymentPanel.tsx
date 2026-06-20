@@ -5,7 +5,7 @@ import { useSimulationStore } from "../../store/simulationStore";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useDeployStore } from "../../store/deploymentStore";
 import { useToastStore } from "../../store/toastStore";
-import api from "../../utils/api";
+import api, { getErrorMessage } from "../../utils/api";
 
 export default function DeploymentPanel() {
   const isRunning = useSimulationStore((s) => s.isRunning);
@@ -67,7 +67,7 @@ export default function DeploymentPanel() {
           canaryPercent: percent,
         });
       } catch (err: any) {
-        const msg = err?.response?.data?.error ?? "Failed to shift traffic";
+        const msg = getErrorMessage(err, "Failed to shift traffic.");
         addToast({ type: "error", title: "Shift failed", message: msg, duration: 5000 });
       } finally {
         setShifting(false);
@@ -117,7 +117,7 @@ export default function DeploymentPanel() {
         });
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.error ?? "Promotion failed";
+      const msg = getErrorMessage(err, "Promotion failed.");
       addToast({ type: "error", title: "Promotion failed", message: msg, duration: 5000 });
     } finally {
       setShifting(false);
@@ -154,7 +154,7 @@ export default function DeploymentPanel() {
         });
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.error ?? "Rollback failed";
+      const msg = getErrorMessage(err, "Rollback failed.");
       addToast({ type: "error", title: "Rollback failed", message: msg, duration: 5000 });
     } finally {
       setShifting(false);
@@ -177,7 +177,7 @@ export default function DeploymentPanel() {
         duration: 3000,
       });
     } catch (err: any) {
-      const msg = err?.response?.data?.error ?? "Failed to set group";
+      const msg = getErrorMessage(err, "Failed to set group.");
       addToast({ type: "error", title: "Set group failed", message: msg, duration: 5000 });
     } finally {
       setShifting(false);

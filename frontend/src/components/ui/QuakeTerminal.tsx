@@ -6,7 +6,7 @@ import { useCanvasStore } from "../../store/canvasStore";
 import { useToastStore } from "../../store/toastStore";
 import { useChaosStore } from "../../store/chaosStore";
 import { spatialTokens } from "../../theme/spatialTokens";
-import api from "../../utils/api";
+import api, { getErrorMessage } from "../../utils/api";
 import { Box, Typography } from "@mui/material";
 import { Terminal } from "lucide-react";
 
@@ -105,7 +105,7 @@ export default memo(function QuakeTerminal({ open, onClose }: { open: boolean; o
       try {
         const { data } = await api.get(`/simulations/${runId}/logs?perPage=200`);
         if (data.logs) setLogs(data.logs as SimLogEntry[], data.total ?? 0);
-      } catch { /* ignore */ }
+      } catch { /* log polling errors are transient */ }
     };
     doFetch();
     pollingRef.current = setInterval(doFetch, 3000);
@@ -175,7 +175,7 @@ export default memo(function QuakeTerminal({ open, onClose }: { open: boolean; o
       const durationSeconds = Math.max(1, parseInt(kv.duration || "30", 10));
 
       try {
-        await api.post("/simulations/chaos/inject", {
+        await api.post("/chaos/inject", {
           simulationRunId: currentRunId, nodeId, eventType,
           severity, durationSeconds,
         });
@@ -183,7 +183,7 @@ export default memo(function QuakeTerminal({ open, onClose }: { open: boolean; o
         setHistory((prev) => [...prev, `> ${trimmed}`, `  Injected ${eventType} on node ${nodeId} (severity: ${severity}, duration: ${durationSeconds}s)`]);
         useToastStore.getState().addToast({ type: "success", title: `${eventType} injected`, duration: 3000 });
       } catch (err: any) {
-        const msg = err?.response?.data?.error || err?.message || "Unknown error";
+        const msg = getErrorMessage(err, "Injection failed.");
         setHistory((prev) => [...prev, `> ${trimmed}`, `  ERROR: ${msg}`]);
       }
       return;

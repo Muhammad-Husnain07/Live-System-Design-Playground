@@ -4,7 +4,8 @@ import { useCanvasStore } from "../store/canvasStore";
 import { useChaosStore } from "../store/chaosStore";
 import { useDeployStore, type DeployNodeState } from "../store/deploymentStore";
 import { useSecurityStore } from "../store/securityStore";
-import api from "../utils/api";
+import api, { getErrorMessage } from "../utils/api";
+import { useToastStore } from "../store/toastStore";
 
 const WS_BASE =
   (import.meta.env.VITE_API_URL ?? "http://localhost:8080/api")
@@ -180,8 +181,10 @@ export function useSimulation(projectId: string) {
       };
 
       wsRef.current = ws;
-    } catch {
+    } catch (err: any) {
       useSimulationStore.getState().setConnectionStatus("error");
+      const msg = getErrorMessage(err, "Could not connect to simulation. Retrying...");
+      useToastStore.getState().addToast({ type: "error", title: "Connection failed", message: msg, duration: 4000 });
       if (!manualCloseRef.current && useSimulationStore.getState().isRunning) {
         reconnectAttemptRef.current += 1;
         const delay = Math.min(1000 * 2 ** reconnectAttemptRef.current, 30000);
@@ -231,9 +234,10 @@ export function useSimulation(projectId: string) {
             stopRef.current?.();
           }
         }, realDurationMs);
-      } catch (err) {
+      } catch (err: any) {
         useSimulationStore.getState().setRunning(false);
-        console.error("sim start error:", err);
+        const msg = getErrorMessage(err, "Failed to start simulation.");
+        useToastStore.getState().addToast({ type: "error", title: "Start failed", message: msg, duration: 7000 });
       } finally {
         startingRef.current = false;
       }
@@ -245,7 +249,7 @@ export function useSimulation(projectId: string) {
     if (durationTimerRef.current) { clearTimeout(durationTimerRef.current); durationTimerRef.current = null; }
     const currentRunId = useSimulationStore.getState().runId;
     if (currentRunId) {
-      try { await api.post(`/simulations/${currentRunId}/stop`); } catch { /* ignore */ }
+      try { await api.post(`/simulations/${currentRunId}/stop`); } catch { /* sim may have already stopped */ }
     }
     if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
     tickQueueRef.current = [];
