@@ -144,6 +144,7 @@ export function useCollaboration(projectId: string) {
 
         yCanvas.observe((event: Y.YMapEvent<string>) => {
           if (event.transaction.origin === "local") return;
+          if (useCanvasStore.getState().isDragging) return;
           const nodesStr = yCanvas.get("nodes");
           const edgesStr = yCanvas.get("edges");
           if (nodesStr !== undefined) {

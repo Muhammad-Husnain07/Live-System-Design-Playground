@@ -243,7 +243,7 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
 
   const { currentProject, isLoading, error, getProject, saveCanvas } = useProjectStore(useShallow((s) => ({ currentProject: s.currentProject, isLoading: s.isLoading, error: s.error, getProject: s.getProject, saveCanvas: s.saveCanvas })));
 
-  const { nodes, edges, isDirty, setNodes, setEdges, addNode, removeNode, removeEdge, selectNode, selectEdge, markDirty, markSaved, pushUndoState, undo, redo, addEdge, setActiveRightTab, setViewport } = useCanvasStore(useShallow((s) => ({ nodes: s.nodes, edges: s.edges, isDirty: s.isDirty, setNodes: s.setNodes, setEdges: s.setEdges, addNode: s.addNode, removeNode: s.removeNode, removeEdge: s.removeEdge, selectNode: s.selectNode, selectEdge: s.selectEdge, markDirty: s.markDirty, markSaved: s.markSaved, pushUndoState: s.pushUndoState, undo: s.undo, redo: s.redo, addEdge: s.addEdge, setActiveRightTab: s.setActiveRightTab, setViewport: s.setViewport })));
+  const { nodes, edges, isDirty, setNodes, setEdges, addNode, removeNode, removeEdge, selectNode, selectEdge, markDirty, markSaved, pushUndoState, undo, redo, addEdge, setActiveRightTab, setViewport, setDragging } = useCanvasStore(useShallow((s) => ({ nodes: s.nodes, edges: s.edges, isDirty: s.isDirty, setNodes: s.setNodes, setEdges: s.setEdges, addNode: s.addNode, removeNode: s.removeNode, removeEdge: s.removeEdge, selectNode: s.selectNode, selectEdge: s.selectEdge, markDirty: s.markDirty, markSaved: s.markSaved, pushUndoState: s.pushUndoState, undo: s.undo, redo: s.redo, addEdge: s.addEdge, setActiveRightTab: s.setActiveRightTab, setViewport: s.setViewport, setDragging: s.setDragging })));
 
   const nodesRef = useRef(nodes);
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
@@ -464,11 +464,16 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
     [setViewport],
   );
 
+  const onNodeDragStart = useCallback(() => {
+    setDragging(true);
+  }, [setDragging]);
+
   const onNodeDragStop = useCallback(() => {
+    setDragging(false);
     pushUndoState();
     syncToYjs();
     scheduleAutoSave();
-  }, [pushUndoState, syncToYjs, scheduleAutoSave]);
+  }, [setDragging, pushUndoState, syncToYjs, scheduleAutoSave]);
 
   const handleMouseMove = useCallback((event: React.MouseEvent) => {
     if (!collabProvider?.awareness || !collabConnected) return;
@@ -820,6 +825,7 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
         "& .react-flow__selection": { background: "rgba(99,102,241,0.1)", border: "1px solid #6366F1" },
       }} onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} onMouseMove={handleMouseMove}>
         <ReactFlow
+          defaultNodes={nodes}
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
@@ -833,6 +839,7 @@ const ProjectCanvas = memo(function ProjectCanvas({ id: projectId }: { id: strin
           onNodeDoubleClick={onNodeDoubleClick}
           onNodeContextMenu={onNodeContextMenu}
           onPaneClick={onPaneClick}
+          onNodeDragStart={onNodeDragStart}
           onNodeDragStop={onNodeDragStop}
           onMoveEnd={onMoveEnd}
           isValidConnection={isValidConnection}

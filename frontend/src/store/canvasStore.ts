@@ -37,6 +37,7 @@ interface CanvasStore {
   lastAutoTab: RightTab | null;
   highlightedNodeIds: string[];
   fastBurnNodeIds: string[];
+  isDragging: boolean;
 
   setNodes: (nodes: Node[]) => void;
   setEdges: (edges: Edge[]) => void;
@@ -69,6 +70,7 @@ interface CanvasStore {
   clearSimulationMetrics: () => void;
   setHighlightedNodeIds: (ids: string[]) => void;
   setFastBurnNodeIds: (ids: string[]) => void;
+  setDragging: (dragging: boolean) => void;
 }
 
 export const useCanvasStore = create<CanvasStore>((set, get) => ({
@@ -89,6 +91,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   lastAutoTab: null,
   highlightedNodeIds: [],
   fastBurnNodeIds: [],
+  isDragging: false,
 
   setNodes: (nodes) => set({ nodes, isDirty: true }),
 
@@ -303,6 +306,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
 
   setHighlightedNodeIds: (ids) => set({ highlightedNodeIds: ids }),
   setFastBurnNodeIds: (ids) => set({ fastBurnNodeIds: ids }),
+  setDragging: (dragging) => set({ isDragging: dragging }),
 
   clearSimulationMetrics: () => {
     const { nodes, edges } = get();
